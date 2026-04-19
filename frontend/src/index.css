@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme {
+  --color-on-primary: #fdf7ff;
+  --color-outline: #7d7a7a;
+  --color-surface-container-low: #f7f2f2;
+  --color-surface-tint: #654db5;
+  --color-on-primary-fixed: #2c057b;
+  --color-surface-container-highest: #e6e1e2;
+  --color-secondary: #3a6759;
+  --color-primary: #654db5;
+  --color-error: #ac3149;
+  --color-error-container: #f76a80;
+  --color-tertiary-dim: #6f4b3a;
+  --color-primary-fixed: #c7b7ff;
+  --color-surface-variant: #e6e1e2;
+  --color-secondary-container: #c5f6e3;
+  --color-on-secondary-fixed: #1e4c3f;
+  --color-on-error: #fff7f7;
+  --color-on-surface-variant: #615e5f;
+  --color-inverse-on-surface: #9f9c9c;
+  --color-tertiary: #7c5645;
+  --color-surface: #fdf8f8;
+  --color-on-primary-fixed-variant: #4b3199;
+  --color-on-primary-container: #422690;
+  --color-tertiary-fixed-dim: #f0bea9;
+  --color-on-secondary-container: #325f51;
+  --color-secondary-dim: #2e5b4d;
+  --color-on-tertiary-fixed-variant: #704c3b;
+  --color-surface-container-high: #ece7e7;
+  --color-surface-container: #f2eded;
+  --color-outline-variant: #b5b1b1;
+  --color-on-tertiary-fixed: #503021;
+  --color-surface-dim: #ded9d9;
+  --color-on-tertiary-container: #664232;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-tertiary: #fff7f5;
+  --color-tertiary-fixed: #ffccb6;
+  --color-primary-fixed-dim: #baa7ff;
+  --color-on-secondary: #e4fff3;
+  --color-on-error-container: #68001f;
+  --color-inverse-surface: #0f0e0e;
+  --color-on-background: #343233;
+  --color-on-surface: #343233;
+  --color-primary-container: #c7b7ff;
+  --color-surface-bright: #fdf8f8;
+  --color-primary-dim: #5940a8;
+  --color-secondary-fixed-dim: #b7e7d5;
+  --color-inverse-primary: #a58dfa;
+  --color-secondary-fixed: #c5f6e3;
+  --color-tertiary-container: #ffccb6;
+  --color-background: #fdf8f8;
+
+  --radius: 1rem;
+  --radius-md: 1.5rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+  --radius-full: 9999px;
+
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-label: "Plus Jakarta Sans", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    font-family: "Plus Jakarta Sans", sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .ambient-shadow {
+    box-shadow: 0 20px 40px rgba(52, 50, 51, 0.06);
+  }
+  .ghost-border {
+    border: 1px solid rgba(101, 77, 181, 0.2);
+  }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-outline-variant) 30%, transparent);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-outline-variant) 50%, transparent);
+  }
+}
+
+/* Custom Checkbox Styling */
+input[type="checkbox"] {
+  appearance: none;
+  background-color: var(--color-surface-container-highest);
+  margin: 0;
+  font: inherit;
+  color: currentColor;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+input[type="checkbox"]::before {
+  content: "";
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 50%;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em var(--color-primary);
+  background-color: var(--color-primary);
+}
+input[type="checkbox"]:checked::before { transform: scale(1); }
+input[type="checkbox"]:checked { background-color: var(--color-primary-container); }
