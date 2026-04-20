@@ -1,17 +1,28 @@
-/**
- * In-memory pattern store.
- * Uses globalThis to share state across Next.js route modules in dev mode.
- * Resets on server restart — intentional for MVP.
- */
-if (!globalThis.__patterns) globalThis.__patterns = [];
-const patterns = globalThis.__patterns;
+const db = require('../db');
+
+const insertPatternStmt = db.prepare(`
+  INSERT INTO patterns (
+    id, title, templateId, color, size, steps, difficulty, category, tags,
+    materials, hookSize, yarnWeight, timeEstimate, finishedSize, notes,
+    promptSummary, isAIGenerated, isFallback, createdAt
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const getAllPatternsStmt = db.prepare(`
+  SELECT * FROM patterns ORDER BY createdAt DESC
+`);
+
+const getPatternByIdStmt = db.prepare(`
+  SELECT * FROM patterns WHERE id = ?
+`);
 
 /**
  * Return all patterns.
  * @returns {Array}
  */
-export function getAllPatterns() {
-  return [...patterns];
+function getAllPatterns() {
+  return getAllPatternsStmt.all().map(deserializePatternRow);
 }
 
 /**
@@ -19,8 +30,10 @@ export function getAllPatterns() {
  * @param {string} id
  * @returns {Object|null}
  */
-export function getPatternById(id) {
-  return patterns.find((p) => p.id === id) ?? null;
+function getPatternById(id) {
+  const row = getPatternByIdStmt.get(id);
+  if (!row) return null;
+  return deserializePatternRow(row);
 }
 
 /**
@@ -28,7 +41,59 @@ export function getPatternById(id) {
  * @param {Object} pattern
  * @returns {Object}
  */
-export function createPattern(pattern) {
-  patterns.push(pattern);
+function createPattern(pattern) {
+  insertPatternStmt.run(
+    pattern.id,
+    pattern.title,
+    pattern.templateId,
+    pattern.customization?.color,
+    pattern.customization?.size || 'medium',
+    JSON.stringify(pattern.steps),
+    pattern.difficulty,
+    pattern.category ?? null,
+    JSON.stringify(pattern.tags ?? []),
+    JSON.stringify(pattern.materials ?? []),
+    pattern.hookSize ?? null,
+    pattern.yarnWeight ?? null,
+    pattern.timeEstimate ?? null,
+    pattern.finishedSize ?? null,
+    JSON.stringify(pattern.notes ?? []),
+    pattern.promptSummary ?? null,
+    pattern.isAIGenerated ? 1 : 0,
+    pattern.isFallback ? 1 : 0,
+    pattern.createdAt
+  );
+
+  // Increment analytics counter
+  const stmt = db.prepare('UPDATE analytics SET value = value + 1 WHERE key = ?');
+  stmt.run('pattern_generations');
+
   return pattern;
 }
+
+function deserializePatternRow(row) {
+  return {
+    ...row,
+    steps: parseJsonArray(row.steps),
+    tags: parseJsonArray(row.tags),
+    materials: parseJsonArray(row.materials),
+    notes: parseJsonArray(row.notes),
+    customization: {
+      color: row.color,
+      size: row.size
+    },
+    isAIGenerated: Boolean(row.isAIGenerated),
+    isFallback: Boolean(row.isFallback)
+  };
+}
+
+function parseJsonArray(value) {
+  if (!value) return [];
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+}
+
+module.exports = { getAllPatterns, getPatternById, createPattern };

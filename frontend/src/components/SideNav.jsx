@@ -13,9 +13,9 @@ export default function SideNav() {
         </Link>
       </div>
       <nav className="flex-1 px-4 space-y-2">
-        <Link to="/" className="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-lowest rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200">
+        <Link to="/" className={`flex items-center gap-4 px-4 py-3 rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200 ${location.pathname === '/' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'}`}>
           <span className="material-symbols-outlined">dashboard</span>
-          Dashboard
+          Explore
         </Link>
         <Link to="/create" className={`flex items-center gap-4 px-4 py-3 rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200 ${isActive('/create') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'}`}>
           <span className="material-symbols-outlined">auto_awesome</span>
@@ -23,16 +23,9 @@ export default function SideNav() {
         </Link>
         <Link to="/tracker" className={`flex items-center gap-4 px-4 py-3 rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200 ${isActive('/tracker') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'}`}>
           <span className="material-symbols-outlined">menu_book</span>
-          Tracker
+          In Progress
         </Link>
-        <a href="#" className="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-lowest rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200">
-          <span className="material-symbols-outlined">inventory_2</span>
-          Yarn Stash
-        </a>
       </nav>
-      <div className="px-8 mt-auto">
-        <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-full font-semibold text-sm hover:scale-[1.02] transition-transform">Upgrade to Pro</button>
-      </div>
     </aside>
   );
 }

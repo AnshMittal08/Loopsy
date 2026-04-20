@@ -33,18 +33,19 @@ export async function POST(request) {
       id: generateId(),
       patternId,
       totalSteps: pattern.steps.length,
-      completedSteps: [],
+      steps: pattern.steps.map(s => ({ row: s.row, completed: false })),
       progressPercentage: 0,
       createdAt: new Date().toISOString(),
     });
 
     return NextResponse.json(
       {
-        progressId: record.id,
+        id: record.id,
         patternId: record.patternId,
         totalSteps: record.totalSteps,
-        completedSteps: record.completedSteps,
+        steps: record.steps,
         progressPercentage: record.progressPercentage,
+        createdAt: record.createdAt,
       },
       { status: 201 }
     );

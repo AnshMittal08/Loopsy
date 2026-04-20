@@ -5,12 +5,30 @@ import templates from "../data/templates.json";
  * @returns {Array}
  */
 export function getAllTemplates() {
-  return templates.map(({ id, name, description, difficulty, previewImage }) => ({
+  return templates.map(({
     id,
     name,
     description,
     difficulty,
     previewImage,
+    category,
+    tags,
+    hookSize,
+    yarnWeight,
+    timeEstimate,
+    finishedSize
+  }) => ({
+    id,
+    name,
+    description,
+    difficulty,
+    previewImage,
+    category,
+    tags,
+    hookSize,
+    yarnWeight,
+    timeEstimate,
+    finishedSize
   }));
 }
 
