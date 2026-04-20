@@ -44,6 +44,12 @@ export function generatePattern(templateId, title, customization = {}) {
     steps = steps.map((step) => `Using ${color.trim()} yarn: ${step}`);
   }
 
+  // Convert to structured steps
+  const structuredSteps = steps.map((step, index) => ({
+    row: index + 1,
+    instruction: step,
+  }));
+
   const newPattern = {
     id: generateId(),
     title: title || `${template.name} Pattern`,
@@ -52,11 +58,37 @@ export function generatePattern(templateId, title, customization = {}) {
       color: color ?? null,
       size: size ?? "medium",
     },
-    steps,
+    steps: structuredSteps,
     difficulty: template.difficulty,
+    category: template.category,
+    tags: template.tags ?? [],
+    materials: template.materials ?? [],
+    hookSize: template.hookSize ?? null,
+    yarnWeight: template.yarnWeight ?? null,
+    timeEstimate: template.timeEstimate ?? null,
+    finishedSize: deriveFinishedSize(template.finishedSize, size ?? "medium"),
+    notes: [
+      ...(template.notes ?? []),
+      color && color.trim() ? `Color direction: ${color.trim()} yarn.` : null,
+    ].filter(Boolean),
+    promptSummary: null,
+    isAIGenerated: false,
+    isFallback: false,
     createdAt: new Date().toISOString(),
   };
 
   createPattern(newPattern);
   return { pattern: newPattern, error: null };
+}
+
+function deriveFinishedSize(templateSize, selectedSize) {
+  if (!templateSize) return null;
+
+  const prefixMap = {
+    small: "Scaled down",
+    medium: "Standard",
+    large: "Scaled up"
+  };
+
+  return `${prefixMap[selectedSize] ?? "Standard"} fit: ${templateSize}`;
 }

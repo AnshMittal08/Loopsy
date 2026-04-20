@@ -1,18 +1,34 @@
-/**
- * In-memory progress store.
- * Uses globalThis to share state across Next.js route modules in dev mode.
- * Resets on server restart — intentional for MVP.
- */
-if (!globalThis.__progressRecords) globalThis.__progressRecords = [];
-const progressRecords = globalThis.__progressRecords;
+const db = require('../db');
+
+const insertProgressStmt = db.prepare(`
+  INSERT INTO progress (id, patternId, totalSteps, steps, progressPercentage, createdAt)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+
+const getProgressByIdStmt = db.prepare(`
+  SELECT * FROM progress WHERE id = ?
+`);
+
+const getProgressByPatternIdStmt = db.prepare(`
+  SELECT * FROM progress WHERE patternId = ? ORDER BY createdAt DESC
+`);
+
+const updateProgressStmt = db.prepare(`
+  UPDATE progress SET steps = ?, progressPercentage = ? WHERE id = ?
+`);
 
 /**
  * Find a progress record by its own ID.
  * @param {string} id
  * @returns {Object|null}
  */
-export function getProgressById(id) {
-  return progressRecords.find((r) => r.id === id) ?? null;
+function getProgressById(id) {
+  const row = getProgressByIdStmt.get(id);
+  if (!row) return null;
+  return {
+    ...row,
+    steps: JSON.parse(row.steps)
+  };
 }
 
 /**
@@ -20,8 +36,11 @@ export function getProgressById(id) {
  * @param {string} patternId
  * @returns {Array}
  */
-export function getProgressByPatternId(patternId) {
-  return progressRecords.filter((r) => r.patternId === patternId);
+function getProgressByPatternId(patternId) {
+  return getProgressByPatternIdStmt.all(patternId).map(row => ({
+    ...row,
+    steps: JSON.parse(row.steps)
+  }));
 }
 
 /**
@@ -29,8 +48,15 @@ export function getProgressByPatternId(patternId) {
  * @param {Object} record
  * @returns {Object}
  */
-export function createProgress(record) {
-  progressRecords.push(record);
+function createProgress(record) {
+  insertProgressStmt.run(
+    record.id,
+    record.patternId,
+    record.totalSteps,
+    JSON.stringify(record.steps),
+    record.progressPercentage || 0,
+    record.createdAt
+  );
   return record;
 }
 
@@ -40,9 +66,27 @@ export function createProgress(record) {
  * @param {Partial<Object>} updates
  * @returns {Object|null}
  */
-export function updateProgress(id, updates) {
-  const index = progressRecords.findIndex((r) => r.id === id);
-  if (index === -1) return null;
-  progressRecords[index] = { ...progressRecords[index], ...updates };
-  return progressRecords[index];
+function updateProgress(id, updates) {
+  const row = getProgressByIdStmt.get(id);
+  if (!row) return null;
+
+  const newSteps = updates.steps || JSON.parse(row.steps);
+  const newPercentage = updates.progressPercentage !== undefined
+    ? updates.progressPercentage
+    : row.progressPercentage;
+
+  updateProgressStmt.run(
+    JSON.stringify(newSteps),
+    newPercentage,
+    id
+  );
+
+  return {
+    ...row,
+    steps: newSteps,
+    progressPercentage: newPercentage,
+    ...updates
+  };
 }
+
+module.exports = { getProgressById, getProgressByPatternId, createProgress, updateProgress };

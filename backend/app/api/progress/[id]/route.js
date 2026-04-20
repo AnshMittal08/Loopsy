@@ -43,22 +43,27 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Add step only if not already completed
-    const completedSteps = record.completedSteps.includes(stepIndex)
-      ? record.completedSteps
-      : [...record.completedSteps, stepIndex].sort((a, b) => a - b);
+    // Toggle step completion status
+    const updatedSteps = record.steps.map((step, idx) => {
+      if (idx === stepIndex) {
+        return { ...step, completed: !step.completed };
+      }
+      return step;
+    });
 
-    const progressPercentage = calcPercentage(completedSteps.length, record.totalSteps);
+    const completedCount = updatedSteps.filter(s => s.completed).length;
+    const progressPercentage = calcPercentage(completedCount, record.totalSteps);
 
-    const updated = updateProgress(params.id, { completedSteps, progressPercentage });
+    const updated = updateProgress(params.id, { steps: updatedSteps, progressPercentage });
 
     return NextResponse.json(
       {
-        progressId: updated.id,
+        id: updated.id,
         patternId: updated.patternId,
         totalSteps: updated.totalSteps,
-        completedSteps: updated.completedSteps,
+        steps: updated.steps,
         progressPercentage: updated.progressPercentage,
+        createdAt: updated.createdAt,
       },
       { status: 200 }
     );
