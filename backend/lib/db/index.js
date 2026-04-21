@@ -14,6 +14,24 @@ function initializeDatabase(db) {
   }
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      difficulty TEXT,
+      category TEXT,
+      tags TEXT DEFAULT '[]',
+      imageUrl TEXT,
+      hookSize TEXT,
+      yarnWeight TEXT,
+      timeEstimate TEXT,
+      finishedSize TEXT,
+      materials TEXT DEFAULT '[]',
+      notes TEXT DEFAULT '[]',
+      defaultPattern TEXT DEFAULT '[]',
+      createdAt TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS patterns (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

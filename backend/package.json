@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "better-sqlite3": "^12.9.0",
     "next": "^14.2.3",
     "react": "^18",
