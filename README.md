@@ -1,97 +1,203 @@
-# StitchFlow AI
+# StitchFlow AI — Crochet Project Studio
 
-StitchFlow AI is a crochet project studio with two core flows:
+StitchFlow AI is a full-featured crochet project studio for discovering patterns, generating custom designs with AI, and tracking row-by-row progress while you work.
 
-- Explore curated crochet templates with searchable metadata such as difficulty, category, yarn weight, hook size, time estimate, and tags.
-- Generate custom patterns from either a template or an AI prompt, then track row-by-row progress in the browser.
-
-The repository is a small two-app monorepo:
-
-```text
+```
 frontend/   React 19 + Vite + React Router + Tailwind CSS v4
-backend/    Next.js 14 API routes + SQLite + better-sqlite3
+backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 ```
 
-## Current Product Scope
+---
 
-- Discovery page with category and difficulty filters
-- Template customization flow
-- AI pattern generation through a local Ollama instance
-- Persistent pattern and progress storage in `backend/data.db`
-- Tracker view with progress, materials, notes, tags, and AI/fallback labels
+## Features
+
+### Discovery
+- Browse 22 curated templates across Wearable, Amigurumi, Accessory, Blanket, and Home Decor categories
+- Filter by category and difficulty (Beginner / Intermediate / Advanced)
+- Full-text search across name, description, and tags
+- Template cards with real photos and 3D CSS perspective tilt on hover
+
+### AI Pattern Generation
+- Describe what you want to make in plain English
+- Uses **Claude** (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY` is set — structured tool_use output, full metadata, no abbreviations
+- Falls back to local **Ollama** (phi3) if no API key is configured
+- Always returns a usable pattern — clearly labeled fallback if AI is unavailable
+
+### Template Customization
+- Pick any template, set yarn colour and size (small / medium / large)
+- Stitch counts scale automatically; colour prefix applied to every step
+
+### Progress Tracker
+- Row-by-row checkbox tracker with animated SVG progress ring
+- Step instructions in plain English — all crochet abbreviations expanded (sc → single crochet, ch → chain, etc.)
+- Materials list and maker notes visible while you crochet
+- Template photo displayed as the left panel hero image
+- Progress persists in SQLite — survives page refresh and server restart
+- Atomic step toggle prevents race conditions when tapping steps quickly
+
+---
 
 ## Local Development
 
-Prerequisites:
+### Prerequisites
 
 - Node.js 18+
 - npm 9+
-- Ollama installed locally if you want AI generation
+- Ollama (optional) — only needed if you don't set an Anthropic API key
 
-Start Ollama in a separate terminal:
+### 1. Install dependencies
+
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+### 2. Configure AI (optional but recommended)
+
+Create `backend/.env.local`:
+
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Without this, the app falls back to local Ollama. Start it in a separate terminal:
 
 ```bash
 ollama run phi3
 ```
 
-Run the backend:
+### 3. Run both servers
 
+Terminal 1 — Backend:
 ```bash
 cd backend
-npm install
 npm run dev
 ```
 
-Run the frontend:
-
+Terminal 2 — Frontend:
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-Default local URLs:
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:3000 |
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3000`
+The Vite dev server proxies all `/api/*` requests to the backend automatically.
 
-The Vite dev server proxies `/api/*` requests to the backend, so frontend code should keep using relative API paths such as `fetch('/api/templates')`.
+### First startup
+
+On first run the backend creates `backend/data.db` and seeds all 22 templates automatically. No manual migration needed. To reset to a clean state, delete `backend/data.db` and restart the backend.
+
+---
+
+## Project Structure
+
+```
+Loopsy/
+├── backend/
+│   ├── app/api/
+│   │   ├── ai/generate-pattern/     POST — AI pattern generation
+│   │   ├── patterns/                GET all, POST create
+│   │   ├── patterns/[id]/           GET single
+│   │   ├── progress/                POST init (idempotent)
+│   │   ├── progress/[id]/           PATCH toggle step (atomic)
+│   │   ├── progress/pattern/[id]/   GET by patternId
+│   │   └── templates/               GET all, GET [id]
+│   ├── lib/
+│   │   ├── db/index.js              SQLite singleton, schema init, migrations
+│   │   ├── models/
+│   │   │   ├── templateModel.js     SQLite queries + 22-template seed data
+│   │   │   ├── patternModel.js      CRUD for user-created patterns
+│   │   │   └── progressModel.js     CRUD + toggleStepAtomic()
+│   │   ├── services/
+│   │   │   ├── aiService.js         Claude / Ollama / fallback logic
+│   │   │   └── patternService.js    Template → structured pattern generation
+│   │   └── utils/helpers.js
+│   └── data.db                      SQLite database (auto-created, gitignored)
+│
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Home.jsx             Template discovery + recent patterns
+│   │   │   ├── Create.jsx           AI generation + template customization
+│   │   │   └── Tracker.jsx          Row-by-row progress tracker
+│   │   ├── components/
+│   │   │   ├── TopNav.jsx
+│   │   │   └── SideNav.jsx
+│   │   └── lib/
+│   │       ├── patternThemes.js     Category → colour/icon design tokens
+│   │       └── crochetAbbreviations.js  Plain-English abbreviation expander
+│   └── vite.config.js
+│
+├── CLAUDE.md                        Claude Code developer guidance
+├── plan.md                          Product roadmap
+└── README.md
+```
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/templates` | All templates (summary — no `defaultPattern`) |
+| `GET` | `/api/templates/:id` | Full template including `defaultPattern` |
+| `GET` | `/api/patterns` | All user-created patterns |
+| `GET` | `/api/patterns/:id` | Single pattern with full steps |
+| `POST` | `/api/patterns` | Create from template `{ templateId, title, customization: { color, size } }` |
+| `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` |
+| `POST` | `/api/progress` | Init or return existing progress `{ patternId }` |
+| `GET` | `/api/progress/pattern/:patternId` | All progress records for a pattern |
+| `PATCH` | `/api/progress/:id` | Toggle step `{ stepIndex }` |
+
+---
+
+## Database Schema
+
+**templates** — seeded on first startup
+```sql
+id, name, description, difficulty, category, tags, imageUrl,
+hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPattern, createdAt
+```
+
+**patterns** — user-created
+```sql
+id, title, templateId, color, size, steps, difficulty, category, tags, materials,
+hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback, createdAt
+```
+
+**progress**
+```sql
+id, patternId, totalSteps, steps (JSON array), progressPercentage, createdAt
+```
+
+---
 
 ## Useful Commands
 
 ```bash
+# Lint frontend
 cd frontend && npm run lint
+
+# Production builds
 cd frontend && npm run build
 cd backend && npm run build
+
+# Reset database (re-seeds all 22 templates on next backend start)
+rm backend/data.db
 ```
 
-There is no committed automated test suite yet. Right now, linting plus production builds are the main verification steps.
+---
 
-## API Surface
+## Roadmap
 
-Implemented API routes:
+See [plan.md](./plan.md) for the full Phase 2 roadmap. Upcoming priorities:
 
-- `GET /api/templates`
-- `GET /api/templates/:id`
-- `GET /api/patterns`
-- `GET /api/patterns/:id`
-- `POST /api/patterns`
-- `POST /api/ai/generate-pattern`
-- `POST /api/ai/regenerate`
-- `POST /api/progress`
-- `GET /api/progress/pattern/:patternId`
-- `GET /api/progress/:id`
-- `PATCH /api/progress/:id`
-
-## Data Notes
-
-- SQLite is initialized automatically by [backend/lib/db/index.js](D:\Crochet\backend\lib\db\index.js).
-- Pattern records now store crochet metadata in addition to steps: `category`, `tags`, `materials`, `hookSize`, `yarnWeight`, `timeEstimate`, `finishedSize`, `notes`, and AI flags.
-- AI generation falls back to a clearly labeled practice pattern if Ollama is unavailable or returns invalid JSON.
-
-## Known Gaps
-
-- No authentication or user accounts
-- No saved collections or favorites
-- No automated API/UI tests yet
-- AI generation still depends on a local Ollama process and uses heuristic metadata enrichment
+1. **Auth** — user accounts, saved libraries, favorites
+2. **Discovery** — template detail pages, 50+ templates, curated collections
+3. **AI improvements** — structured input form, regenerate-with-edits, pattern versioning
+4. **Export** — PDF print, shareable read-only link, plain text copy
+5. **Media** — user project photos, completed gallery

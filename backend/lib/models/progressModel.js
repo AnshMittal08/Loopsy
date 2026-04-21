@@ -5,6 +5,11 @@ const insertProgressStmt = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?)
 `);
 
+const insertProgressIgnoreStmt = db.prepare(`
+  INSERT OR IGNORE INTO progress (id, patternId, totalSteps, steps, progressPercentage, createdAt)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+
 const getProgressByIdStmt = db.prepare(`
   SELECT * FROM progress WHERE id = ?
 `);
@@ -17,37 +22,19 @@ const updateProgressStmt = db.prepare(`
   UPDATE progress SET steps = ?, progressPercentage = ? WHERE id = ?
 `);
 
-/**
- * Find a progress record by its own ID.
- * @param {string} id
- * @returns {Object|null}
- */
+function deserialize(row) {
+  return { ...row, steps: JSON.parse(row.steps) };
+}
+
 function getProgressById(id) {
   const row = getProgressByIdStmt.get(id);
-  if (!row) return null;
-  return {
-    ...row,
-    steps: JSON.parse(row.steps)
-  };
+  return row ? deserialize(row) : null;
 }
 
-/**
- * Find all progress records for a given pattern ID.
- * @param {string} patternId
- * @returns {Array}
- */
 function getProgressByPatternId(patternId) {
-  return getProgressByPatternIdStmt.all(patternId).map(row => ({
-    ...row,
-    steps: JSON.parse(row.steps)
-  }));
+  return getProgressByPatternIdStmt.all(patternId).map(deserialize);
 }
 
-/**
- * Create a new progress record and return it.
- * @param {Object} record
- * @returns {Object}
- */
 function createProgress(record) {
   insertProgressStmt.run(
     record.id,
@@ -60,12 +47,52 @@ function createProgress(record) {
   return record;
 }
 
-/**
- * Update a progress record in-place and return it.
- * @param {string} id
- * @param {Partial<Object>} updates
- * @returns {Object|null}
- */
+// Atomic toggle: read-modify-write in a single exclusive transaction to prevent race conditions
+const _toggleTransaction = db.transaction((id, stepIndex) => {
+  const row = db.prepare('SELECT * FROM progress WHERE id = ?').get(id);
+  if (!row) return null;
+
+  const steps = JSON.parse(row.steps);
+  if (stepIndex < 0 || stepIndex >= steps.length) return null;
+
+  steps[stepIndex] = { ...steps[stepIndex], completed: !steps[stepIndex].completed };
+
+  const completedCount = steps.filter(s => s.completed).length;
+  const progressPercentage = Math.round((completedCount / row.totalSteps) * 100);
+
+  db.prepare('UPDATE progress SET steps = ?, progressPercentage = ? WHERE id = ?')
+    .run(JSON.stringify(steps), progressPercentage, id);
+
+  return {
+    id: row.id,
+    patternId: row.patternId,
+    totalSteps: row.totalSteps,
+    steps,
+    progressPercentage,
+    createdAt: row.createdAt,
+  };
+});
+
+function toggleStepAtomic(id, stepIndex) {
+  return _toggleTransaction.exclusive(id, stepIndex);
+}
+
+// Idempotent: returns existing progress for this pattern if one exists, otherwise creates new
+function getOrCreateProgress(record) {
+  const existing = getProgressByPatternIdStmt.all(record.patternId);
+  if (existing.length > 0) return deserialize(existing[0]);
+
+  insertProgressIgnoreStmt.run(
+    record.id,
+    record.patternId,
+    record.totalSteps,
+    JSON.stringify(record.steps),
+    record.progressPercentage || 0,
+    record.createdAt
+  );
+  return record;
+}
+
 function updateProgress(id, updates) {
   const row = getProgressByIdStmt.get(id);
   if (!row) return null;
@@ -75,18 +102,16 @@ function updateProgress(id, updates) {
     ? updates.progressPercentage
     : row.progressPercentage;
 
-  updateProgressStmt.run(
-    JSON.stringify(newSteps),
-    newPercentage,
-    id
-  );
+  updateProgressStmt.run(JSON.stringify(newSteps), newPercentage, id);
 
   return {
-    ...row,
+    id: row.id,
+    patternId: row.patternId,
+    totalSteps: row.totalSteps,
     steps: newSteps,
     progressPercentage: newPercentage,
-    ...updates
+    createdAt: row.createdAt,
   };
 }
 
-module.exports = { getProgressById, getProgressByPatternId, createProgress, updateProgress };
+module.exports = { getProgressById, getProgressByPatternId, createProgress, getOrCreateProgress, toggleStepAtomic, updateProgress };
