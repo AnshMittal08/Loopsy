@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import MobileNav from './MobileNav';
 
 export default function TopNav() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-sm shadow-on-surface/5 font-headline font-medium text-sm tracking-tight">
       <div className="flex justify-between items-center px-6 py-4 max-w-[1440px] mx-auto">
@@ -21,10 +24,16 @@ export default function TopNav() {
           </Link>
         </div>
 
-        <button className="md:hidden text-on-surface-variant">
+        <button
+          className="md:hidden text-on-surface-variant"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+        >
           <span className="material-symbols-outlined text-3xl">menu</span>
         </button>
       </div>
+
+      <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
     </nav>
   );
 }

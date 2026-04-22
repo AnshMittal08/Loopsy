@@ -20,7 +20,9 @@ export async function POST(request) {
       );
     }
 
-    const pattern = await generatePatternFromAI(prompt, difficulty || "beginner");
+    const raw = difficulty || "beginner";
+    const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
     
     // Persist the generated pattern so it can be tracked later.
     createPattern(pattern);
