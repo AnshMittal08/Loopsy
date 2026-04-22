@@ -70,14 +70,22 @@ async function generateWithClaude(prompt, difficulty) {
     system: `You are an expert crochet pattern designer with 20+ years of experience.
 Generate accurate, detailed, beginner-friendly crochet patterns.
 Always write instructions in FULL English — no abbreviations (write "single crochet" not "sc", "chain" not "ch", "double crochet" not "dc", etc.).
-Provide enough rows/steps that someone could actually make the item.
-Include realistic stitch counts in parentheses after each row.`,
+
+STEP DETAIL RULES:
+- Each step must be a single, clear instruction a beginner can follow without guessing.
+- Include the exact stitch count in parentheses at the end of each step.
+- For each step, describe WHERE to insert the hook (e.g. "in the 2nd chain from hook", "in the next stitch", "in the same stitch").
+- When a step introduces a new technique, add a brief clarification in parentheses (e.g. "Yarn over and pull through all 3 loops on hook (this completes the decrease)").
+- Number every row/round explicitly — never combine ranges like "Rows 2–12". Write each row or explicitly state "Repeat Row 2 for X more rows".
+- Include turning instructions ("Chain 1, turn") as part of the step, not as a separate step.
+- For shaping rounds, state both the action AND the resulting stitch count.
+- Minimum 8 steps for any pattern, 12+ for intermediate/advanced.`,
     messages: [
       {
         role: "user",
         content: `Create a detailed crochet pattern for: "${prompt}"
 Difficulty level: ${difficulty}
-Please provide a complete, accurate pattern with all materials, steps, and maker notes.`,
+Please provide a complete, accurate pattern with all materials, detailed step-by-step instructions, and maker notes. Each step should be detailed enough that a beginner could follow it without additional reference.`,
       },
     ],
     tools: [CLAUDE_TOOL],

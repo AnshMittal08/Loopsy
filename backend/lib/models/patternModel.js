@@ -96,4 +96,12 @@ function parseJsonArray(value) {
   }
 }
 
-module.exports = { getAllPatterns, getPatternById, createPattern };
+const deletePatternStmt = db.prepare('DELETE FROM patterns WHERE id = ?');
+const deleteProgressForPatternStmt = db.prepare('DELETE FROM progress WHERE patternId = ?');
+
+function deletePattern(id) {
+  deleteProgressForPatternStmt.run(id);
+  deletePatternStmt.run(id);
+}
+
+module.exports = { getAllPatterns, getPatternById, createPattern, deletePattern };

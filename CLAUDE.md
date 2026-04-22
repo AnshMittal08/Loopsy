@@ -52,7 +52,7 @@ Frontend (5173) → Vite proxy → Next.js API (3000) → SQLite (data.db)
 
 `lib/services/aiService.js` checks for `ANTHROPIC_API_KEY` at runtime:
 
-- **If set** → uses `claude-sonnet-4-6` via `@anthropic-ai/sdk` with structured tool_use output (guaranteed JSON schema, full metadata, no abbreviations)
+- **If set** → uses `claude-sonnet-4-6` via `@anthropic-ai/sdk` with structured tool_use output (guaranteed JSON schema, full metadata, no abbreviations). System prompt enforces detailed per-row instructions with stitch counts, hook placement, and beginner clarifications.
 - **If not set** → falls back to local Ollama at `http://localhost:11434` with model `phi3`
 - **If both fail** → returns a labeled fallback practice pattern (`isFallback: true`)
 
@@ -65,32 +65,42 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/templates` | All templates (summary, no `defaultPattern`) |
+| `GET` | `/api/templates` | All templates (summary, no `defaultPattern`). Supports `?difficulty=&category=&q=` query params |
 | `GET` | `/api/templates/:id` | Single template with full `defaultPattern` |
 | `GET` | `/api/patterns` | All created patterns |
 | `GET` | `/api/patterns/:id` | Single pattern with full step details |
 | `POST` | `/api/patterns` | Create pattern from template + customization `{ templateId, title, customization: { color, size } }` |
-| `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` |
+| `DELETE` | `/api/patterns/:id` | Delete a pattern and its associated progress records |
+| `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` — difficulty auto-capitalized |
+| `POST` | `/api/ai/regenerate` | Alternative AI generation (same interface, future variation logic) |
 | `POST` | `/api/progress` | Initialize or retrieve existing progress for a pattern `{ patternId }` |
 | `GET` | `/api/progress/pattern/:patternId` | All progress records for a pattern |
 | `PATCH` | `/api/progress/:id` | Toggle a step `{ stepIndex }` |
+| `GET` | `/api/analytics` | Platform stats: pattern counts, AI usage, avg completion |
 
 ## Frontend Pages
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/` | `Home.jsx` | Hero + template library with search/filter |
+| `/` | `Home.jsx` | Hero + "Start Here" beginner path + template library with search/filter |
+| `/templates/:templateId` | `TemplateDetail.jsx` | Full template detail page with metadata, materials, steps |
 | `/create/:templateId?` | `Create.jsx` | Template customization or AI generation |
-| `/tracker/:patternId` | `Tracker.jsx` | Step-by-step progress tracker |
+| `/tracker/:patternId` | `Tracker.jsx` | Step-by-step progress tracker with stitch tooltips |
 
 ## Frontend Components & Utilities
 
 | File | Purpose |
 |------|---------|
-| `components/SideNav.jsx` | Sidebar navigation |
-| `components/TopNav.jsx` | Top navigation bar |
+| `components/TopNav.jsx` | Top navigation bar (desktop links + mobile hamburger) |
+| `components/SideNav.jsx` | Desktop sidebar navigation |
+| `components/MobileNav.jsx` | Slide-in mobile nav drawer (portal-rendered to `document.body`) |
+| `components/StitchTooltip.jsx` | `<StitchStep>` parses instructions; `<StitchTooltip>` shows popover with explanation + YouTube tutorial link (portal-rendered) |
+| `components/Skeleton.jsx` | Reusable skeleton loaders: `SkeletonTemplateCard`, `SkeletonTrackerLayout`, `SkeletonTemplatePreview` |
+| `components/Toast.jsx` | `ToastProvider` context + `useToast()` hook for dismissible notifications |
+| `components/HeroScene.jsx` | 3D animated yarn balls scene (Three.js) |
+| `components/PatternOrb.jsx` | 3D pattern visualization by category (Three.js) |
 | `lib/patternThemes.js` | Maps category → `{ accent, orb, panel, icon }` design tokens |
-| `lib/crochetAbbreviations.js` | `expandAbbreviations(text)` — expands crochet shorthand to plain English in step instructions |
+| `lib/crochetAbbreviations.js` | `expandAbbreviations(text)` — expands shorthand to plain English. Also exports `ABBREVIATIONS` array with `explanation`, `videoUrl`, `videoLabel`, `category` per entry for tooltips |
 
 ## Database Schema
 
@@ -111,9 +121,15 @@ hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGene
 id, patternId, totalSteps, steps (JSON), progressPercentage, createdAt
 ```
 
+**analytics** — key/value counters
+```
+key (PRIMARY KEY), value (INTEGER)
+```
+
 ## Extending
 
 - **Add endpoint:** Create `backend/app/api/your-route/route.js` following existing patterns
 - **Add page:** Create `frontend/src/pages/*.jsx`, add route in `App.jsx`, link in `SideNav.jsx`
 - **Add templates:** Edit `TEMPLATE_SEED` array in `backend/lib/models/templateModel.js`; delete `backend/data.db` to re-seed
 - **Add database column:** Add `ALTER TABLE` migration in `lib/db/index.js` alongside existing migration checks
+- **Add stitch tooltip data:** Add entries to `ABBREVIATIONS` array in `frontend/src/lib/crochetAbbreviations.js` with `explanation`, `videoUrl`, `videoLabel`, `category`

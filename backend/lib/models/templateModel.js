@@ -19,6 +19,30 @@ function getAllTemplates() {
   ).all().map(deserialize);
 }
 
+function getFilteredTemplates({ difficulty, category, search }) {
+  let sql = `SELECT id, name, description, difficulty, category, tags, imageUrl,
+            hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes
+     FROM templates WHERE 1=1`;
+  const params = [];
+
+  if (difficulty) {
+    sql += ' AND difficulty = ?';
+    params.push(difficulty);
+  }
+  if (category) {
+    sql += ' AND category = ?';
+    params.push(category);
+  }
+  if (search) {
+    sql += ' AND (name LIKE ? OR description LIKE ? OR tags LIKE ?)';
+    const term = `%${search}%`;
+    params.push(term, term, term);
+  }
+
+  sql += ' ORDER BY rowid';
+  return db.prepare(sql).all(...params).map(deserialize);
+}
+
 function getTemplateById(id) {
   return deserialize(db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
 }
@@ -63,7 +87,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Wearable',
     tags: ['starter', 'mindful', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1601924357840-3e50d32c9e44?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1640097922544-de8faa1cc857?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '2–4 hrs',
@@ -71,11 +95,16 @@ const TEMPLATE_SEED = [
     materials: ['2 skeins worsted yarn', '5.0 mm hook', 'Tapestry needle'],
     notes: ['Great first project for practicing even edges.'],
     defaultPattern: [
-      'Foundation: Chain 21. Turn.',
-      'Row 1: Single crochet in 2nd chain from hook and in each chain across. (20 stitches) Chain 1, turn.',
-      'Rows 2–12: Single crochet in each stitch across. (20 stitches) Chain 1, turn.',
-      'Repeat Rows 2–12 until piece measures approximately 60 inches from start.',
-      'Finishing: Fasten off. Weave in all ends with a tapestry needle.',
+      'Make a slip knot and place it on your 5.0 mm hook. Chain 21 stitches (count each loop as you go). Your chain should lay flat without twisting. (21 chains)',
+      'Row 1: Skip the first chain from the hook (the one closest to your hook). Insert your hook into the second chain from the hook, yarn over, pull up a loop, yarn over, pull through both loops — that is one single crochet. Single crochet in each remaining chain across. (20 single crochet)',
+      'At the end of Row 1, chain 1 (this is your turning chain — it does not count as a stitch). Turn your work so the other side faces you.',
+      'Row 2: Single crochet in the first stitch (insert hook under both loops of the V at the top of the stitch). Single crochet in each stitch across to the end of the row. Count your stitches — you should still have exactly 20. Chain 1, turn. (20 single crochet)',
+      'Rows 3–5: Repeat Row 2 exactly. Focus on keeping your tension even — each stitch should be the same size. If your edges are getting wavy, you may be adding or missing a stitch at the ends. Count after every row. Chain 1, turn at the end of each row. (20 single crochet per row)',
+      'Rows 6–20: Continue working single crochet in each stitch across, chain 1, turn. By now your rhythm should feel natural. Your rectangle should be growing steadily. (20 single crochet per row)',
+      'Rows 21–onwards: Keep repeating the same row (single crochet across, chain 1, turn) until your scarf measures approximately 60 inches (152 cm) from the start. Lay it flat and measure periodically — do not stretch the fabric. (20 single crochet per row)',
+      'Final row: Single crochet in each stitch across one last time. Do NOT chain 1 at the end. Instead, cut the yarn leaving a 6-inch tail. (20 single crochet)',
+      'Fasten off: Yarn over and pull the tail completely through the last loop on your hook. Pull snug to secure.',
+      'Finishing: Thread the yarn tail onto your tapestry needle. Weave the needle in and out through the back of nearby stitches for about 2 inches, then reverse direction for another inch. Trim the excess. Repeat for the starting tail at the other end.',
     ],
   },
   {
@@ -85,7 +114,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Accessory',
     tags: ['functional', 'market-bag', 'home'],
-    imageUrl: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1686285961015-12886f9b3bf5?w=600&q=80&fit=crop',
     hookSize: '4.5 mm',
     yarnWeight: 'Cotton',
     timeEstimate: '4–6 hrs',
@@ -114,7 +143,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Amigurumi',
     tags: ['toy', 'giftable', 'stuffed'],
-    imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1638020522563-db439913b29f?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'DK or Cotton',
     timeEstimate: '5–7 hrs',
@@ -149,7 +178,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Wearable',
     tags: ['starter', 'winter', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1520901266696-c0e5e26ceee5?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1583439223381-81306bc9af27?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '2–3 hrs',
@@ -175,7 +204,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Home Decor',
     tags: ['quick-make', 'kitchen', 'practical'],
-    imageUrl: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1627667539472-75fbc7f4654d?w=600&q=80&fit=crop',
     hookSize: '4.0 mm',
     yarnWeight: 'Cotton DK',
     timeEstimate: '1–2 hrs',
@@ -197,7 +226,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Wearable',
     tags: ['quick-make', 'winter', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1548802673-380ab8ebc7b7?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1737053632797-a2513a8c5f4e?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Bulky',
     timeEstimate: '45 min–1.5 hrs',
@@ -219,7 +248,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Wearable',
     tags: ['winter', 'practical', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1542060748-10c28b62716f?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1737061335303-27e2e835ea48?w=600&q=80&fit=crop',
     hookSize: '4.0 mm',
     yarnWeight: 'DK',
     timeEstimate: '3–4 hrs',
@@ -244,7 +273,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Wearable',
     tags: ['baby', 'giftable', 'quick-make'],
-    imageUrl: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1602773974733-b56200c8653f?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'DK or Fingering',
     timeEstimate: '2–3 hrs',
@@ -270,7 +299,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Home Decor',
     tags: ['boho', 'home', 'functional'],
-    imageUrl: 'https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1767605559662-3830975082ee?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Worsted or Rope',
     timeEstimate: '2–4 hrs',
@@ -294,7 +323,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Wearable',
     tags: ['winter', 'quick-make', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1576376262099-6ec3ed655f52?w=600&q=80&fit=crop',
     hookSize: '6.0 mm',
     yarnWeight: 'Bulky',
     timeEstimate: '2–3 hrs',
@@ -315,7 +344,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Accessory',
     tags: ['eco-friendly', 'functional', 'market-bag'],
-    imageUrl: 'https://images.unsplash.com/photo-1610216705422-caa3fcb6d158?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1746301989947-ec94ca0a23fb?w=600&q=80&fit=crop',
     hookSize: '4.5 mm',
     yarnWeight: 'Cotton',
     timeEstimate: '3–5 hrs',
@@ -342,7 +371,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Amigurumi',
     tags: ['toy', 'giftable', 'spring'],
-    imageUrl: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1577635515158-dcce4789c8fb?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'DK',
     timeEstimate: '4–6 hrs',
@@ -368,7 +397,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Home Decor',
     tags: ['colorful', 'home', 'boho'],
-    imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1700171518313-5dd219beaaa6?w=600&q=80&fit=crop',
     hookSize: '4.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '4–6 hrs',
@@ -392,7 +421,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Wearable',
     tags: ['home', 'practical', 'winter'],
-    imageUrl: 'https://images.unsplash.com/photo-1585123334904-845d60e97b29?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1610177364662-c2f836b710ee?w=600&q=80&fit=crop',
     hookSize: '5.5 mm',
     yarnWeight: 'Bulky',
     timeEstimate: '3–5 hrs',
@@ -417,7 +446,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Home Decor',
     tags: ['quick-make', 'kitchen', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1620633437938-be73c35eb77e?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'Cotton DK',
     timeEstimate: '1–2 hrs total',
@@ -441,7 +470,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Advanced',
     category: 'Blanket',
     tags: ['colorful', 'heirloom', 'stash-buster'],
-    imageUrl: 'https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1693387359607-f48d0a824b1e?w=600&q=80&fit=crop',
     hookSize: '4.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '20–40 hrs',
@@ -466,7 +495,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Advanced',
     category: 'Wearable',
     tags: ['lace', 'elegant', 'heirloom'],
-    imageUrl: 'https://images.unsplash.com/photo-1594938298603-c8148c4b4b0e?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1679847628912-4c3e7402abc7?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'Fingering or Lace',
     timeEstimate: '15–25 hrs',
@@ -490,7 +519,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Advanced',
     category: 'Wearable',
     tags: ['wearable', 'statement-piece', 'wardrobe'],
-    imageUrl: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1679847628912-4c3e7402abc7?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '20–30 hrs',
@@ -516,7 +545,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Home Decor',
     tags: ['holiday', 'seasonal', 'giftable'],
-    imageUrl: 'https://images.unsplash.com/photo-1512909006721-3d6018887383?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1734046281636-2a33525bc76f?w=600&q=80&fit=crop',
     hookSize: '5.0 mm',
     yarnWeight: 'Worsted',
     timeEstimate: '5–8 hrs',
@@ -543,7 +572,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Home Decor',
     tags: ['home', 'practical', 'quick-make'],
-    imageUrl: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1585660558321-b7a05fd13775?w=600&q=80&fit=crop',
     hookSize: '6.0 mm',
     yarnWeight: 'Super Bulky or Rope',
     timeEstimate: '2–3 hrs',
@@ -569,7 +598,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Beginner',
     category: 'Accessory',
     tags: ['quick-make', 'giftable', 'mini-project'],
-    imageUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1618574760337-2750f6251d20?w=600&q=80&fit=crop',
     hookSize: '2.5 mm',
     yarnWeight: 'Fingering or Thread',
     timeEstimate: '30 min',
@@ -593,7 +622,7 @@ const TEMPLATE_SEED = [
     difficulty: 'Intermediate',
     category: 'Amigurumi',
     tags: ['toy', 'giftable', 'pet-themed'],
-    imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&q=80&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1670057008467-17de97e32763?w=600&q=80&fit=crop',
     hookSize: '3.5 mm',
     yarnWeight: 'DK',
     timeEstimate: '6–8 hrs',
@@ -618,4 +647,4 @@ const TEMPLATE_SEED = [
 // Seed templates on module load (no-op if already seeded)
 seedTemplates(TEMPLATE_SEED);
 
-module.exports = { getAllTemplates, getTemplateById };
+module.exports = { getAllTemplates, getFilteredTemplates, getTemplateById };

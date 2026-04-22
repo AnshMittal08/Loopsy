@@ -339,13 +339,26 @@ LAYER 3: Community Patterns (Phase 3, self-improving)
 ## Phased Product Roadmap
 
 ### Phase 1 — Foundation (shipped)
-- 22 curated templates in SQLite with photos
+- 22 curated templates in SQLite with real crochet product photos
 - AI generation via Claude (with Ollama fallback)
 - Row-by-row progress tracker with animated progress ring
 - Template library with search and filter
 - Plain-English step instructions (abbreviation expansion)
 - Tracker history persistence fixed
 - Atomic step toggle (race condition fixed)
+
+### Phase 1.5 — Immediate Wins & Polish (shipped)
+- Stitch tooltip overlay: hoverable stitch terms in tracker with explanations + curated YouTube tutorial links
+- "Start Here" beginner path: 6-template learning progression on home page
+- Mobile navigation: portal-rendered drawer on all pages, back navigation on Create
+- Template detail page (`/templates/:id`) with full metadata, materials, read-only steps
+- Skeleton loaders replacing all loading text
+- Toast notification system for transient errors
+- Dismissible error banners, improved error messages
+- Image lazy loading with fade-in transitions
+- Backend: pattern delete, analytics endpoint, template search/filter API
+- Enhanced AI system prompt for more detailed step-by-step instructions
+- Difficulty casing normalization
 
 ### Phase 2 — Monetization
 - User authentication (Clerk or NextAuth)
@@ -377,6 +390,37 @@ LAYER 3: Community Patterns (Phase 3, self-improving)
 - Knitting support (3x TAM expansion)
 - Localization for Brazil, Germany, Netherlands, Japan
 - B2B yarn brand partnerships and co-branded generation
+
+---
+
+## Current Product Assessment
+
+### Where we are: strong foundation, pre-monetization
+
+The product through Phase 1.5 is a **7/10** — genuinely useful, visually distinctive, and technically sound, but single-user with no revenue. The core insight (AI-native crochet studio for the underserved 60–80M global crocheter market) is validated by Ravelry's $2–5M ARR on a 3-person team with a 2007 codebase.
+
+### What's working
+
+- **Stitch tooltips with embedded video tutorials** — no other crochet app does inline contextual learning. This is the feature that makes the tracker feel intelligent rather than just a checklist.
+- **AI pattern generation via structured tool_use** — guaranteed schema, full metadata, no abbreviations. The enhanced system prompt produces beginner-friendly detail.
+- **Beginner path curation** — the 6-template "Start Here" progression transforms the first impression from "22 random patterns" to "guided learning journey."
+- **Visual identity** — Material Design 3 + 3D elements (yarn balls, category orbs, tilt cards) give it a distinctive feel that doesn't look like generic AI output.
+
+### What's missing (in priority order)
+
+1. **Auth + user accounts** — blocker for everything. No retention, no cross-device, no payments.
+2. **AI Tutor** — the feature that justifies a $9/month subscription. "You're on step 8 of your tote bag, here's what this means" is differentiated and costs ~$0.005 per question.
+3. **Photo → Pattern** — the viral growth lever. Upload any crocheted item → get a pattern. Nobody does this. Would spread through crochet TikTok (30B+ views on #crochet).
+4. **Prompt caching** — 2-line change in `aiService.js` that cuts ~90% of repeated system prompt token costs. Should be done immediately.
+
+### Honest risks
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| **Distribution** — crochet community is word-of-mouth driven | High | Photo → Pattern as viral lever; seed 20 designers at 0% commission; partner with mid-size crochet YouTubers |
+| **AI accuracy** — Claude's stitch counts drift after ~20 steps, complex garments are 20–35% accurate | Medium | Position AI as "creative exploration" not "perfect patterns." Template library is the reliable path. RAG over verified patterns (Phase 2) raises the floor. |
+| **Designer trust** — crochet IP community is protective and vocal about AI | Medium | Clear policy: AI patterns = personal use only, never sold in marketplace. Human-designed patterns only in marketplace. Make this prominent. |
+| **Scale** — SQLite is single-user, no concurrent writes at scale | Low (for now) | Sufficient through 1k MAU. Migrate to Postgres/Turso when auth is added. |
 
 ---
 
@@ -417,31 +461,31 @@ A user who completes their first project on StitchFlow associates the platform w
 
 ---
 
-### Feature 1 — Stitch Tooltip Overlay (ship immediately)
+### Feature 1 — Stitch Tooltip Overlay (SHIPPED)
 
-Every stitch name in a tracker step becomes a hoverable/tappable element. `crochetAbbreviations.js` is already in the codebase and knows every abbreviation. Wrap each recognised stitch term in a tooltip that shows:
-- A 2-sentence plain-English explanation
-- A minimal SVG illustration of the hand motion
-- A "Learn more" link to the full stitch guide
+Every recognised stitch name in a tracker step is hoverable/tappable, showing a portal-rendered popover with:
+- A 2-sentence plain-English explanation of the stitch
+- A "Watch tutorial" button linking to a curated YouTube video (Bella Coco, TL Yarn Crafts)
+- A "Learn more" link (ready for the future `/learn` page)
 
-A beginner seeing "Single crochet in each stitch across" can tap "single crochet" and immediately understand what to do without leaving the tracker or opening a new tab. This is the highest-impact beginner improvement possible with the least engineering effort — approximately one day of work.
+13 core stitches have video tutorials. The tooltip uses `createPortal` to escape scroll containers. Only one tooltip is open at a time. Data lives in `crochetAbbreviations.js` with `explanation`, `videoUrl`, `videoLabel`, and `category` fields per entry.
 
 ---
 
-### Feature 2 — "Start Here" Beginner Path on Home (ship immediately)
+### Feature 2 — "Start Here" Beginner Path on Home (SHIPPED)
 
-A beginner landing on the home page currently sees 22 patterns with no guidance. A dedicated "Start Here" section above the main library surfaces the 6 easiest templates in a curated sequence:
+A dedicated "New to crochet? Start here" section between the Hero and Discover sections surfaces 6 templates in a curated learning progression:
 
 ```
-1. Chain Practice Swatch       — learn tension and counting
-2. Simple Square Coaster       — first complete project
-3. Ear Warmer Headband         — rows, seaming, finishing
-4. Classic Scarf               — repetition builds confidence
-5. Tote Bag                    — working in rounds
-6. Baby Booties                — shaping and assembly
+1. Classic Scarf (template_001)         — Chain stitches + rows
+2. Coaster Set (template_015)           — Magic ring + rounds
+3. Ear Warmer Headband (template_006)   — Rows + seaming
+4. Dishcloth (template_005)             — Repetition + confidence
+5. Baby Booties (template_008)          — Shaping introduction
+6. Beanie Hat (template_004)            — Working in the round
 ```
 
-No new infrastructure required. Just a filtered, reordered view of existing templates with a clear "New to crochet? Start here" header. This single change transforms the first impression for every new user.
+Horizontal scroll with snap on mobile, 3-column grid on desktop. Each card shows a sequence number badge, template photo, name, and "what you'll learn" chip. Only visible when templates are loaded and no search/filter is active.
 
 ---
 

@@ -24,7 +24,9 @@ export async function POST(request) {
     }
 
     // You could inject something like "Provide an alternative variation to..." here in the future
-    const pattern = await generatePatternFromAI(prompt, difficulty || "beginner");
+    const raw = difficulty || "beginner";
+    const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
     
     // Persist the generated pattern so it can be tracked later.
     createPattern(pattern);

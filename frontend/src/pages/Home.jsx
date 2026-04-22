@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopNav from '../components/TopNav';
+import { SkeletonTemplateCard } from '../components/Skeleton';
 import { getPatternTheme } from '../lib/patternThemes';
 
 async function fetchJson(url) {
@@ -46,6 +47,7 @@ function TiltCard({ children, className = '' }) {
 function TemplateCardImage({ imageUrl, category, title, compact = false }) {
   const theme = getPatternTheme(category);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   if (imageUrl && !imgError) {
     return (
@@ -53,7 +55,9 @@ function TemplateCardImage({ imageUrl, category, title, compact = false }) {
         <img
           src={imageUrl}
           alt={title}
-          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -97,6 +101,15 @@ function FilterChip({ active, onClick, children }) {
     </button>
   );
 }
+
+const BEGINNER_PATH = [
+  { id: 'template_001', learn: 'Chain stitches + rows' },
+  { id: 'template_015', learn: 'Magic ring + rounds' },
+  { id: 'template_006', learn: 'Rows + seaming' },
+  { id: 'template_005', learn: 'Repetition + confidence' },
+  { id: 'template_008', learn: 'Shaping introduction' },
+  { id: 'template_004', learn: 'Working in the round' },
+];
 
 export default function Home() {
   const [templates, setTemplates] = useState([]);
@@ -159,6 +172,13 @@ export default function Home() {
       return matchesSearch && matchesDifficulty && matchesCategory;
     });
   }, [templates, search, difficultyFilter, categoryFilter]);
+
+  const beginnerPath = useMemo(() => {
+    return BEGINNER_PATH.map((bp, i) => {
+      const template = templates.find((t) => t.id === bp.id);
+      return template ? { ...template, learn: bp.learn, sequence: i + 1 } : null;
+    }).filter(Boolean);
+  }, [templates]);
 
   const featuredTemplate = filteredTemplates[0] || templates[0];
 
@@ -238,6 +258,59 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Start Here — Beginner Path */}
+        {!loading && !search && difficultyFilter === 'All' && categoryFilter === 'All' && beginnerPath.length >= 4 && (
+          <section className="mt-16">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="material-symbols-outlined text-secondary text-2xl">school</span>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-secondary">New to crochet?</p>
+            </div>
+            <h2 className="text-3xl font-black tracking-tight text-on-surface">Start Here</h2>
+            <p className="mt-2 max-w-2xl text-on-surface-variant">
+              Six projects in order, from your first chain to working in the round. Each one teaches a new technique.
+            </p>
+
+            <div className="mt-8 flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6">
+              {beginnerPath.map((item) => {
+                const bTheme = getPatternTheme(item.category);
+                return (
+                  <Link
+                    key={item.id}
+                    to={`/create/${item.id}`}
+                    className="group min-w-[260px] snap-start overflow-hidden rounded-[1.75rem] bg-surface-container-lowest shadow-sm ring-1 ring-outline-variant/10 transition-transform hover:scale-[1.01] md:min-w-0"
+                  >
+                    <div className={`relative h-40 overflow-hidden bg-gradient-to-br ${bTheme.accent}`}>
+                      {item.imageUrl ? (
+                        <>
+                          <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                        </>
+                      ) : (
+                        <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full blur-2xl ${bTheme.orb}`} />
+                      )}
+                      <div className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-on-secondary text-sm font-black shadow-md">
+                        {item.sequence}
+                      </div>
+                      <div className="absolute bottom-3 left-3">
+                        <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-on-surface">
+                          {item.difficulty}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors">{item.name}</h3>
+                      <p className="mt-1.5 text-xs text-on-surface-variant italic flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px] text-secondary">lightbulb</span>
+                        {item.learn}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Discover */}
         <section id="discover" className="mt-20">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -277,8 +350,8 @@ export default function Home() {
           )}
 
           {loading && (
-            <div className="mt-10 rounded-[1.5rem] bg-surface-container-lowest p-10 text-center text-on-surface-variant">
-              Loading pattern library...
+            <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {[...Array(6)].map((_, i) => <SkeletonTemplateCard key={i} />)}
             </div>
           )}
 
@@ -315,8 +388,8 @@ export default function Home() {
                       <Link to={`/create/${template.id}`} className="flex-1 rounded-xl bg-on-surface px-4 py-3 text-center text-sm font-bold text-white">
                         Customize
                       </Link>
-                      <Link to="/create" className="rounded-xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
-                        AI remix
+                      <Link to={`/templates/${template.id}`} className="rounded-xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
+                        Details
                       </Link>
                     </div>
                   </div>

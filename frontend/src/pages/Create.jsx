@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import SideNav from '../components/SideNav';
+import MobileNav from '../components/MobileNav';
+import { SkeletonTemplatePreview } from '../components/Skeleton';
 import { getPatternTheme } from '../lib/patternThemes';
 
 export default function Create() {
   const { templateId } = useParams();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const hasTemplateRoute = Boolean(templateId);
 
   // Template-based generation state
@@ -138,10 +141,23 @@ export default function Create() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
-      <main className="flex-grow p-12 lg:p-20 relative overflow-y-auto">
+      <main className="flex-grow relative overflow-y-auto">
+        <header className="md:hidden flex justify-between items-center px-6 py-4 sticky top-0 bg-surface/90 backdrop-blur-md z-10">
+          <Link to="/" className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors">
+            <span className="material-symbols-outlined">arrow_back</span>
+            <span className="text-sm font-semibold">Explore</span>
+          </Link>
+          <span className="text-lg font-black text-on-surface tracking-tighter">StitchFlow AI</span>
+          <button className="text-primary" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+        </header>
+
+        <div className="p-6 pt-2 md:p-12 lg:p-20">
         <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-primary-fixed-dim/20 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="max-w-4xl mx-auto relative z-10">
 
@@ -186,8 +202,11 @@ export default function Create() {
             <div className="bg-surface-container-lowest rounded-[1.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(26,28,31,0.06)] relative border border-outline-variant/10">
               {visibleError && (
                 <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg flex items-start gap-3">
-                  <span className="material-symbols-outlined">error</span>
-                  <p>{visibleError}</p>
+                  <span className="material-symbols-outlined shrink-0">error</span>
+                  <p className="flex-1">{visibleError}</p>
+                  <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
                 </div>
               )}
 
@@ -290,17 +309,18 @@ export default function Create() {
           )}
 
           {mode === 'template' && loadingTemplate && (
-            <div className="bg-surface-container-lowest rounded-[1.5rem] p-12 flex items-center justify-center">
-              <p className="text-on-surface-variant">Loading template...</p>
-            </div>
+            <SkeletonTemplatePreview />
           )}
 
           {mode === 'ai' && (
             <div className="bg-surface-container-lowest rounded-[1.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(26,28,31,0.06)] relative border border-outline-variant/10">
               {visibleError && (
                 <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg flex items-start gap-3">
-                  <span className="material-symbols-outlined">error</span>
-                  <p>{visibleError}</p>
+                  <span className="material-symbols-outlined shrink-0">error</span>
+                  <p className="flex-1">{visibleError}</p>
+                  <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
                 </div>
               )}
 
@@ -353,6 +373,7 @@ export default function Create() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </main>
     </div>

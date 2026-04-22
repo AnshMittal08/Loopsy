@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import SideNav from '../components/SideNav';
+import MobileNav from '../components/MobileNav';
+import { SkeletonTrackerLayout } from '../components/Skeleton';
+import { useToast } from '../components/Toast';
 import { getPatternTheme } from '../lib/patternThemes';
-import { expandAbbreviations } from '../lib/crochetAbbreviations';
+import StitchStep from '../components/StitchTooltip';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -51,6 +54,8 @@ export default function Tracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [templateImageUrl, setTemplateImageUrl] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { showToast } = useToast();
   const theme = getPatternTheme(pattern?.category);
 
   useEffect(() => {
@@ -111,18 +116,25 @@ export default function Tracker() {
         body: JSON.stringify({ stepIndex }),
       });
       setProgress(updated);
-    } catch (e) {
-      console.error('Failed to update progress', e);
+    } catch {
+      showToast('Failed to save step progress. Please try again.', 'error');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-on-surface-variant">Loading your pattern…</p>
-        </div>
+      <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+        <SideNav />
+        <main className="flex-1 flex flex-col h-full overflow-y-auto p-6 md:p-10 max-w-6xl mx-auto w-full">
+          <div className="mb-8 flex items-start justify-between gap-6">
+            <div className="space-y-2 animate-pulse">
+              <div className="h-8 w-64 rounded-lg bg-surface-container-high" />
+              <div className="h-4 w-40 rounded-lg bg-surface-container-high" />
+            </div>
+            <div className="h-[110px] w-[110px] rounded-full bg-surface-container-high animate-pulse" />
+          </div>
+          <SkeletonTrackerLayout />
+        </main>
       </div>
     );
   }
@@ -145,7 +157,10 @@ export default function Tracker() {
       <main className="flex-1 flex flex-col h-full overflow-y-auto p-6 md:p-10 max-w-6xl mx-auto w-full">
         <header className="md:hidden flex justify-between items-center mb-6">
           <div className="text-2xl font-black text-on-surface tracking-tighter">StitchFlow AI</div>
-          <button className="text-primary"><span className="material-symbols-outlined">menu</span></button>
+          <button className="text-primary" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         </header>
 
         {/* Title + Progress Ring */}
@@ -317,7 +332,7 @@ export default function Tracker() {
                         {isCompleted && <span className="ml-2 text-xs font-normal opacity-60">✓ complete</span>}
                       </h4>
                       <p className={`text-sm leading-relaxed ${isCompleted ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
-                        {expandAbbreviations(stepData.instruction)}
+                        <StitchStep instruction={stepData.instruction} />
                       </p>
                       {isNext && (
                         <div className="mt-2 p-2 bg-secondary-container rounded-lg flex gap-2 items-start">
