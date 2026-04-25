@@ -21,7 +21,7 @@ const SIZE_FACTORS = {
  * @param {{ color?: string, size?: string }} customization
  * @returns {{ pattern: Object, error: string|null }}
  */
-export function generatePattern(templateId, title, customization = {}) {
+export function generatePattern(templateId, title, customization = {}, options = {}) {
   const template = getTemplateById(templateId);
 
   if (!template) {
@@ -52,6 +52,7 @@ export function generatePattern(templateId, title, customization = {}) {
 
   const newPattern = {
     id: generateId(),
+    userId: options.userId ?? null,
     title: title || `${template.name} Pattern`,
     templateId,
     customization: {

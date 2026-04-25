@@ -2,27 +2,27 @@ const db = require('../db');
 
 const insertPatternStmt = db.prepare(`
   INSERT INTO patterns (
-    id, title, templateId, color, size, steps, difficulty, category, tags,
+    id, userId, title, templateId, color, size, steps, difficulty, category, tags,
     materials, hookSize, yarnWeight, timeEstimate, finishedSize, notes,
     promptSummary, isAIGenerated, isFallback, createdAt
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const getAllPatternsStmt = db.prepare(`
-  SELECT * FROM patterns ORDER BY createdAt DESC
+  SELECT * FROM patterns WHERE userId = ? ORDER BY createdAt DESC
 `);
 
 const getPatternByIdStmt = db.prepare(`
-  SELECT * FROM patterns WHERE id = ?
+  SELECT * FROM patterns WHERE id = ? AND userId = ?
 `);
 
 /**
  * Return all patterns.
  * @returns {Array}
  */
-function getAllPatterns() {
-  return getAllPatternsStmt.all().map(deserializePatternRow);
+function getAllPatterns(userId) {
+  return getAllPatternsStmt.all(userId).map(deserializePatternRow);
 }
 
 /**
@@ -30,8 +30,8 @@ function getAllPatterns() {
  * @param {string} id
  * @returns {Object|null}
  */
-function getPatternById(id) {
-  const row = getPatternByIdStmt.get(id);
+function getPatternById(id, userId) {
+  const row = getPatternByIdStmt.get(id, userId);
   if (!row) return null;
   return deserializePatternRow(row);
 }
@@ -44,6 +44,7 @@ function getPatternById(id) {
 function createPattern(pattern) {
   insertPatternStmt.run(
     pattern.id,
+    pattern.userId ?? null,
     pattern.title,
     pattern.templateId,
     pattern.customization?.color,
@@ -96,12 +97,12 @@ function parseJsonArray(value) {
   }
 }
 
-const deletePatternStmt = db.prepare('DELETE FROM patterns WHERE id = ?');
-const deleteProgressForPatternStmt = db.prepare('DELETE FROM progress WHERE patternId = ?');
+const deletePatternStmt = db.prepare('DELETE FROM patterns WHERE id = ? AND userId = ?');
+const deleteProgressForPatternStmt = db.prepare('DELETE FROM progress WHERE patternId = ? AND userId = ?');
 
-function deletePattern(id) {
-  deleteProgressForPatternStmt.run(id);
-  deletePatternStmt.run(id);
+function deletePattern(id, userId) {
+  deleteProgressForPatternStmt.run(id, userId);
+  deletePatternStmt.run(id, userId);
 }
 
 module.exports = { getAllPatterns, getPatternById, createPattern, deletePattern };

@@ -25,6 +25,10 @@ export default function SideNav() {
           <span className="material-symbols-outlined">menu_book</span>
           In Progress
         </Link>
+        <Link to="/account" className={`flex items-center gap-4 px-4 py-3 rounded-full mx-2 font-headline text-sm font-semibold hover:translate-x-1 transition-transform duration-200 ${isActive('/account') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'}`}>
+          <span className="material-symbols-outlined">person</span>
+          Account
+        </Link>
       </nav>
     </aside>
   );

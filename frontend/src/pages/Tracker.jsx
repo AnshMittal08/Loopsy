@@ -6,6 +6,7 @@ import { SkeletonTrackerLayout } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { getPatternTheme } from '../lib/patternThemes';
 import StitchStep from '../components/StitchTooltip';
+import { useAuth } from '../components/AuthProvider';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -48,6 +49,7 @@ function ProgressRing({ percent, size = 120 }) {
 
 
 export default function Tracker() {
+  const { user, loading: authLoading } = useAuth();
   const { patternId } = useParams();
   const [pattern, setPattern] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -62,7 +64,7 @@ export default function Tracker() {
     let cancelled = false;
 
     async function loadTracker() {
-      if (!patternId) { setLoading(false); return; }
+      if (!user || !patternId) { setLoading(false); return; }
 
       try {
         setLoading(true);
@@ -105,7 +107,7 @@ export default function Tracker() {
 
     loadTracker();
     return () => { cancelled = true; };
-  }, [patternId]);
+  }, [patternId, user]);
 
   const toggleStep = async (stepIndex) => {
     if (!progress) return;
@@ -121,7 +123,7 @@ export default function Tracker() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
         <SideNav />
@@ -135,6 +137,20 @@ export default function Tracker() {
           </div>
           <SkeletonTrackerLayout />
         </main>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface px-6 text-center">
+        <p className="text-2xl font-black text-on-surface">Sign in to open your tracker.</p>
+        <p className="max-w-xl text-on-surface-variant">
+          Pattern progress is now tied to your account so your projects stay private and persistent.
+        </p>
+        <Link to="/account" className="rounded-2xl bg-on-surface px-6 py-4 text-sm font-bold text-white">
+          Go to account
+        </Link>
       </div>
     );
   }

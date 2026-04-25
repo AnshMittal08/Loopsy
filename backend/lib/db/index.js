@@ -34,6 +34,7 @@ function initializeDatabase(db) {
 
     CREATE TABLE IF NOT EXISTS patterns (
       id TEXT PRIMARY KEY,
+      userId TEXT,
       title TEXT NOT NULL,
       templateId TEXT,
       color TEXT,
@@ -56,6 +57,7 @@ function initializeDatabase(db) {
 
     CREATE TABLE IF NOT EXISTS progress (
       id TEXT PRIMARY KEY,
+      userId TEXT,
       patternId TEXT NOT NULL,
       totalSteps INTEGER NOT NULL,
       steps TEXT NOT NULL,
@@ -68,7 +70,36 @@ function initializeDatabase(db) {
       value INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      passwordHash TEXT NOT NULL,
+      skillLevel TEXT DEFAULT 'beginner',
+      createdAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL UNIQUE,
+      plan TEXT NOT NULL DEFAULT 'free',
+      status TEXT NOT NULL DEFAULT 'active',
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expiresAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_progress_patternId ON progress(patternId);
+    CREATE INDEX IF NOT EXISTS idx_patterns_userId ON patterns(userId);
+    CREATE INDEX IF NOT EXISTS idx_progress_userId ON progress(userId);
+    CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
   `);
 
   const patternColumns = db.prepare(`PRAGMA table_info(patterns)`).all();
@@ -84,13 +115,20 @@ function initializeDatabase(db) {
     ['notes', "ALTER TABLE patterns ADD COLUMN notes TEXT DEFAULT '[]'"],
     ['promptSummary', "ALTER TABLE patterns ADD COLUMN promptSummary TEXT"],
     ['isAIGenerated', "ALTER TABLE patterns ADD COLUMN isAIGenerated INTEGER DEFAULT 0"],
-    ['isFallback', "ALTER TABLE patterns ADD COLUMN isFallback INTEGER DEFAULT 0"]
+    ['isFallback', "ALTER TABLE patterns ADD COLUMN isFallback INTEGER DEFAULT 0"],
+    ['userId', "ALTER TABLE patterns ADD COLUMN userId TEXT"]
   ];
 
   for (const [columnName, statement] of requiredPatternColumns) {
     if (!existingPatternColumns.has(columnName)) {
       db.exec(statement);
     }
+  }
+
+  const progressColumns = db.prepare(`PRAGMA table_info(progress)`).all();
+  const existingProgressColumns = new Set(progressColumns.map((column) => column.name));
+  if (!existingProgressColumns.has('userId')) {
+    db.exec("ALTER TABLE progress ADD COLUMN userId TEXT");
   }
 
   const initAnalytics = db.prepare(`

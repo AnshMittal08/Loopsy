@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from './AuthProvider';
 
 function MobileNavContent({ onClose }) {
+  const { user } = useAuth();
   const location = useLocation();
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const prevPathname = useRef(location.pathname);
@@ -70,14 +72,23 @@ function MobileNavContent({ onClose }) {
             <span className="material-symbols-outlined">menu_book</span>
             In Progress
           </Link>
+          <Link
+            to="/account"
+            className={`flex items-center gap-4 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
+              isActive('/account') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'
+            }`}
+          >
+            <span className="material-symbols-outlined">person</span>
+            Account
+          </Link>
         </nav>
 
         <div className="px-6 py-6 border-t border-outline-variant/10">
           <Link
-            to="/create"
+            to={user ? "/create" : "/account"}
             className="block w-full rounded-full bg-gradient-to-r from-primary to-primary-dim px-6 py-3 text-center text-sm font-bold text-on-primary shadow-md"
           >
-            Start Project
+            {user ? 'Start Project' : 'Sign In'}
           </Link>
         </div>
       </div>

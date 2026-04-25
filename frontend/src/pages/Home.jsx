@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import { SkeletonTemplateCard } from '../components/Skeleton';
 import { getPatternTheme } from '../lib/patternThemes';
+import { useAuth } from '../components/AuthProvider';
 
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -112,6 +113,7 @@ const BEGINNER_PATH = [
 ];
 
 export default function Home() {
+  const { user } = useAuth();
   const [templates, setTemplates] = useState([]);
   const [recentPatterns, setRecentPatterns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,10 +130,12 @@ export default function Home() {
         setLoading(true);
         setError(null);
 
-        const [templateData, patternData] = await Promise.all([
-          fetchJson('/api/templates'),
-          fetchJson('/api/patterns'),
-        ]);
+        const requests = [fetchJson('/api/templates')];
+        if (user) {
+          requests.push(fetchJson('/api/patterns'));
+        }
+
+        const [templateData, patternData = []] = await Promise.all(requests);
 
         if (cancelled) return;
         setTemplates(templateData);
@@ -147,7 +151,7 @@ export default function Home() {
 
     loadHome();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   const categories = useMemo(
     () => ['All', ...new Set(templates.map((t) => t.category).filter(Boolean))],
@@ -206,8 +210,8 @@ export default function Home() {
                 Browse guided templates, filter by skill level, and keep your latest AI or template-made designs in one working library.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link to="/create" className="rounded-full bg-on-surface px-7 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-transform hover:scale-[1.01]">
-                  Start a custom project
+                <Link to={user ? "/create" : "/account"} className="rounded-full bg-on-surface px-7 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-transform hover:scale-[1.01]">
+                  {user ? 'Start a custom project' : 'Create your account'}
                 </Link>
                 <a href="#discover" className="rounded-full border border-on-surface/10 bg-white/70 px-7 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-on-surface transition-colors hover:bg-white">
                   Explore pattern library
@@ -251,7 +255,9 @@ export default function Home() {
                 <p className="text-sm font-bold text-on-surface-variant">Your projects</p>
                 <p className="mt-3 text-4xl font-black text-on-surface">{recentPatterns.length}</p>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  {recentPatterns.length > 0 ? 'Continue where you left off.' : 'Create your first pattern.'}
+                  {user
+                    ? (recentPatterns.length > 0 ? 'Continue where you left off.' : 'Create your first pattern.')
+                    : 'Sign in to save projects across sessions.'}
                 </p>
               </div>
             </div>
@@ -440,7 +446,9 @@ export default function Home() {
             <div className="mt-6 space-y-4">
               {recentPatterns.length === 0 && (
                 <div className="rounded-2xl bg-surface-container-low p-5 text-sm text-on-surface-variant">
-                  Generate a pattern to start building your project library.
+                  {user
+                    ? 'Generate a pattern to start building your project library.'
+                    : 'Sign in to start building a personal project library.'}
                 </div>
               )}
               {recentPatterns.map((pattern) => (
