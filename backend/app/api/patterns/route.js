@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAllPatterns } from "@/lib/models/patternModel";
 import { generatePattern } from "@/lib/services/patternService";
+import { getAuthenticatedUser, requireAuthenticatedUser } from "@/lib/auth/session";
 
 /**
  * GET /api/patterns
  * Returns all created patterns (history).
  */
-export async function GET() {
+export async function GET(request) {
   try {
-    const patterns = getAllPatterns();
+    const user = getAuthenticatedUser(request);
+    const patterns = user ? getAllPatterns(user.id) : [];
     return NextResponse.json(patterns, { status: 200 });
   } catch (error) {
     return NextResponse.json(
@@ -26,6 +28,9 @@ export async function GET() {
  */
 export async function POST(request) {
   try {
+    const { user, response } = requireAuthenticatedUser(request);
+    if (response) return response;
+
     const body = await request.json();
     const { templateId, title, customization } = body;
 
@@ -36,7 +41,7 @@ export async function POST(request) {
       );
     }
 
-    const { pattern, error } = generatePattern(templateId, title, customization ?? {});
+    const { pattern, error } = generatePattern(templateId, title, customization ?? {}, { userId: user.id });
 
     if (error) {
       return NextResponse.json({ error }, { status: 404 });

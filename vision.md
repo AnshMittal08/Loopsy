@@ -360,8 +360,8 @@ LAYER 3: Community Patterns (Phase 3, self-improving)
 - Enhanced AI system prompt for more detailed step-by-step instructions
 - Difficulty casing normalization
 
-### Phase 2 — Monetization
-- User authentication (Clerk or NextAuth)
+### Phase 2 – Monetization
+- User authentication foundation (shipped locally with cookie sessions; future upgrade path can move to Clerk/NextAuth)
 - Subscription tiers (Free / Maker Pro / Creator)
 - AI rate limiting and generation tracking per user
 - PDF pattern export
@@ -395,9 +395,9 @@ LAYER 3: Community Patterns (Phase 3, self-improving)
 
 ## Current Product Assessment
 
-### Where we are: strong foundation, pre-monetization
+### Where we are: strong foundation, entering Phase 2
 
-The product through Phase 1.5 is a **7/10** — genuinely useful, visually distinctive, and technically sound, but single-user with no revenue. The core insight (AI-native crochet studio for the underserved 60–80M global crocheter market) is validated by Ravelry's $2–5M ARR on a 3-person team with a 2007 codebase.
+The product is now past the anonymous MVP stage. Phase 2A shipped a local account foundation with cookie sessions and user-scoped project data, which means the app can start behaving like a real product rather than a shared demo.
 
 ### What's working
 
@@ -408,10 +408,10 @@ The product through Phase 1.5 is a **7/10** — genuinely useful, visually disti
 
 ### What's missing (in priority order)
 
-1. **Auth + user accounts** — blocker for everything. No retention, no cross-device, no payments.
+1. **Subscriptions + entitlements** — auth exists now, but plan logic and quotas do not.
 2. **AI Tutor** — the feature that justifies a $9/month subscription. "You're on step 8 of your tote bag, here's what this means" is differentiated and costs ~$0.005 per question.
 3. **Photo → Pattern** — the viral growth lever. Upload any crocheted item → get a pattern. Nobody does this. Would spread through crochet TikTok (30B+ views on #crochet).
-4. **Prompt caching** — 2-line change in `aiService.js` that cuts ~90% of repeated system prompt token costs. Should be done immediately.
+4. **Prompt caching** — still an immediate cost-saving win in `aiService.js`.
 
 ### Honest risks
 

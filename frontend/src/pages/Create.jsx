@@ -4,8 +4,10 @@ import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { SkeletonTemplatePreview } from '../components/Skeleton';
 import { getPatternTheme } from '../lib/patternThemes';
+import { useAuth } from '../components/AuthProvider';
 
 export default function Create() {
+  const { user, loading: authLoading } = useAuth();
   const { templateId } = useParams();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -34,7 +36,7 @@ export default function Create() {
   const templateTheme = getPatternTheme(template?.category);
 
   useEffect(() => {
-    if (!templateId) {
+    if (!user || !templateId) {
       return;
     }
 
@@ -63,7 +65,36 @@ export default function Create() {
     return () => {
       cancelled = true;
     };
-  }, [templateId]);
+  }, [templateId, user]);
+
+  if (authLoading) {
+    return <div className="flex min-h-screen items-center justify-center"><p className="text-on-surface-variant">Loading workspace...</p></div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen bg-surface text-on-surface">
+        <SideNav />
+        <main className="flex-1 px-6 py-12 md:px-10 lg:px-16">
+          <div className="mx-auto max-w-3xl rounded-[2rem] bg-surface-container-lowest p-10 shadow-sm">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-primary">Sign in required</p>
+            <h1 className="mt-4 text-4xl font-black tracking-tight text-on-surface">Create patterns inside your account.</h1>
+            <p className="mt-4 max-w-2xl text-on-surface-variant">
+              We have started Phase 2 with user-scoped projects. Sign in first so AI generations, template customizations, and tracker progress belong to you.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link to="/account" className="rounded-2xl bg-on-surface px-6 py-4 text-center text-sm font-bold text-white">
+                Go to account
+              </Link>
+              <Link to="/" className="rounded-2xl bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface">
+                Back to explore
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const handleTemplateGenerate = async () => {
     if (!template) return;

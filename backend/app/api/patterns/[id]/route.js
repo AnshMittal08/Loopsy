@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPatternById, deletePattern } from "@/lib/models/patternModel";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 /**
  * GET /api/patterns/:id
@@ -7,7 +8,10 @@ import { getPatternById, deletePattern } from "@/lib/models/patternModel";
  */
 export async function GET(request, { params }) {
   try {
-    const pattern = getPatternById(params.id);
+    const { user, response } = requireAuthenticatedUser(request);
+    if (response) return response;
+
+    const pattern = getPatternById(params.id, user.id);
 
     if (!pattern) {
       return NextResponse.json(
@@ -31,7 +35,10 @@ export async function GET(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const pattern = getPatternById(params.id);
+    const { user, response } = requireAuthenticatedUser(request);
+    if (response) return response;
+
+    const pattern = getPatternById(params.id, user.id);
 
     if (!pattern) {
       return NextResponse.json(
@@ -40,7 +47,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    deletePattern(params.id);
+    deletePattern(params.id, user.id);
     return NextResponse.json({ deleted: true, id: params.id }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

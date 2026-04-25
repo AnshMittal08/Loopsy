@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generatePatternFromAI } from "@/lib/services/aiService";
 import { createPattern } from "@/lib/models/patternModel";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 /**
  * POST /api/ai/regenerate
@@ -13,6 +14,9 @@ import { createPattern } from "@/lib/models/patternModel";
  */
 export async function POST(request) {
   try {
+    const { user, response } = requireAuthenticatedUser(request);
+    if (response) return response;
+
     const body = await request.json();
     const { prompt, difficulty } = body;
 
@@ -27,6 +31,7 @@ export async function POST(request) {
     const raw = difficulty || "beginner";
     const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
     const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
+    pattern.userId = user.id;
     
     // Persist the generated pattern so it can be tracked later.
     createPattern(pattern);

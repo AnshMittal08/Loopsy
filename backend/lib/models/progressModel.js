@@ -1,21 +1,21 @@
 const db = require('../db');
 
 const insertProgressStmt = db.prepare(`
-  INSERT INTO progress (id, patternId, totalSteps, steps, progressPercentage, createdAt)
-  VALUES (?, ?, ?, ?, ?, ?)
+  INSERT INTO progress (id, userId, patternId, totalSteps, steps, progressPercentage, createdAt)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 const insertProgressIgnoreStmt = db.prepare(`
-  INSERT OR IGNORE INTO progress (id, patternId, totalSteps, steps, progressPercentage, createdAt)
-  VALUES (?, ?, ?, ?, ?, ?)
+  INSERT OR IGNORE INTO progress (id, userId, patternId, totalSteps, steps, progressPercentage, createdAt)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 const getProgressByIdStmt = db.prepare(`
-  SELECT * FROM progress WHERE id = ?
+  SELECT * FROM progress WHERE id = ? AND userId = ?
 `);
 
 const getProgressByPatternIdStmt = db.prepare(`
-  SELECT * FROM progress WHERE patternId = ? ORDER BY createdAt DESC
+  SELECT * FROM progress WHERE patternId = ? AND userId = ? ORDER BY createdAt DESC
 `);
 
 const updateProgressStmt = db.prepare(`
@@ -26,18 +26,19 @@ function deserialize(row) {
   return { ...row, steps: JSON.parse(row.steps) };
 }
 
-function getProgressById(id) {
-  const row = getProgressByIdStmt.get(id);
+function getProgressById(id, userId) {
+  const row = getProgressByIdStmt.get(id, userId);
   return row ? deserialize(row) : null;
 }
 
-function getProgressByPatternId(patternId) {
-  return getProgressByPatternIdStmt.all(patternId).map(deserialize);
+function getProgressByPatternId(patternId, userId) {
+  return getProgressByPatternIdStmt.all(patternId, userId).map(deserialize);
 }
 
 function createProgress(record) {
   insertProgressStmt.run(
     record.id,
+    record.userId,
     record.patternId,
     record.totalSteps,
     JSON.stringify(record.steps),
@@ -48,8 +49,8 @@ function createProgress(record) {
 }
 
 // Atomic toggle: read-modify-write in a single exclusive transaction to prevent race conditions
-const _toggleTransaction = db.transaction((id, stepIndex) => {
-  const row = db.prepare('SELECT * FROM progress WHERE id = ?').get(id);
+const _toggleTransaction = db.transaction((id, userId, stepIndex) => {
+  const row = db.prepare('SELECT * FROM progress WHERE id = ? AND userId = ?').get(id, userId);
   if (!row) return null;
 
   const steps = JSON.parse(row.steps);
@@ -73,17 +74,18 @@ const _toggleTransaction = db.transaction((id, stepIndex) => {
   };
 });
 
-function toggleStepAtomic(id, stepIndex) {
-  return _toggleTransaction.exclusive(id, stepIndex);
+function toggleStepAtomic(id, userId, stepIndex) {
+  return _toggleTransaction.exclusive(id, userId, stepIndex);
 }
 
 // Idempotent: returns existing progress for this pattern if one exists, otherwise creates new
 function getOrCreateProgress(record) {
-  const existing = getProgressByPatternIdStmt.all(record.patternId);
+  const existing = getProgressByPatternIdStmt.all(record.patternId, record.userId);
   if (existing.length > 0) return deserialize(existing[0]);
 
   insertProgressIgnoreStmt.run(
     record.id,
+    record.userId,
     record.patternId,
     record.totalSteps,
     JSON.stringify(record.steps),
@@ -93,8 +95,8 @@ function getOrCreateProgress(record) {
   return record;
 }
 
-function updateProgress(id, updates) {
-  const row = getProgressByIdStmt.get(id);
+function updateProgress(id, userId, updates) {
+  const row = getProgressByIdStmt.get(id, userId);
   if (!row) return null;
 
   const newSteps = updates.steps || JSON.parse(row.steps);
