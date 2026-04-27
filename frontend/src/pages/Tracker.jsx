@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { getPatternTheme } from '../lib/patternThemes';
 import StitchStep from '../components/StitchTooltip';
 import { useAuth } from '../components/AuthProvider';
+import AiTutor from '../components/AiTutor';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -57,6 +58,7 @@ export default function Tracker() {
   const [error, setError] = useState(null);
   const [templateImageUrl, setTemplateImageUrl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
   const theme = getPatternTheme(pattern?.category);
 
@@ -87,7 +89,11 @@ export default function Tracker() {
             body: JSON.stringify({ patternId: patData.id }),
           });
           if (cancelled) return;
-          setProgress(initData);
+          if (!initData?.id) {
+            showToast('Could not initialize progress tracker. Please refresh.', 'error');
+          } else {
+            setProgress(initData);
+          }
         }
 
         // Load template image if this pattern came from a template
@@ -165,6 +171,8 @@ export default function Tracker() {
   }
 
   const progressPercent = progress?.progressPercentage ?? 0;
+  const steps = pattern?.steps || [];
+  const nextIdx = steps.findIndex((_, i) => !(progress?.steps?.[i]?.completed ?? false));
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
@@ -176,7 +184,7 @@ export default function Tracker() {
           <button className="text-primary" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <span className="material-symbols-outlined">menu</span>
           </button>
-          <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+          <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
         {/* Title + Progress Ring */}
@@ -314,7 +322,7 @@ export default function Tracker() {
             )}
 
             <div className="flex-grow overflow-y-auto px-5 py-5 space-y-3">
-              {pattern.steps.map((stepData, index) => {
+              {steps.map((stepData, index) => {
                 const isCompleted = progress?.steps?.[index]?.completed ?? false;
                 const isNext = !isCompleted && (index === 0 || (progress?.steps?.[index - 1]?.completed ?? false));
 
@@ -337,6 +345,7 @@ export default function Tracker() {
                         checked={isCompleted}
                         onChange={() => toggleStep(index)}
                         className="accent-primary w-4 h-4"
+                        aria-label={`Step ${index + 1}`}
                       />
                     </div>
 
@@ -364,6 +373,13 @@ export default function Tracker() {
           </section>
         </div>
       </main>
+
+      <AiTutor
+        patternId={patternId}
+        currentStepIndex={nextIdx >= 0 ? nextIdx : steps.length - 1}
+        patternTitle={pattern.title}
+        difficulty={pattern.difficulty}
+      />
     </div>
   );
 }

@@ -10,14 +10,29 @@ export default function Account() {
   const { showToast } = useToast();
   const [mode, setMode] = useState('signin');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (field) => (event) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
+    if (fieldErrors[field]) setFieldErrors((e) => ({ ...e, [field]: null }));
+  };
+
+  const validate = () => {
+    const errors = {};
+    if (mode === 'signup' && !form.name.trim()) errors.name = 'Name is required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Enter a valid email address.';
+    if (form.password.length < 8) errors.password = 'Password must be at least 8 characters.';
+    return errors;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const errors = validate();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -111,38 +126,44 @@ export default function Account() {
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                   {mode === 'signup' && (
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-on-surface">Name</span>
+                    <div className="block">
+                      <label htmlFor="name" className="mb-2 block text-sm font-bold text-on-surface">Name</label>
                       <input
+                        id="name"
                         value={form.name}
                         onChange={handleChange('name')}
-                        className="w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none"
+                        className={`w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none ${fieldErrors.name ? 'ring-1 ring-red-400' : ''}`}
                         placeholder="Your display name"
                       />
-                    </label>
+                      {fieldErrors.name && <p className="mt-1 text-xs text-red-400">{fieldErrors.name}</p>}
+                    </div>
                   )}
 
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-on-surface">Email</span>
+                  <div className="block">
+                    <label htmlFor="email" className="mb-2 block text-sm font-bold text-on-surface">Email</label>
                     <input
+                      id="email"
                       type="email"
                       value={form.email}
                       onChange={handleChange('email')}
-                      className="w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none"
+                      className={`w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none ${fieldErrors.email ? 'ring-1 ring-red-400' : ''}`}
                       placeholder="maker@example.com"
                     />
-                  </label>
+                    {fieldErrors.email && <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>}
+                  </div>
 
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-on-surface">Password</span>
+                  <div className="block">
+                    <label htmlFor="password" className="mb-2 block text-sm font-bold text-on-surface">Password</label>
                     <input
+                      id="password"
                       type="password"
                       value={form.password}
                       onChange={handleChange('password')}
-                      className="w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none"
+                      className={`w-full rounded-2xl bg-surface-container-low px-4 py-3 outline-none ${fieldErrors.password ? 'ring-1 ring-red-400' : ''}`}
                       placeholder="At least 8 characters"
                     />
-                  </label>
+                    {fieldErrors.password && <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>}
+                  </div>
 
                   <button
                     disabled={submitting}

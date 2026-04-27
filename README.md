@@ -11,11 +11,23 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 
 ## Features
 
+### Accounts
+- Sign up / sign in with email and password
+- Cookie-based sessions (30-day TTL, `HttpOnly`, `SameSite=Strict`)
+- Patterns and progress are scoped to the authenticated user
+- Free plan on signup; subscription tiers ready for Phase 2 billing
+
 ### Discovery
 - Browse 22 curated templates across Wearable, Amigurumi, Accessory, Blanket, and Home Decor categories
 - Filter by category and difficulty (Beginner / Intermediate / Advanced)
 - Full-text search across name, description, and tags
-- Template cards with real photos and 3D CSS perspective tilt on hover
+- Template cards with real crochet product photos and 3D CSS perspective tilt on hover
+- "Start Here" beginner path: 6 curated projects in learning progression
+
+### Template Detail
+- Full-width hero image, metadata grid (hook, yarn, time, size), materials, and maker notes
+- Read-only pattern steps with all abbreviations expanded to plain English
+- "Customize This Pattern" CTA → `/create/:id`
 
 ### AI Pattern Generation
 - Describe what you want to make in plain English
@@ -29,11 +41,19 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 
 ### Progress Tracker
 - Row-by-row checkbox tracker with animated SVG progress ring
-- Step instructions in plain English — all crochet abbreviations expanded (sc → single crochet, ch → chain, etc.)
+- Stitch term tooltips with YouTube tutorial links (hover/tap on any stitch name)
+- Step instructions in plain English — all crochet abbreviations expanded
 - Materials list and maker notes visible while you crochet
 - Template photo displayed as the left panel hero image
 - Progress persists in SQLite — survives page refresh and server restart
 - Atomic step toggle prevents race conditions when tapping steps quickly
+
+### AI Tutor
+- Floating "Ask tutor" button in the tracker (bottom-right, portal-rendered)
+- Step-specific Q&A: Claude receives the full pattern and your current step as context
+- Conversation history maintained for the session
+- Three suggested starter questions on first open
+- Graceful 503 if no `ANTHROPIC_API_KEY` is set
 
 ---
 
@@ -52,7 +72,7 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-### 2. Configure AI (optional but recommended)
+### 2. Configure environment
 
 Create `backend/.env.local`:
 
@@ -60,11 +80,13 @@ Create `backend/.env.local`:
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Without this, the app falls back to local Ollama. Start it in a separate terminal:
+`ANTHROPIC_API_KEY` is optional. Without it the app falls back to local Ollama:
 
 ```bash
 ollama run phi3
 ```
+
+No other environment variables are required. Sessions use a random secret generated at runtime.
 
 ### 3. Run both servers
 
@@ -89,7 +111,12 @@ The Vite dev server proxies all `/api/*` requests to the backend automatically.
 
 ### First startup
 
-On first run the backend creates `backend/data.db` and seeds all 22 templates automatically. No manual migration needed. To reset to a clean state, delete `backend/data.db` and restart the backend.
+On first run the backend creates `backend/data.db` and seeds all 22 templates automatically. No manual migration needed.
+
+To reset to a clean state (removes all accounts, patterns, and progress):
+```bash
+rm backend/data.db
+```
 
 ---
 
@@ -99,41 +126,62 @@ On first run the backend creates `backend/data.db` and seeds all 22 templates au
 Loopsy/
 ├── backend/
 │   ├── app/api/
-│   │   ├── ai/generate-pattern/     POST — AI pattern generation
-│   │   ├── patterns/                GET all, POST create
-│   │   ├── patterns/[id]/           GET single
-│   │   ├── progress/                POST init (idempotent)
-│   │   ├── progress/[id]/           PATCH toggle step (atomic)
-│   │   ├── progress/pattern/[id]/   GET by patternId
-│   │   └── templates/               GET all, GET [id]
+│   │   ├── auth/
+│   │   │   ├── signup/          POST — create account
+│   │   │   ├── login/           POST — sign in
+│   │   │   └── logout/          POST — sign out, clear cookie
+│   │   ├── me/                  GET — current session user
+│   │   ├── ai/
+│   │   │   ├── generate-pattern/  POST — AI pattern generation
+│   │   │   ├── regenerate/        POST — AI pattern regeneration
+│   │   │   └── tutor/             POST — step-specific AI Q&A (Claude)
+│   │   ├── patterns/            GET all (user-scoped), POST create
+│   │   ├── patterns/[id]/       GET single, DELETE
+│   │   ├── progress/            POST init (idempotent)
+│   │   ├── progress/[id]/       PATCH toggle step (atomic)
+│   │   ├── progress/pattern/[id]/  GET by patternId
+│   │   ├── templates/           GET all (filterable), GET [id]
+│   │   └── analytics/           GET usage stats
 │   ├── lib/
-│   │   ├── db/index.js              SQLite singleton, schema init, migrations
+│   │   ├── auth/
+│   │   │   └── session.js       hashPassword, verifyPassword, createUserSession, setSessionCookie
+│   │   ├── db/index.js          SQLite singleton, schema init, migrations
 │   │   ├── models/
-│   │   │   ├── templateModel.js     SQLite queries + 22-template seed data
-│   │   │   ├── patternModel.js      CRUD for user-created patterns
-│   │   │   └── progressModel.js     CRUD + toggleStepAtomic()
+│   │   │   ├── userModel.js     createUser, getUserByEmail, getUserWithSubscriptionById
+│   │   │   ├── sessionModel.js  createSession, getSessionByToken, deleteSessionByToken
+│   │   │   ├── templateModel.js SQLite queries + 22-template seed data
+│   │   │   ├── patternModel.js  CRUD for user-created patterns
+│   │   │   └── progressModel.js CRUD + toggleStepAtomic()
 │   │   ├── services/
-│   │   │   ├── aiService.js         Claude / Ollama / fallback logic
-│   │   │   └── patternService.js    Template → structured pattern generation
+│   │   │   ├── aiService.js     Claude / Ollama / fallback logic
+│   │   │   └── patternService.js  Template → structured pattern generation
 │   │   └── utils/helpers.js
-│   └── data.db                      SQLite database (auto-created, gitignored)
+│   └── data.db                  SQLite database (auto-created, gitignored)
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── Home.jsx             Template discovery + recent patterns
-│   │   │   ├── Create.jsx           AI generation + template customization
-│   │   │   └── Tracker.jsx          Row-by-row progress tracker
+│   │   │   ├── Home.jsx         Template discovery + beginner path + recent patterns
+│   │   │   ├── Account.jsx      Sign up / sign in / sign out + plan summary
+│   │   │   ├── TemplateDetail.jsx  Full template view with CTA
+│   │   │   ├── Create.jsx       AI generation + template customization
+│   │   │   └── Tracker.jsx      Row-by-row progress tracker
 │   │   ├── components/
+│   │   │   ├── AuthProvider.jsx useAuth() hook — user, signIn, signUp, signOut
+│   │   │   ├── AiTutor.jsx      Floating chat panel — step-specific Claude Q&A
+│   │   │   ├── MobileNav.jsx    Portal-rendered slide-in drawer
+│   │   │   ├── StitchTooltip.jsx  Stitch term overlay with YouTube links
+│   │   │   ├── Skeleton.jsx     Loading skeleton components
+│   │   │   ├── Toast.jsx        Toast notification system
 │   │   │   ├── TopNav.jsx
 │   │   │   └── SideNav.jsx
 │   │   └── lib/
-│   │       ├── patternThemes.js     Category → colour/icon design tokens
-│   │       └── crochetAbbreviations.js  Plain-English abbreviation expander
+│   │       ├── patternThemes.js      Category → colour/icon design tokens
+│   │       └── crochetAbbreviations.js  Plain-English expander + stitch metadata
 │   └── vite.config.js
 │
-├── CLAUDE.md                        Claude Code developer guidance
-├── plan.md                          Product roadmap
+├── CLAUDE.md                    Claude Code developer guidance
+├── plan.md                      Product roadmap
 └── README.md
 ```
 
@@ -141,21 +189,65 @@ Loopsy/
 
 ## API Reference
 
+### Auth
+
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/auth/signup` | `{ name, email, password }` | Create account, set session cookie |
+| `POST` | `/api/auth/login` | `{ email, password }` | Sign in, set session cookie |
+| `POST` | `/api/auth/logout` | — | Clear session cookie |
+| `GET` | `/api/me` | — | Current authenticated user or `null` |
+
+### Templates
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/templates` | All templates (summary — no `defaultPattern`) |
+| `GET` | `/api/templates` | All templates (summary — no `defaultPattern`). Query: `?difficulty=&category=&q=` |
 | `GET` | `/api/templates/:id` | Full template including `defaultPattern` |
-| `GET` | `/api/patterns` | All user-created patterns |
+
+### Patterns (user-scoped, requires auth)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/patterns` | All patterns for the current user |
 | `GET` | `/api/patterns/:id` | Single pattern with full steps |
 | `POST` | `/api/patterns` | Create from template `{ templateId, title, customization: { color, size } }` |
+| `DELETE` | `/api/patterns/:id` | Delete pattern and its progress records |
 | `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` |
+| `POST` | `/api/ai/tutor` | Step-specific Q&A `{ patternId, currentStepIndex, userMessage, history }` |
+
+### Progress (user-scoped, requires auth)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | `POST` | `/api/progress` | Init or return existing progress `{ patternId }` |
 | `GET` | `/api/progress/pattern/:patternId` | All progress records for a pattern |
-| `PATCH` | `/api/progress/:id` | Toggle step `{ stepIndex }` |
+| `PATCH` | `/api/progress/:id` | Toggle step `{ stepIndex }` (atomic) |
+
+### Analytics
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/analytics` | Usage stats: pattern counts, AI usage, template count, avg completion |
 
 ---
 
 ## Database Schema
+
+**users**
+```sql
+id, email, name, passwordHash, createdAt
+```
+
+**sessions**
+```sql
+id, userId, token, createdAt, expiresAt
+```
+
+**subscriptions**
+```sql
+id, userId, plan, status, createdAt, updatedAt
+```
 
 **templates** — seeded on first startup
 ```sql
@@ -163,15 +255,15 @@ id, name, description, difficulty, category, tags, imageUrl,
 hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPattern, createdAt
 ```
 
-**patterns** — user-created
+**patterns** — user-created, scoped by userId
 ```sql
-id, title, templateId, color, size, steps, difficulty, category, tags, materials,
+id, userId, title, templateId, color, size, steps, difficulty, category, tags, materials,
 hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback, createdAt
 ```
 
-**progress**
+**progress** — scoped by userId
 ```sql
-id, patternId, totalSteps, steps (JSON array), progressPercentage, createdAt
+id, userId, patternId, totalSteps, steps (JSON array), progressPercentage, createdAt
 ```
 
 ---
@@ -186,7 +278,7 @@ cd frontend && npm run lint
 cd frontend && npm run build
 cd backend && npm run build
 
-# Reset database (re-seeds all 22 templates on next backend start)
+# Reset database (re-seeds all 22 templates, removes all accounts and patterns)
 rm backend/data.db
 ```
 
@@ -194,10 +286,16 @@ rm backend/data.db
 
 ## Roadmap
 
-See [plan.md](./plan.md) for the full Phase 2 roadmap. Upcoming priorities:
+See [plan.md](./plan.md) for the full roadmap. Shipped so far:
 
-1. **Auth** — user accounts, saved libraries, favorites
-2. **Discovery** — template detail pages, 50+ templates, curated collections
-3. **AI improvements** — structured input form, regenerate-with-edits, pattern versioning
-4. **Export** — PDF print, shareable read-only link, plain text copy
-5. **Media** — user project photos, completed gallery
+- Phase 1 — Core tracker, AI generation, template library, SQLite backend
+- Phase 1.5 — Stitch tooltips, beginner path, mobile nav, skeletons, toasts, template detail page
+- Phase 2A — Local auth with cookie sessions, user-scoped patterns and progress
+- Phase 2B — AI Tutor in tracker, DB performance indexes, form validation, accessibility fixes
+
+Next priorities:
+
+1. **Subscription billing** — AI rate limiting per plan, Maker Pro / Creator tiers
+2. **Learn page** — searchable stitch reference, embedded YouTube tutorials (data already in `crochetAbbreviations.js`)
+3. **Photo → Pattern** — upload a photo, get a reverse-engineered pattern (viral growth lever)
+4. **Beginner Mode** — "I'm confused" button per step, AI explains the step differently

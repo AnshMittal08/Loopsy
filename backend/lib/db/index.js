@@ -100,6 +100,9 @@ function initializeDatabase(db) {
     CREATE INDEX IF NOT EXISTS idx_patterns_userId ON patterns(userId);
     CREATE INDEX IF NOT EXISTS idx_progress_userId ON progress(userId);
     CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_patterns_templateId ON patterns(templateId);
   `);
 
   const patternColumns = db.prepare(`PRAGMA table_info(patterns)`).all();

@@ -112,13 +112,40 @@
 
 ---
 
+## What Was Built (Phase 2A — Auth)
+
+### Completed
+
+- Custom cookie-based auth (scrypt password hashing, `HttpOnly` 30-day sessions)
+- `POST /api/auth/signup`, `/login`, `/logout`, `GET /api/me`
+- All patterns and progress scoped to `userId`
+- Free subscription auto-created on signup
+- `Account.jsx` — sign up / sign in / sign out + plan summary
+- `AuthProvider.jsx` — `useAuth()` hook wrapping the app
+
+---
+
+## What Was Built (Phase 2B — AI Tutor + Code Quality)
+
+### Completed
+
+**AI Tutor:**
+- `POST /api/ai/tutor` — auth-protected endpoint; Claude (`claude-sonnet-4-6`) called with full pattern context + current step as system prompt; 503 if no API key
+- `AiTutor.jsx` — portal-rendered floating FAB (bottom-right) + chat panel; pulse animation on first load; 3 suggested starter questions; session-only conversation history; Escape/click-outside dismissal
+- Wired into `Tracker.jsx` — passes current step index (first uncompleted step), pattern title and difficulty
+
+**Code quality / accessibility:**
+- SQLite indexes added for `users.email`, `sessions.token`, `patterns.templateId` — eliminates table scans on login, session validation, and template queries
+- `Tracker.jsx` — guarded `pattern.steps || []` crash, `aria-label` on checkboxes, toast on failed progress init, `useCallback` on MobileNav close
+- `Account.jsx` — client-side validation (email regex, password ≥ 8 chars, name required), inline per-field errors, `htmlFor`/`id` label associations
+- `Home.jsx` — accessible `sr-only` label + `id` on search input
+- `Create.jsx` — `useCallback` on MobileNav close
+
+---
+
 ## Phase 2 — Core Monetisation & Beginner Onboarding
 
-### 1. Authentication & User Accounts
-- Add authentication (Clerk, NextAuth, or custom JWT)
-- Scope patterns and progress to `userId`
-- Saved libraries, favorites, recently viewed
-- Skill profile stored per user (feeds adaptive AI in Phase 3)
+### 1. ~~Authentication & User Accounts~~ ✅ Shipped (Phase 2A)
 
 ### 2. Subscription Tiers
 - Free: 3 AI generations/month, 3 AI tutor questions/month, 20% marketplace commission
@@ -139,11 +166,10 @@
 - Each stitch: explanation, curated video, "used in these patterns" links, common mistakes
 - Stitch tooltips in tracker link here
 
-### 5. AI Tutor — Contextual Q&A in Tracker
-- Floating chat button in tracker
-- Claude receives pattern + current step + user skill level as context
-- Free: 3 questions/month; Maker Pro: unlimited
-- Answers are step-specific, not generic
+### 5. ~~AI Tutor — Contextual Q&A in Tracker~~ ✅ Shipped (Phase 2B)
+- Floating FAB in tracker, portal-rendered
+- Claude receives full pattern + current step as context
+- Rate limiting (free tier cap) deferred to when subscriptions are implemented
 
 ### 6. Onboarding Learning Path
 - Signup question: "Have you crocheted before?"
@@ -237,10 +263,12 @@
 
 ```
 Shipped        Phase 1 foundation + Phase 1.5 immediate wins & polish
-Phase 2a       Auth + subscriptions + AI rate limiting
-Phase 2b       Beginner Mode + Learn page + AI Tutor
-Phase 2c       Marketplace (listings, buying, selling, Verified badge)
-Phase 2d       Discovery expansion + AI workflow improvements + export
+Shipped        Phase 2A — Auth + user-scoped patterns and progress
+Shipped        Phase 2B — AI Tutor + DB indexes + form validation + a11y
+Phase 2C       Subscription billing + AI rate limiting per plan
+Phase 2D       Learn page + Beginner Mode + onboarding learning path
+Phase 2E       Marketplace (listings, buying, selling, Verified badge)
+Phase 2F       Discovery expansion + AI workflow improvements + export
 Phase 3        Photo→Pattern + Stash manager + Design studio + CAL events
 Phase 4        Knitting + global + B2B + stitch diagrams
 ```
@@ -304,9 +332,12 @@ The crochet community is tight-knit and trusts word-of-mouth. The product is str
 ## Immediate Next Steps (Priority Order)
 
 ```
-1. Add prompt caching to aiService.js         (2 lines, do now)
-2. Auth + basic user accounts                  (unlocks everything)
-3. AI Tutor — floating chat in tracker         (justifies subscription)
-4. Photo → Pattern prototype                   (viral growth lever)
-5. Learn page consuming existing stitch data   (SEO + tooltip completion)
+✅ Done   Prompt caching in aiService.js
+✅ Done   Auth + user accounts (Phase 2A)
+✅ Done   AI Tutor — floating chat in tracker (Phase 2B)
+
+1. Subscription billing + AI rate limiting     (Phase 2C — unlocks revenue)
+2. Learn page — /learn stitch reference        (Phase 2D — SEO + tooltip completion)
+3. Photo → Pattern prototype                   (Phase 3 — viral growth lever)
+4. Beginner Mode — "I'm confused" per step     (Phase 2D — retention)
 ```
