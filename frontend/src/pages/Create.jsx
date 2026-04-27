@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
@@ -11,6 +11,7 @@ export default function Create() {
   const { templateId } = useParams();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const hasTemplateRoute = Boolean(templateId);
 
   // Template-based generation state
@@ -185,7 +186,7 @@ export default function Create() {
           <button className="text-primary" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <span className="material-symbols-outlined">menu</span>
           </button>
-          <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+          <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
         <div className="p-6 pt-2 md:p-12 lg:p-20">

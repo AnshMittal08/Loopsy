@@ -328,7 +328,9 @@ export default function Home() {
               </p>
             </div>
             <div className="w-full max-w-xl rounded-[1.25rem] bg-surface-container-lowest p-3 shadow-sm">
+              <label htmlFor="search" className="sr-only">Search patterns</label>
               <input
+                id="search"
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
