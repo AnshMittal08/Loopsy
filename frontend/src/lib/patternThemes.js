@@ -1,44 +1,44 @@
 const CATEGORY_THEMES = {
   wearable: {
-    accent: 'from-amber-300 via-orange-200 to-rose-100',
+    accent: 'from-amber-300 via-yellow-200 to-orange-100',
     panel: 'bg-amber-50',
-    orb: 'bg-orange-200/70',
+    orb: 'bg-amber-300/60',
     icon: 'checkroom'
   },
   accessory: {
-    accent: 'from-emerald-300 via-teal-200 to-cyan-100',
-    panel: 'bg-emerald-50',
-    orb: 'bg-teal-200/70',
+    accent: 'from-blue-300 via-sky-200 to-cyan-100',
+    panel: 'bg-blue-50',
+    orb: 'bg-blue-300/60',
     icon: 'shopping_bag'
   },
   amigurumi: {
-    accent: 'from-pink-300 via-rose-200 to-orange-100',
-    panel: 'bg-rose-50',
-    orb: 'bg-pink-200/70',
+    accent: 'from-pink-300 via-rose-200 to-fuchsia-100',
+    panel: 'bg-pink-50',
+    orb: 'bg-pink-300/60',
     icon: 'toys'
   },
   blanket: {
-    accent: 'from-sky-300 via-indigo-200 to-violet-100',
+    accent: 'from-sky-300 via-blue-200 to-indigo-100',
     panel: 'bg-sky-50',
-    orb: 'bg-indigo-200/70',
+    orb: 'bg-sky-300/60',
     icon: 'bed'
   },
   home: {
-    accent: 'from-lime-300 via-emerald-200 to-stone-100',
-    panel: 'bg-lime-50',
-    orb: 'bg-lime-200/70',
+    accent: 'from-teal-300 via-cyan-200 to-sky-100',
+    panel: 'bg-teal-50',
+    orb: 'bg-teal-300/60',
     icon: 'home'
   },
   practice: {
-    accent: 'from-violet-300 via-fuchsia-200 to-rose-100',
+    accent: 'from-violet-300 via-purple-200 to-blue-100',
     panel: 'bg-violet-50',
-    orb: 'bg-fuchsia-200/70',
+    orb: 'bg-violet-300/60',
     icon: 'school'
   },
   custom: {
-    accent: 'from-slate-300 via-zinc-200 to-stone-100',
-    panel: 'bg-slate-50',
-    orb: 'bg-slate-300/70',
+    accent: 'from-blue-200 via-sky-100 to-indigo-50',
+    panel: 'bg-blue-50',
+    orb: 'bg-blue-200/60',
     icon: 'auto_awesome'
   }
 };

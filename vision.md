@@ -1,11 +1,11 @@
-# StitchFlow AI — Product Vision
+# Loopsy — Product Vision
 
 ## What We Are Building
 
-StitchFlow AI is an AI-native crochet project studio — the first platform that serves both **makers** (people who crochet) and **designers** (people who write and sell patterns) in one cohesive product. We are not a pattern archive. We are not a generic AI tool. We are the intelligent layer that the $6 billion global yarn crafts market has never had.
+Loopsy is an AI-native crochet project studio — the first platform that serves both **makers** (people who crochet) and **designers** (people who write and sell patterns) in one cohesive product. We are not a pattern archive. We are not a generic AI tool. We are the intelligent layer that the $6 billion global yarn crafts market has never had.
 
 The positioning in one line:
-> **"Ravelry has the archive. StitchFlow AI has the intelligence."**
+> **"Ravelry has the archive. Loopsy has the intelligence."**
 
 ---
 
@@ -194,7 +194,7 @@ New designers consistently undercharge because they have no reference. We solve 
 The crochet design community is deeply protective of their IP. Ravelry's community has been vocal about AI fears. If we do not address this directly, designers will not list on our platform and the marketplace never starts.
 
 **The policy:**
-> AI-generated patterns on StitchFlow AI are for **personal use only**. They cannot be listed or sold in the marketplace. Only human-designed patterns can be sold. AI generation is never trained on marketplace patterns without explicit designer opt-in consent.
+> AI-generated patterns on Loopsy are for **personal use only**. They cannot be listed or sold in the marketplace. Only human-designed patterns can be sold. AI generation is never trained on marketplace patterns without explicit designer opt-in consent.
 
 This creates a clean separation:
 - **Makers** use AI for personal creative exploration (subscription revenue)
@@ -445,7 +445,7 @@ Hits the free AI limit → upgrades to Maker Pro
 Eventually writes their own patterns → lists in marketplace → Creator tier
 ```
 
-A user who completes their first project on StitchFlow associates the platform with their own achievement. That is the strongest form of retention. Users who learn here do not leave.
+A user who completes their first project on Loopsy associates the platform with their own achievement. That is the strongest form of retention. Users who learn here do not leave.
 
 ---
 
@@ -616,7 +616,7 @@ This is the acquisition mechanic no current crochet platform has built. It is al
 ## Growth Strategy
 
 ### The designer flywheel
-Sellers bring their own audiences. A designer with 200k Instagram followers telling their community "I just listed on StitchFlow" is free acquisition. This is the Etsy model — your sellers are your marketing team. Priority: get 20 quality designers on the platform before public marketplace launch. Offer 0% commission for their first 6 months. Seed the catalog with quality.
+Sellers bring their own audiences. A designer with 200k Instagram followers telling their community "I just listed on Loopsy" is free acquisition. This is the Etsy model — your sellers are your marketing team. Priority: get 20 quality designers on the platform before public marketplace launch. Offer 0% commission for their first 6 months. Seed the catalog with quality.
 
 ### Content creator partnerships
 The crochet TikTok and YouTube community is large and accessible. Mid-size creators (50k–500k followers) are reachable without huge budget. One authentic "I tried this AI crochet tool" video from a trusted creator drives meaningful sign-ups. Target 5–10 creator partnerships at launch.
@@ -653,4 +653,4 @@ Build the **Duolingo of fiber arts** — not a social feed, not a content archiv
 
 Ravelry proved the market exists and that it sustains a highly profitable business. It just stopped evolving 15 years ago. The window to build the modern version is open now — the Gen Z and Millennial crochet wave brought millions of new digitally-native makers who have never had a tool built for them.
 
-That is what StitchFlow AI is for.
+That is what Loopsy is for.

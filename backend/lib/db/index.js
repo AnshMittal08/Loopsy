@@ -96,6 +96,17 @@ function initializeDatabase(db) {
       createdAt TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      month TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      UNIQUE(userId, type, month)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_progress_patternId ON progress(patternId);
     CREATE INDEX IF NOT EXISTS idx_patterns_userId ON patterns(userId);
     CREATE INDEX IF NOT EXISTS idx_progress_userId ON progress(userId);
@@ -103,6 +114,7 @@ function initializeDatabase(db) {
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_patterns_templateId ON patterns(templateId);
+    CREATE INDEX IF NOT EXISTS idx_ai_usage_user_type_month ON ai_usage(userId, type, month);
   `);
 
   const patternColumns = db.prepare(`PRAGMA table_info(patterns)`).all();

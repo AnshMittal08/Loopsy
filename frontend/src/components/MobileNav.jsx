@@ -3,6 +3,27 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 
+function NavItem({ to, icon, label, active }) {
+  return (
+    <Link
+      to={to}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+        active
+          ? 'bg-primary/10 text-primary font-semibold'
+          : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+      }`}
+    >
+      <span
+        className="material-symbols-outlined text-[20px]"
+        style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}
+      >
+        {icon}
+      </span>
+      {label}
+    </Link>
+  );
+}
+
 function MobileNavContent({ onClose }) {
   const { user } = useAuth();
   const location = useLocation();
@@ -32,61 +53,36 @@ function MobileNavContent({ onClose }) {
   return (
     <div className="fixed inset-0" style={{ zIndex: 99999 }}>
       <div
-        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+        className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
         onClick={onClose}
       />
-
-      <div className="absolute right-0 top-0 h-full w-72 bg-surface shadow-xl flex flex-col animate-[slideIn_0.3s_ease-out]">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/10">
-          <span className="text-lg font-black text-primary tracking-tight">StitchFlow AI</span>
-          <button onClick={onClose} aria-label="Close menu" className="text-on-surface-variant hover:text-on-surface">
+      <div className="absolute right-0 top-0 h-full w-72 bg-white shadow-warm-xl flex flex-col animate-[slideIn_0.25s_ease-out]">
+        <div className="flex items-center justify-between px-5 py-5 border-b border-outline-variant/20">
+          <Link to="/" className="font-display text-xl font-bold text-on-surface">Loopsy</Link>
+          <button onClick={onClose} aria-label="Close menu" className="text-on-surface-variant hover:text-on-surface transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <Link
-            to="/"
-            className={`flex items-center gap-4 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
-              isActive('/') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'
-            }`}
-          >
-            <span className="material-symbols-outlined">dashboard</span>
-            Explore
-          </Link>
-          <Link
-            to="/create"
-            className={`flex items-center gap-4 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
-              isActive('/create') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'
-            }`}
-          >
-            <span className="material-symbols-outlined">auto_awesome</span>
-            Create New
-          </Link>
-          <Link
-            to="/tracker"
-            className={`flex items-center gap-4 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
-              isActive('/tracker') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'
-            }`}
-          >
-            <span className="material-symbols-outlined">menu_book</span>
-            In Progress
-          </Link>
-          <Link
-            to="/account"
-            className={`flex items-center gap-4 px-4 py-3 rounded-full text-sm font-semibold transition-colors ${
-              isActive('/account') ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest'
-            }`}
-          >
-            <span className="material-symbols-outlined">person</span>
-            Account
-          </Link>
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          <NavItem to="/" icon="dashboard" label="Explore" active={isActive('/')} />
+          <NavItem to="/create" icon="auto_awesome" label="Create" active={isActive('/create')} />
+          <NavItem to="/tracker" icon="menu_book" label="In Progress" active={isActive('/tracker')} />
+          <NavItem to="/account" icon="person" label="Account" active={isActive('/account')} />
         </nav>
 
-        <div className="px-6 py-6 border-t border-outline-variant/10">
+        <div className="px-4 py-5 border-t border-outline-variant/20 space-y-3">
+          {user && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-container-low">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-xs font-bold">
+                {user.name.slice(0, 1).toUpperCase()}
+              </div>
+              <p className="text-sm font-medium text-on-surface truncate">{user.name}</p>
+            </div>
+          )}
           <Link
-            to={user ? "/create" : "/account"}
-            className="block w-full rounded-full bg-gradient-to-r from-primary to-primary-dim px-6 py-3 text-center text-sm font-bold text-on-primary shadow-md"
+            to={user ? '/create' : '/account'}
+            className="flex items-center justify-center gap-2 w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors"
           >
             {user ? 'Start Project' : 'Sign In'}
           </Link>

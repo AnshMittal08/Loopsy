@@ -1,6 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
+
 This repository contains two coordinated apps:
 
 - `backend/` is a Next.js 14 API-only server. Route handlers live in `backend/app/api/`, session/auth logic in `backend/lib/auth/`, database models in `backend/lib/models/`, and SQLite setup in `backend/lib/db/`.
@@ -9,6 +10,7 @@ This repository contains two coordinated apps:
 Phase 2 introduced account-aware flows, so backend and frontend changes now often span auth, API, and UI together.
 
 ## Build, Test, and Development Commands
+
 Run commands from the relevant app directory:
 
 - `cd backend && npm install && npm run dev`
@@ -27,32 +29,65 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd`.
 - Keep backend imports on the `@/` alias where configured.
 - Prefer functional React components and small context providers for cross-app state such as auth or toasts.
 
-## Testing & Verification
-There is still no committed automated test suite. Validate changes by:
+## Design System
 
-- exercising the affected `/api/*` routes locally
-- walking the main flows in the frontend
-- running `frontend` lint and both production builds before closing a milestone
+The frontend uses the **Frozen Lake** palette. All color tokens are defined in two places that must stay in sync:
+
+- `frontend/src/index.css` — Tailwind v4 `@theme` block with CSS custom properties
+- `frontend/tailwind.config.js` — `theme.extend.colors` for JSX class usage
+
+**Key tokens:**
+- Primary: `#1E40AF` (navy) — buttons, active states, progress ring
+- Secondary: `#4E6878` (slate) — supporting elements, check icons
+- Tertiary: `#B45309` (warm amber) — accent badges, near-limit usage bars
+- Surface: `#F6F9FF` (blue-white) — page background
+- On-surface: `#0A1428` (deep navy-black) — body text
+
+**Typography:**
+- `font-display` → Fraunces (serif) — all page `<h1>` headings
+- `font-headline` / `font-body` → Plus Jakarta Sans — everything else
+
+**Utility classes** (defined in `index.css`):
+- `shadow-warm`, `shadow-warm-md/lg/xl` — teal-tinted drop shadows
+- `card-lift` — `translateY(-3px)` + shadow on hover
+- `ghost-border` — 1px navy border at 15% opacity
+
+**Card pattern:** `rounded-2xl bg-white border border-outline-variant/20 shadow-warm`
+
+**CTA pattern:** `rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm`
+
+Never use hard-coded hex values in JSX — always use Tailwind color tokens. Never introduce a new color without adding it to both `index.css` and `tailwind.config.js`.
+
+## Testing & Verification
+
+There is no committed automated test suite. Validate changes by:
+
+- Exercising the affected `/api/*` routes locally
+- Walking the main flows in the frontend
+- Running `cd frontend && npm run build` — zero errors required before closing any milestone
 
 Current critical manual flows:
 
-- sign up / sign in / sign out
-- create a template-based pattern
-- generate an AI pattern
-- open tracker and toggle steps
-- refresh and confirm the same user still owns the project data
+- Sign up / sign in / sign out
+- Create a template-based pattern
+- Generate an AI pattern
+- Open tracker and toggle steps
+- Refresh and confirm the same user still owns the project data
+- Hit `/tracker` without a patternId — should show My Projects list
 
 ## Commit & Pull Request Guidelines
-Use Conventional Commit prefixes such as `feat:`, `fix:`, and `docs:`. PRs should include:
 
-- a short summary
-- affected areas (`backend`, `frontend`, or both)
-- screenshots or recordings for UI changes
-- callouts for DB migrations, auth changes, or API contract updates
+Use Conventional Commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`. PRs should include:
+
+- A short summary
+- Affected areas (`backend`, `frontend`, or both)
+- Screenshots or recordings for UI changes
+- Callouts for DB migrations, auth changes, or API contract updates
 
 ## Configuration Notes
 
 - Keep backend on `3000` and frontend on `5173`.
 - SQLite data lives in `backend/data.db`.
-- The backend now depends on `@anthropic-ai/sdk` when `ANTHROPIC_API_KEY` is used.
+- The backend depends on `@anthropic-ai/sdk` when `ANTHROPIC_API_KEY` is used.
 - Local account sessions are cookie-based; if auth behaviour looks wrong, verify `/api/me` before debugging the UI.
+- Plan upgrades are currently manual DB edits (`UPDATE subscriptions SET plan='maker_pro' WHERE userId=...`). Stripe is not wired yet.

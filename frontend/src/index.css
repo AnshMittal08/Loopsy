@@ -1,62 +1,80 @@
 @import "tailwindcss";
 
 @theme {
-  --color-on-primary: #fdf7ff;
-  --color-outline: #7d7a7a;
-  --color-surface-container-low: #f7f2f2;
-  --color-surface-tint: #654db5;
-  --color-on-primary-fixed: #2c057b;
-  --color-surface-container-highest: #e6e1e2;
-  --color-secondary: #3a6759;
-  --color-primary: #654db5;
-  --color-error: #ac3149;
-  --color-error-container: #f76a80;
-  --color-tertiary-dim: #6f4b3a;
-  --color-primary-fixed: #c7b7ff;
-  --color-surface-variant: #e6e1e2;
-  --color-secondary-container: #c5f6e3;
-  --color-on-secondary-fixed: #1e4c3f;
-  --color-on-error: #fff7f7;
-  --color-on-surface-variant: #615e5f;
-  --color-inverse-on-surface: #9f9c9c;
-  --color-tertiary: #7c5645;
-  --color-surface: #fdf8f8;
-  --color-on-primary-fixed-variant: #4b3199;
-  --color-on-primary-container: #422690;
-  --color-tertiary-fixed-dim: #f0bea9;
-  --color-on-secondary-container: #325f51;
-  --color-secondary-dim: #2e5b4d;
-  --color-on-tertiary-fixed-variant: #704c3b;
-  --color-surface-container-high: #ece7e7;
-  --color-surface-container: #f2eded;
-  --color-outline-variant: #b5b1b1;
-  --color-on-tertiary-fixed: #503021;
-  --color-surface-dim: #ded9d9;
-  --color-on-tertiary-container: #664232;
-  --color-surface-container-lowest: #ffffff;
-  --color-on-tertiary: #fff7f5;
-  --color-tertiary-fixed: #ffccb6;
-  --color-primary-fixed-dim: #baa7ff;
-  --color-on-secondary: #e4fff3;
-  --color-on-error-container: #68001f;
-  --color-inverse-surface: #0f0e0e;
-  --color-on-background: #343233;
-  --color-on-surface: #343233;
-  --color-primary-container: #c7b7ff;
-  --color-surface-bright: #fdf8f8;
-  --color-primary-dim: #5940a8;
-  --color-secondary-fixed-dim: #b7e7d5;
-  --color-inverse-primary: #a58dfa;
-  --color-secondary-fixed: #c5f6e3;
-  --color-tertiary-container: #ffccb6;
-  --color-background: #fdf8f8;
+  /* ═══ SURFACES ═══ */
+  --color-surface: #F6F9FF;
+  --color-surface-bright: #FFFFFF;
+  --color-surface-dim: #D8E4F0;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #EEF4FC;
+  --color-surface-container: #E2EDF8;
+  --color-surface-container-high: #D4E4F4;
+  --color-surface-container-highest: #C4D8EE;
+  --color-surface-variant: #E2EDF8;
+  --color-surface-tint: #1E40AF;
+  --color-background: #F6F9FF;
 
+  /* ═══ TEXT ═══ */
+  --color-on-surface: #0A1428;
+  --color-on-surface-variant: #374A60;
+  --color-on-background: #0A1428;
+  --color-inverse-surface: #0F2040;
+  --color-inverse-on-surface: #EEF4FC;
+
+  /* ═══ PRIMARY: Rich Navy ═══ */
+  --color-primary: #1E40AF;
+  --color-primary-dim: #1730A0;
+  --color-primary-fixed: #DBEAFE;
+  --color-primary-fixed-dim: #BFDBFE;
+  --color-on-primary: #FFFFFF;
+  --color-on-primary-fixed: #1E3A8A;
+  --color-on-primary-fixed-variant: #1E40AF;
+  --color-primary-container: #DBEAFE;
+  --color-on-primary-container: #1E3A8A;
+  --color-inverse-primary: #93C5FD;
+
+  /* ═══ SECONDARY: Slate Blue ═══ */
+  --color-secondary: #4E6878;
+  --color-secondary-dim: #3A5060;
+  --color-secondary-fixed: #C8DDE8;
+  --color-secondary-fixed-dim: #A8C8D8;
+  --color-on-secondary: #FFFFFF;
+  --color-on-secondary-fixed: #0A2030;
+  --color-on-secondary-fixed-variant: #1A3048;
+  --color-secondary-container: #D8EAF4;
+  --color-on-secondary-container: #0A2030;
+
+  /* ═══ TERTIARY: Warm Amber (warmth against the cool blues) ═══ */
+  --color-tertiary: #B45309;
+  --color-tertiary-dim: #92400E;
+  --color-tertiary-fixed: #FEF3C7;
+  --color-tertiary-fixed-dim: #FDE68A;
+  --color-on-tertiary: #FFFFFF;
+  --color-on-tertiary-fixed: #451A03;
+  --color-on-tertiary-fixed-variant: #78350F;
+  --color-tertiary-container: #FEF3C7;
+  --color-on-tertiary-container: #451A03;
+
+  /* ═══ ERROR ═══ */
+  --color-error: #DC2626;
+  --color-error-dim: #B91C1C;
+  --color-error-container: #FEE2E2;
+  --color-on-error: #FFFFFF;
+  --color-on-error-container: #7F1D1D;
+
+  /* ═══ OUTLINE ═══ */
+  --color-outline: #5A7890;
+  --color-outline-variant: #A8C4D8;
+
+  /* ═══ BORDER RADIUS ═══ */
   --radius: 1rem;
   --radius-md: 1.5rem;
   --radius-lg: 2rem;
   --radius-xl: 3rem;
   --radius-full: 9999px;
 
+  /* ═══ TYPOGRAPHY ═══ */
+  --font-display: "Fraunces", serif;
   --font-headline: "Plus Jakarta Sans", sans-serif;
   --font-body: "Plus Jakarta Sans", sans-serif;
   --font-label: "Plus Jakarta Sans", sans-serif;
@@ -74,37 +92,61 @@
 
 @layer utilities {
   .glass-panel {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
+
+  .shadow-warm {
+    box-shadow: 0 2px 8px rgba(10, 20, 40, 0.07), 0 1px 2px rgba(10, 20, 40, 0.04);
+  }
+  .shadow-warm-md {
+    box-shadow: 0 4px 16px rgba(10, 20, 40, 0.09), 0 2px 4px rgba(10, 20, 40, 0.05);
+  }
+  .shadow-warm-lg {
+    box-shadow: 0 8px 28px rgba(10, 20, 40, 0.11), 0 3px 8px rgba(10, 20, 40, 0.05);
+  }
+  .shadow-warm-xl {
+    box-shadow: 0 16px 48px rgba(10, 20, 40, 0.13), 0 6px 16px rgba(10, 20, 40, 0.07);
+  }
+
+  .card-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(30, 64, 175, 0.14), 0 4px 10px rgba(10, 20, 40, 0.08);
+  }
+
   .ambient-shadow {
-    box-shadow: 0 20px 40px rgba(52, 50, 51, 0.06);
+    box-shadow: 0 20px 40px rgba(10, 20, 40, 0.07);
   }
+
   .ghost-border {
-    border: 1px solid rgba(101, 77, 181, 0.2);
+    border: 1px solid rgba(30, 64, 175, 0.15);
   }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+
+  .custom-scrollbar::-webkit-scrollbar { width: 5px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--color-outline-variant) 30%, transparent);
+    background: color-mix(in srgb, var(--color-outline-variant) 50%, transparent);
     border-radius: 9999px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--color-outline-variant) 50%, transparent);
+    background: color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
   }
 }
 
-/* Custom Checkbox Styling */
+/* Custom Checkbox */
 input[type="checkbox"] {
   appearance: none;
-  background-color: var(--color-surface-container-highest);
+  background-color: var(--color-surface-container-high);
   margin: 0;
   font: inherit;
-  color: currentColor;
-  width: 1.5em;
-  height: 1.5em;
+  width: 1.35em;
+  height: 1.35em;
   border-radius: 50%;
+  border: 1.5px solid var(--color-outline-variant);
   display: grid;
   place-content: center;
   cursor: pointer;
@@ -112,8 +154,8 @@ input[type="checkbox"] {
 }
 input[type="checkbox"]::before {
   content: "";
-  width: 0.8em;
-  height: 0.8em;
+  width: 0.7em;
+  height: 0.7em;
   border-radius: 50%;
   transform: scale(0);
   transition: 120ms transform ease-in-out;
@@ -121,18 +163,19 @@ input[type="checkbox"]::before {
   background-color: var(--color-primary);
 }
 input[type="checkbox"]:checked::before { transform: scale(1); }
-input[type="checkbox"]:checked { background-color: var(--color-primary-container); }
+input[type="checkbox"]:checked {
+  background-color: var(--color-primary-container);
+  border-color: var(--color-primary);
+}
 
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

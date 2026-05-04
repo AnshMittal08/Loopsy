@@ -67,7 +67,10 @@ async function generateWithClaude(prompt, difficulty) {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
-    system: `You are an expert crochet pattern designer with 20+ years of experience.
+    system: [
+      {
+        type: "text",
+        text: `You are an expert crochet pattern designer with 20+ years of experience.
 Generate accurate, detailed, beginner-friendly crochet patterns.
 Always write instructions in FULL English — no abbreviations (write "single crochet" not "sc", "chain" not "ch", "double crochet" not "dc", etc.).
 
@@ -80,6 +83,9 @@ STEP DETAIL RULES:
 - Include turning instructions ("Chain 1, turn") as part of the step, not as a separate step.
 - For shaping rounds, state both the action AND the resulting stitch count.
 - Minimum 8 steps for any pattern, 12+ for intermediate/advanced.`,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",

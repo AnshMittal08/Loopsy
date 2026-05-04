@@ -1,6 +1,6 @@
-# StitchFlow AI — Crochet Project Studio
+# Loopsy — Crochet Studio
 
-StitchFlow AI is a full-featured crochet project studio for discovering patterns, generating custom designs with AI, and tracking row-by-row progress while you work.
+Loopsy is a full-featured crochet project studio for discovering patterns, generating custom designs with AI, and tracking row-by-row progress while you work.
 
 ```
 frontend/   React 19 + Vite + React Router + Tailwind CSS v4
@@ -15,13 +15,13 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - Sign up / sign in with email and password
 - Cookie-based sessions (30-day TTL, `HttpOnly`, `SameSite=Strict`)
 - Patterns and progress are scoped to the authenticated user
-- Free plan on signup; subscription tiers ready for Phase 2 billing
+- Free plan on signup; subscription tiers ready for billing
 
 ### Discovery
 - Browse 22 curated templates across Wearable, Amigurumi, Accessory, Blanket, and Home Decor categories
 - Filter by category and difficulty (Beginner / Intermediate / Advanced)
 - Full-text search across name, description, and tags
-- Template cards with real crochet product photos and 3D CSS perspective tilt on hover
+- Template cards with real crochet product photos and card-lift hover effect
 - "Start Here" beginner path: 6 curated projects in learning progression
 
 ### Template Detail
@@ -34,26 +34,42 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - Uses **Claude** (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY` is set — structured tool_use output, full metadata, no abbreviations
 - Falls back to local **Ollama** (phi3) if no API key is configured
 - Always returns a usable pattern — clearly labeled fallback if AI is unavailable
+- Prompt caching (`cache_control: ephemeral`) on all Claude calls — ~90% cost reduction on repeated system-prompt tokens
 
 ### Template Customization
 - Pick any template, set yarn colour and size (small / medium / large)
 - Stitch counts scale automatically; colour prefix applied to every step
 
 ### Progress Tracker
-- Row-by-row checkbox tracker with animated SVG progress ring
+- Row-by-row checkbox tracker with animated SVG progress ring (navy blue)
 - Stitch term tooltips with YouTube tutorial links (hover/tap on any stitch name)
 - Step instructions in plain English — all crochet abbreviations expanded
 - Materials list and maker notes visible while you crochet
 - Template photo displayed as the left panel hero image
 - Progress persists in SQLite — survives page refresh and server restart
-- Atomic step toggle prevents race conditions when tapping steps quickly
+- Atomic step toggle prevents race conditions
+- `/tracker` without a patternId shows a "My Projects" list of all user patterns
 
 ### AI Tutor
 - Floating "Ask tutor" button in the tracker (bottom-right, portal-rendered)
-- Step-specific Q&A: Claude receives the full pattern and your current step as context
+- Step-specific Q&A: Claude receives the full pattern and current step as context
 - Conversation history maintained for the session
 - Three suggested starter questions on first open
 - Graceful 503 if no `ANTHROPIC_API_KEY` is set
+- Rate-limited per plan (free: 3/month, Maker Pro: unlimited)
+
+### Subscription Plans + Rate Limiting
+- Per-user AI usage tracked in SQLite (`ai_usage` table), resets automatically each calendar month
+- Three tiers: **Free** (3 generations, 3 tutor questions/month), **Maker Pro** (30 gen, unlimited tutor), **Creator** (unlimited both)
+- 429 responses include `code: "RATE_LIMIT_EXCEEDED"` with used/limit/plan — Create page links to `/account` on rate limit hit
+- `GET /api/usage` returns live usage counts and plan limits
+- Account page shows animated progress bars ("X of Y used this month") and upgrade cards (coming soon)
+
+### Design System
+- **Frozen Lake palette** — navy `#1E40AF` primary, slate `#4E6878` secondary, warm amber `#B45309` tertiary, crisp blue-white surfaces
+- **Fraunces** serif display font + **Plus Jakarta Sans** body text
+- White cards with subtle border and shadow on a light blue-white background
+- Consistent `rounded-2xl` cards, `rounded-full` CTAs, `card-lift` hover effect
 
 ---
 
@@ -135,6 +151,7 @@ Loopsy/
 │   │   │   ├── generate-pattern/  POST — AI pattern generation
 │   │   │   ├── regenerate/        POST — AI pattern regeneration
 │   │   │   └── tutor/             POST — step-specific AI Q&A (Claude)
+│   │   ├── usage/               GET — current user's AI usage + plan limits
 │   │   ├── patterns/            GET all (user-scoped), POST create
 │   │   ├── patterns/[id]/       GET single, DELETE
 │   │   ├── progress/            POST init (idempotent)
@@ -151,21 +168,24 @@ Loopsy/
 │   │   │   ├── sessionModel.js  createSession, getSessionByToken, deleteSessionByToken
 │   │   │   ├── templateModel.js SQLite queries + 22-template seed data
 │   │   │   ├── patternModel.js  CRUD for user-created patterns
-│   │   │   └── progressModel.js CRUD + toggleStepAtomic()
+│   │   │   ├── progressModel.js CRUD + toggleStepAtomic()
+│   │   │   └── usageModel.js    getUsageCount, incrementUsage (monthly upsert)
 │   │   ├── services/
-│   │   │   ├── aiService.js     Claude / Ollama / fallback logic
+│   │   │   ├── aiService.js     Claude / Ollama / fallback logic (prompt caching)
 │   │   │   └── patternService.js  Template → structured pattern generation
-│   │   └── utils/helpers.js
+│   │   └── utils/
+│   │       ├── helpers.js
+│   │       └── planLimits.js    PLAN_LIMITS, checkRateLimit, recordUsage
 │   └── data.db                  SQLite database (auto-created, gitignored)
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
 │   │   │   ├── Home.jsx         Template discovery + beginner path + recent patterns
-│   │   │   ├── Account.jsx      Sign up / sign in / sign out + plan summary
+│   │   │   ├── Account.jsx      Sign up / sign in / sign out + usage bars + upgrade cards
 │   │   │   ├── TemplateDetail.jsx  Full template view with CTA
-│   │   │   ├── Create.jsx       AI generation + template customization
-│   │   │   └── Tracker.jsx      Row-by-row progress tracker
+│   │   │   ├── Create.jsx       AI generation + template customization + 429 handling
+│   │   │   └── Tracker.jsx      Row-by-row progress tracker + My Projects list
 │   │   ├── components/
 │   │   │   ├── AuthProvider.jsx useAuth() hook — user, signIn, signUp, signOut
 │   │   │   ├── AiTutor.jsx      Floating chat panel — step-specific Claude Q&A
@@ -173,15 +193,18 @@ Loopsy/
 │   │   │   ├── StitchTooltip.jsx  Stitch term overlay with YouTube links
 │   │   │   ├── Skeleton.jsx     Loading skeleton components
 │   │   │   ├── Toast.jsx        Toast notification system
-│   │   │   ├── TopNav.jsx
-│   │   │   └── SideNav.jsx
+│   │   │   ├── TopNav.jsx       Desktop top navigation bar
+│   │   │   └── SideNav.jsx      Desktop side navigation
 │   │   └── lib/
 │   │       ├── patternThemes.js      Category → colour/icon design tokens
 │   │       └── crochetAbbreviations.js  Plain-English expander + stitch metadata
+│   ├── index.css               Tailwind v4 @theme + design system utilities
+│   ├── tailwind.config.js      Frozen Lake color tokens
 │   └── vite.config.js
 │
 ├── CLAUDE.md                    Claude Code developer guidance
 ├── plan.md                      Product roadmap
+├── vision.md                    Product vision and market analysis
 └── README.md
 ```
 
@@ -213,8 +236,10 @@ Loopsy/
 | `GET` | `/api/patterns/:id` | Single pattern with full steps |
 | `POST` | `/api/patterns` | Create from template `{ templateId, title, customization: { color, size } }` |
 | `DELETE` | `/api/patterns/:id` | Delete pattern and its progress records |
-| `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` |
-| `POST` | `/api/ai/tutor` | Step-specific Q&A `{ patternId, currentStepIndex, userMessage, history }` |
+| `POST` | `/api/ai/generate-pattern` | AI generation `{ prompt, difficulty }` — rate-limited |
+| `POST` | `/api/ai/regenerate` | Re-generate a pattern `{ prompt, difficulty }` — rate-limited |
+| `POST` | `/api/ai/tutor` | Step-specific Q&A `{ patternId, currentStepIndex, userMessage, history }` — rate-limited |
+| `GET` | `/api/usage` | Current user's AI usage and plan limits |
 
 ### Progress (user-scoped, requires auth)
 
@@ -266,6 +291,12 @@ hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGene
 id, userId, patternId, totalSteps, steps (JSON array), progressPercentage, createdAt
 ```
 
+**ai_usage** — per-user monthly AI usage counters
+```sql
+id, userId, type (generation|tutor), month (YYYY-MM), count, createdAt, updatedAt
+UNIQUE(userId, type, month)
+```
+
 ---
 
 ## Useful Commands
@@ -292,10 +323,12 @@ See [plan.md](./plan.md) for the full roadmap. Shipped so far:
 - Phase 1.5 — Stitch tooltips, beginner path, mobile nav, skeletons, toasts, template detail page
 - Phase 2A — Local auth with cookie sessions, user-scoped patterns and progress
 - Phase 2B — AI Tutor in tracker, DB performance indexes, form validation, accessibility fixes
+- Phase 2C — Per-plan AI rate limiting, monthly usage tracking, prompt caching, Account usage UI
+- Phase 2D (UI) — Complete UI/UX redesign: Frozen Lake design system, Fraunces serif, card-lift components, all pages rebuilt
 
 Next priorities:
 
-1. **Subscription billing** — AI rate limiting per plan, Maker Pro / Creator tiers
-2. **Learn page** — searchable stitch reference, embedded YouTube tutorials (data already in `crochetAbbreviations.js`)
-3. **Photo → Pattern** — upload a photo, get a reverse-engineered pattern (viral growth lever)
-4. **Beginner Mode** — "I'm confused" button per step, AI explains the step differently
+1. **Learn page** — searchable stitch reference, embedded YouTube tutorials (data already in `crochetAbbreviations.js`)
+2. **Photo → Pattern** — upload a photo, get a reverse-engineered pattern (viral growth lever)
+3. **Beginner Mode** — "I'm confused" button per step, AI explains the step differently
+4. **Stripe billing** — wire up Maker Pro / Creator checkout to upgrade plans automatically
