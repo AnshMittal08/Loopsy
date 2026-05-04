@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPatternById } from "@/lib/models/patternModel";
+import { checkRateLimit, recordUsage } from "@/lib/utils/planLimits";
 
 export async function POST(request) {
   try {
@@ -12,6 +13,14 @@ export async function POST(request) {
       return NextResponse.json(
         { error: "AI Tutor requires an Anthropic API key.", code: "NO_API_KEY" },
         { status: 503 }
+      );
+    }
+
+    const check = checkRateLimit(user, "tutor");
+    if (!check.allowed) {
+      return NextResponse.json(
+        { error: `You've used all ${check.limit} AI tutor questions for this month.`, code: "RATE_LIMIT_EXCEEDED", limit: check.limit, used: check.used, plan: check.plan },
+        { status: 429 }
       );
     }
 
@@ -50,10 +59,11 @@ Answer conversationally in 2–4 sentences. Focus on the specific step they're o
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 512,
-      system: systemPrompt,
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       messages,
     });
 
+    recordUsage(user.id, "tutor");
     return NextResponse.json({ reply: resp.content[0].text });
   } catch (error) {
     return NextResponse.json(

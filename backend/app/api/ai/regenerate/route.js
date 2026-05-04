@@ -2,40 +2,35 @@ import { NextResponse } from "next/server";
 import { generatePatternFromAI } from "@/lib/services/aiService";
 import { createPattern } from "@/lib/models/patternModel";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { checkRateLimit, recordUsage } from "@/lib/utils/planLimits";
 
-/**
- * POST /api/ai/regenerate
- * Generates an alternative crochet pattern using AI.
- * (Currently shares identical logic to generate-pattern, 
- * but provides a distinct endpoint for semantic separation 
- * or future variation logic).
- *
- * Request body: { prompt, difficulty }
- */
 export async function POST(request) {
   try {
     const { user, response } = requireAuthenticatedUser(request);
     if (response) return response;
 
+    const check = checkRateLimit(user, "generation");
+    if (!check.allowed) {
+      return NextResponse.json(
+        { error: `You've used all ${check.limit} AI generations for this month.`, code: "RATE_LIMIT_EXCEEDED", limit: check.limit, used: check.used, plan: check.plan },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { prompt, difficulty } = body;
 
     if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
     }
 
-    // You could inject something like "Provide an alternative variation to..." here in the future
     const raw = difficulty || "beginner";
     const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
     const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
     pattern.userId = user.id;
-    
-    // Persist the generated pattern so it can be tracked later.
     createPattern(pattern);
 
+    recordUsage(user.id, "generation");
     return NextResponse.json(pattern, { status: 201 });
   } catch (error) {
     return NextResponse.json(

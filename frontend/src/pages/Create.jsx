@@ -14,19 +14,17 @@ export default function Create() {
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const hasTemplateRoute = Boolean(templateId);
 
-  // Template-based generation state
   const [template, setTemplate] = useState(null);
   const [templateError, setTemplateError] = useState(null);
   const [color, setColor] = useState('');
   const [size, setSize] = useState('medium');
 
-  // AI generation state
   const [prompt, setPrompt] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
 
-  // Shared state
   const [isGenerating, setIsGenerating] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [rateLimitHit, setRateLimitHit] = useState(false);
   const [templateMode, setTemplateMode] = useState('template');
   const mode = hasTemplateRoute ? templateMode : 'ai';
   const isTemplateResolved = template?.id === templateId;
@@ -37,18 +35,12 @@ export default function Create() {
   const templateTheme = getPatternTheme(template?.category);
 
   useEffect(() => {
-    if (!user || !templateId) {
-      return;
-    }
-
+    if (!user || !templateId) return;
     let cancelled = false;
-
     fetch(`/api/templates/${templateId}`)
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load template');
-        }
+        if (!res.ok) throw new Error(data.error || 'Failed to load template');
         return data;
       })
       .then((data) => {
@@ -58,36 +50,38 @@ export default function Create() {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error(err);
         setTemplateError({ templateId, message: err.message });
         setTemplate(null);
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [templateId, user]);
 
   if (authLoading) {
-    return <div className="flex min-h-screen items-center justify-center"><p className="text-on-surface-variant">Loading workspace...</p></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <p className="text-on-surface-variant">Loading workspace…</p>
+      </div>
+    );
   }
 
   if (!user) {
     return (
       <div className="flex min-h-screen bg-surface text-on-surface">
         <SideNav />
-        <main className="flex-1 px-6 py-12 md:px-10 lg:px-16">
-          <div className="mx-auto max-w-3xl rounded-[2rem] bg-surface-container-lowest p-10 shadow-sm">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-primary">Sign in required</p>
-            <h1 className="mt-4 text-4xl font-black tracking-tight text-on-surface">Create patterns inside your account.</h1>
-            <p className="mt-4 max-w-2xl text-on-surface-variant">
-              We have started Phase 2 with user-scoped projects. Sign in first so AI generations, template customizations, and tracker progress belong to you.
+        <main className="flex-1 flex items-center justify-center px-6 py-16">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-10 text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <span className="material-symbols-outlined text-primary text-2xl">lock</span>
+            </div>
+            <h1 className="font-display text-2xl font-bold text-on-surface mb-2">Sign in to create</h1>
+            <p className="text-sm text-on-surface-variant leading-relaxed mb-8">
+              AI generations and template projects are saved to your account.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/account" className="rounded-2xl bg-on-surface px-6 py-4 text-center text-sm font-bold text-white">
+            <div className="flex flex-col gap-3">
+              <Link to="/account" className="rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors">
                 Go to account
               </Link>
-              <Link to="/" className="rounded-2xl bg-surface-container-low px-6 py-4 text-center text-sm font-bold text-on-surface">
+              <Link to="/" className="rounded-full border border-outline-variant/30 px-6 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
                 Back to explore
               </Link>
             </div>
@@ -101,7 +95,6 @@ export default function Create() {
     if (!template) return;
     setIsGenerating(true);
     setActionError(null);
-
     try {
       const res = await fetch('/api/patterns', {
         method: 'POST',
@@ -113,22 +106,17 @@ export default function Create() {
         })
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || 'Failed to generate pattern');
 
-      // Initialize progress
       const progressRes = await fetch('/api/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patternId: data.id })
       });
       const progressData = await progressRes.json();
-
       if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
-
       navigate(`/tracker/${data.id}`);
     } catch (e) {
-      console.error(e);
       setActionError(e.message);
     } finally {
       setIsGenerating(false);
@@ -139,33 +127,32 @@ export default function Create() {
     if (!prompt) return;
     setIsGenerating(true);
     setActionError(null);
-
+    setRateLimitHit(false);
     try {
       const res = await fetch('/api/ai/generate-pattern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          difficulty
-        })
+        body: JSON.stringify({ prompt, difficulty })
       });
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 429 && data.code === 'RATE_LIMIT_EXCEEDED') {
+          setActionError(data.error);
+          setRateLimitHit(true);
+          return;
+        }
+        throw new Error(data.error || 'Failed to generate pattern');
+      }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to generate pattern');
-
-      // Initialize progress
       const progressRes = await fetch('/api/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patternId: data.id })
       });
       const progressData = await progressRes.json();
-
       if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
-
       navigate(`/tracker/${data.id}`);
     } catch (e) {
-      console.error(e);
       setActionError(e.message);
     } finally {
       setIsGenerating(false);
@@ -173,239 +160,250 @@ export default function Create() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+    <div className="flex min-h-screen bg-surface text-on-surface">
       <SideNav />
 
-      <main className="flex-grow relative overflow-y-auto">
-        <header className="md:hidden flex justify-between items-center px-6 py-4 sticky top-0 bg-surface/90 backdrop-blur-md z-10">
-          <Link to="/" className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors">
-            <span className="material-symbols-outlined">arrow_back</span>
-            <span className="text-sm font-semibold">Explore</span>
+      <main className="flex-1 overflow-y-auto">
+        {/* Mobile header */}
+        <header className="md:hidden sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-surface/90 backdrop-blur-md border-b border-outline-variant/15">
+          <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">
+            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <span className="text-sm font-medium">Explore</span>
           </Link>
-          <span className="text-lg font-black text-on-surface tracking-tighter">StitchFlow AI</span>
-          <button className="text-primary" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <span className="font-display text-lg font-bold text-on-surface">Loopsy</span>
+          <button className="text-on-surface-variant" onClick={() => setMobileOpen(true)} aria-label="Open menu">
             <span className="material-symbols-outlined">menu</span>
           </button>
           <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
-        <div className="p-6 pt-2 md:p-12 lg:p-20">
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-primary-fixed-dim/20 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="max-w-4xl mx-auto relative z-10">
+        <div className="px-6 py-10 md:px-12 md:py-14 lg:px-20">
+          <div className="max-w-3xl mx-auto">
 
-          <header className="mb-16">
-            <h2 className="text-[3.5rem] font-bold font-headline text-on-surface tracking-[-0.02em] leading-tight mb-4">
-              {mode === 'template' ? 'Customize your pattern.' : 'Draft your next masterpiece.'}
-            </h2>
-            <p className="text-on-surface-variant text-lg font-body max-w-2xl leading-relaxed">
-              {mode === 'template'
-                ? 'Personalize this template with your preferred colors and size.'
-                : 'Describe what you want to create, set your skill level, and let our AI engine generate a complete, step-by-step crochet pattern tailored just for you.'}
-            </p>
-          </header>
-
-          {/* Mode Toggle */}
-          {hasTemplateRoute && (
-            <div className="flex gap-4 mb-8">
-              <button
-                onClick={() => setTemplateMode('template')}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  mode === 'template'
-                    ? 'bg-primary text-on-primary shadow-md'
-                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-                }`}
-              >
-                Use Template
-              </button>
-              <button
-                onClick={() => setTemplateMode('ai')}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
-                  mode === 'ai'
-                    ? 'bg-primary text-on-primary shadow-md'
-                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-                }`}
-              >
-                AI Generate
-              </button>
+            {/* Page header */}
+            <div className="mb-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">
+                {mode === 'template' ? 'Template Studio' : 'AI Studio'}
+              </p>
+              <h1 className="font-display text-[2.6rem] md:text-[3.2rem] font-bold text-on-surface leading-tight tracking-tight">
+                {mode === 'template' ? 'Customize your pattern.' : 'Draft your next masterpiece.'}
+              </h1>
+              <p className="mt-4 text-on-surface-variant text-base leading-relaxed max-w-xl">
+                {mode === 'template'
+                  ? 'Personalize this template with your preferred colors and size.'
+                  : 'Describe your idea and let AI generate a complete step-by-step crochet pattern.'}
+              </p>
             </div>
-          )}
 
-          {mode === 'template' && template && (
-            <div className="bg-surface-container-lowest rounded-[1.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(26,28,31,0.06)] relative border border-outline-variant/10">
-              {visibleError && (
-                <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg flex items-start gap-3">
-                  <span className="material-symbols-outlined shrink-0">error</span>
-                  <p className="flex-1">{visibleError}</p>
-                  <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
-                    <span className="material-symbols-outlined text-sm">close</span>
+            {/* Mode toggle (template route only) */}
+            {hasTemplateRoute && (
+              <div className="flex gap-2 mb-8 p-1 rounded-full bg-surface-container-low w-fit">
+                {[
+                  { id: 'template', label: 'Use Template' },
+                  { id: 'ai', label: 'AI Generate' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setTemplateMode(tab.id)}
+                    className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                      mode === tab.id
+                        ? 'bg-primary text-on-primary shadow-warm'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    {tab.label}
                   </button>
-                </div>
-              )}
+                ))}
+              </div>
+            )}
 
-              {/* Template Preview */}
-              <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className={`relative h-56 overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${templateTheme.accent}`}>
-                  <div className={`absolute -top-10 right-0 h-28 w-28 rounded-full blur-3xl ${templateTheme.orb}`}></div>
-                  <div className="absolute inset-x-6 bottom-6 top-6 rounded-[1.25rem] border border-white/50 bg-white/45 backdrop-blur-sm"></div>
-                  <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
-                    <div className="rounded-2xl bg-white/80 px-4 py-3 backdrop-blur-sm">
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant">{template.category}</p>
-                      <h3 className="mt-1 text-xl font-black text-on-surface">{template.name}</h3>
+            {/* Template mode */}
+            {mode === 'template' && loadingTemplate && <SkeletonTemplatePreview />}
+
+            {mode === 'template' && template && (
+              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm overflow-hidden">
+                {visibleError && (
+                  <div className="mx-6 mt-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined shrink-0 text-[18px]">error</span>
+                    <p className="flex-1 text-sm">{visibleError}</p>
+                    <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Template hero */}
+                <div className={`relative h-52 bg-gradient-to-br ${templateTheme.accent} overflow-hidden`}>
+                  <div className={`absolute -top-8 right-0 h-32 w-32 rounded-full blur-3xl ${templateTheme.orb}`} />
+                  <div className="absolute inset-x-6 inset-y-5 rounded-xl border border-white/50 bg-white/30 backdrop-blur-sm" />
+                  <div className="absolute bottom-5 left-6 right-6 flex items-end justify-between">
+                    <div className="rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">{template.category}</p>
+                      <h3 className="mt-0.5 text-lg font-bold text-on-surface leading-tight">{template.name}</h3>
                     </div>
-                    <div className="rounded-full bg-white/80 p-3 shadow-sm">
-                      <span className="material-symbols-outlined">{templateTheme.icon}</span>
+                    <div className="rounded-full bg-white/85 p-2.5">
+                      <span className="material-symbols-outlined text-on-surface">{templateTheme.icon}</span>
                     </div>
                   </div>
-                  <span className="absolute top-3 right-3 px-3 py-1 bg-surface/80 backdrop-blur-md rounded-full text-xs font-bold text-on-surface">
+                  <span className="absolute top-3 right-3 px-3 py-1 bg-white/80 backdrop-blur-md rounded-full text-xs font-semibold text-on-surface">
                     {template.difficulty}
                   </span>
                 </div>
-                <div className="flex flex-col justify-center">
-                  <h3 className="text-2xl font-bold font-headline text-on-surface mb-2">{template.name}</h3>
-                  <p className="text-on-surface-variant text-sm leading-relaxed">{template.description}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-on-surface-variant">
-                    <div>
-                      <p className="font-bold text-on-surface">Hook</p>
-                      <p>{template.hookSize}</p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-on-surface">Yarn</p>
-                      <p>{template.yarnWeight}</p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-on-surface">Time</p>
-                      <p>{template.timeEstimate}</p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-on-surface">Finish</p>
-                      <p>{template.finishedSize}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {(template.tags || []).map((tag) => (
-                      <span key={tag} className="rounded-full bg-surface-container-high px-3 py-1 text-xs font-semibold text-on-surface-variant">
-                        #{tag}
-                      </span>
+
+                <div className="p-6 md:p-8">
+                  {/* Template meta */}
+                  <p className="text-sm text-on-surface-variant leading-relaxed mb-5">{template.description}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+                    {[
+                      { label: 'Hook', value: template.hookSize },
+                      { label: 'Yarn', value: template.yarnWeight },
+                      { label: 'Time', value: template.timeEstimate },
+                      { label: 'Size', value: template.finishedSize },
+                    ].map((m) => (
+                      <div key={m.label} className="rounded-xl bg-surface-container-low p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant mb-1">{m.label}</p>
+                        <p className="text-sm font-semibold text-on-surface">{m.value || '—'}</p>
+                      </div>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              {/* Customization Form */}
-              <div className="mb-8">
-                <label className="block text-sm font-bold text-primary mb-3 uppercase tracking-[0.05em] font-label">Yarn Color</label>
-                <input
-                  type="text"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  placeholder="e.g., Deep Red, Ocean Blue, Cream"
-                  className="w-full bg-surface-container-low text-on-surface rounded-lg p-4 focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary-fixed-dim/30 transition-all duration-300 font-body"
-                />
-              </div>
+                  {/* Tags */}
+                  {(template.tags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-8">
+                      {template.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-surface-container px-3 py-1 text-xs font-medium text-on-surface-variant">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-              <div className="mb-12">
-                <label className="block text-sm font-bold text-primary mb-4 uppercase tracking-[0.05em] font-label">Size</label>
-                <div className="flex flex-wrap gap-4">
-                  {[
-                    { value: 'small', label: 'Small', desc: '×0.75 stitches' },
-                    { value: 'medium', label: 'Medium', desc: 'Standard' },
-                    { value: 'large', label: 'Large', desc: '×1.25 stitches' }
-                  ].map((s) => (
+                  {/* Customization */}
+                  <div className="space-y-6 border-t border-outline-variant/15 pt-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-on-surface mb-2">Yarn color</label>
+                      <input
+                        type="text"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        placeholder="e.g. Deep Red, Ocean Blue, Cream"
+                        className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-on-surface mb-3">Size</label>
+                      <div className="flex flex-wrap gap-3">
+                        {[
+                          { value: 'small', label: 'Small', desc: '×0.75 stitches' },
+                          { value: 'medium', label: 'Medium', desc: 'Standard' },
+                          { value: 'large', label: 'Large', desc: '×1.25 stitches' },
+                        ].map((s) => (
+                          <button
+                            key={s.value}
+                            onClick={() => setSize(s.value)}
+                            className={`rounded-xl px-5 py-3 text-left min-w-[120px] border transition-all ${
+                              size === s.value
+                                ? 'bg-primary/8 border-primary text-primary shadow-warm'
+                                : 'border-outline-variant/20 hover:bg-surface-container-low text-on-surface-variant'
+                            }`}
+                          >
+                            <p className="font-semibold text-sm">{s.label}</p>
+                            <p className="text-xs text-on-surface-variant mt-0.5">{s.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex justify-end">
                     <button
-                      key={s.value}
-                      onClick={() => setSize(s.value)}
-                      className={`px-6 py-3 rounded-xl border transition-colors text-left min-w-[140px] ${
-                        size === s.value
-                          ? 'bg-primary/10 border-2 border-primary text-primary shadow-sm'
-                          : 'border border-outline-variant/15 hover:bg-surface-container-low text-on-surface-variant'
-                      }`}
+                      onClick={handleTemplateGenerate}
+                      disabled={isGenerating}
+                      className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <div className="font-bold text-base">{s.label}</div>
-                      <div className="text-xs text-on-surface-variant">{s.desc}</div>
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isGenerating ? 'hourglass_empty' : 'check_circle'}
+                      </span>
+                      {isGenerating ? 'Generating…' : 'Generate Pattern'}
                     </button>
-                  ))}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="pt-8 border-t border-outline-variant/10 flex justify-end items-center gap-6">
-                <button
-                  onClick={handleTemplateGenerate}
-                  disabled={isGenerating}
-                  className="bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-xl px-10 py-4 font-bold text-lg hover:scale-[1.02] active:scale-95 transition-transform duration-200 shadow-lg shadow-primary/20 flex items-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                >
-                  <span className="material-symbols-outlined">{isGenerating ? 'hourglass_empty' : 'check_circle'}</span>
-                  {isGenerating ? 'Generating...' : 'Generate Pattern'}
-                </button>
-              </div>
-            </div>
-          )}
+            {/* AI mode */}
+            {mode === 'ai' && (
+              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-6 md:p-8">
+                {visibleError && (
+                  <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined shrink-0 text-[18px]">error</span>
+                    <p className="flex-1 text-sm">
+                      {visibleError}
+                      {rateLimitHit && (
+                        <Link to="/account" className="ml-1 underline font-semibold">View plans →</Link>
+                      )}
+                    </p>
+                    <button onClick={() => { setActionError(null); setRateLimitHit(false); }} className="shrink-0 hover:opacity-70">
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                )}
 
-          {mode === 'template' && loadingTemplate && (
-            <SkeletonTemplatePreview />
-          )}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-on-surface mb-2">What do you want to make?</label>
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      rows={4}
+                      className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none"
+                      placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
+                    />
+                  </div>
 
-          {mode === 'ai' && (
-            <div className="bg-surface-container-lowest rounded-[1.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(26,28,31,0.06)] relative border border-outline-variant/10">
-              {visibleError && (
-                <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-lg flex items-start gap-3">
-                  <span className="material-symbols-outlined shrink-0">error</span>
-                  <p className="flex-1">{visibleError}</p>
-                  <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
-                    <span className="material-symbols-outlined text-sm">close</span>
+                  <div>
+                    <label className="block text-sm font-semibold text-on-surface mb-3">Difficulty level</label>
+                    <div className="flex flex-wrap gap-3">
+                      {['beginner', 'intermediate', 'advanced'].map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setDifficulty(level)}
+                          className={`rounded-xl px-5 py-2.5 border text-sm font-medium capitalize transition-all ${
+                            difficulty === level
+                              ? 'bg-primary/8 border-primary text-primary shadow-warm'
+                              : 'border-outline-variant/20 hover:bg-surface-container-low text-on-surface-variant'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-primary-fixed/40 border border-primary-fixed-dim/30 p-4">
+                    <p className="text-sm font-semibold text-on-surface mb-1">Prompt tips</p>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">
+                      Include project type, size, colors, and recipient. Example: "A beginner-friendly sunflower tote bag in cream and moss green with sturdy handles."
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button
+                    onClick={handleAIGenerate}
+                    disabled={isGenerating || !prompt}
+                    className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {isGenerating ? 'hourglass_empty' : 'auto_awesome'}
+                    </span>
+                    {isGenerating ? 'Generating…' : 'Generate Pattern'}
                   </button>
                 </div>
-              )}
-
-              <div className="mb-12">
-                <label className="block text-sm font-bold text-primary mb-3 uppercase tracking-[0.05em] font-label">What do you want to make?</label>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={4}
-                  className="w-full bg-surface-container-low text-on-surface rounded-lg p-4 focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary-fixed-dim/30 transition-all duration-300 font-body resize-none"
-                  placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
-                />
               </div>
-
-              <div className="mb-12">
-                <label className="block text-sm font-bold text-primary mb-4 uppercase tracking-[0.05em] font-label">Difficulty Level</label>
-                <div className="flex flex-wrap gap-4">
-                  {['beginner', 'intermediate', 'advanced'].map(level => (
-                    <button
-                      key={level}
-                      onClick={() => setDifficulty(level)}
-                      className={`px-6 py-3 rounded-xl border transition-colors capitalize ${
-                        difficulty === level
-                          ? 'bg-primary/10 border-2 border-primary text-primary shadow-sm'
-                          : 'border border-outline-variant/15 hover:bg-surface-container-low text-on-surface-variant'
-                      }`}
-                    >
-                      <span className="font-bold text-base block">{level}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-12 rounded-2xl bg-surface-container-low p-5">
-                <p className="text-sm font-bold text-on-surface mb-2">Prompt guidance</p>
-                <p className="text-sm text-on-surface-variant leading-relaxed">
-                  Include the project type, size, colors, recipient, and any stitch mood you want. Example: "A beginner-friendly sunflower tote bag in cream and moss green with sturdy handles."
-                </p>
-              </div>
-
-              <div className="pt-8 border-t border-outline-variant/10 flex justify-end items-center gap-6">
-                <button
-                  onClick={handleAIGenerate}
-                  disabled={isGenerating || !prompt}
-                  className="bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-xl px-10 py-4 font-bold text-lg hover:scale-[1.02] active:scale-95 transition-transform duration-200 shadow-lg shadow-primary/20 flex items-center gap-3 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                >
-                  <span className="material-symbols-outlined">{isGenerating ? 'hourglass_empty' : 'magic_button'}</span>
-                  {isGenerating ? 'Generating...' : 'Generate Pattern'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
