@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://loopsy-backend.up.railway.app/api/:path*"
+    }
+  ]
+}
