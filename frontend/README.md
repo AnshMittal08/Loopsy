@@ -48,6 +48,7 @@ React 19 + Vite client for Loopsy.
 | `src/pages/TemplateDetail.jsx` | Full template detail with CTA |
 | `src/lib/patternThemes.js` | Category → gradient/icon design tokens |
 | `src/lib/crochetAbbreviations.js` | Stitch expander + YouTube tutorial links |
+| `vercel.json` | Production API rewrite — proxies `/api/*` to Railway backend |
 
 ## Commands
 
@@ -67,3 +68,4 @@ If PowerShell blocks `npm`, use `npm.cmd`.
 - `/api/usage` is fetched on Account page mount to show monthly usage bars.
 - AI generation returns `429 { code: "RATE_LIMIT_EXCEEDED" }` when plan limit hit; Create page shows "View plans →" link to `/account`.
 - The `PaletteSwitcher` component in `src/components/PaletteSwitcher.jsx` was used for palette preview during design — it is not wired into `App.jsx` in production.
+- In production (Vercel), `vercel.json` rewrites `/api/*` to the Railway backend — no `VITE_API_URL` env var needed, all fetch calls stay as relative `/api/...` paths.

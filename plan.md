@@ -129,7 +129,14 @@
 ### 3. ~~Prompt caching~~ ✅ Phase 2C
 ### 4. ~~UI/UX Redesign~~ ✅ Phase 2D
 
-### 5. Beginner Mode in Tracker
+### 5. ~~Production Deployment~~ ✅ Phase 2E
+- Vercel (frontend) + Railway (backend) with SQLite persistent volume
+- `frontend/vercel.json` rewrites `/api/*` to Railway — no frontend fetch changes needed
+- `DB_PATH` env var controls SQLite location; `fs.mkdirSync` ensures directory exists on startup
+- `${PORT:-3000}` start script binds to Railway's injected `$PORT`
+- `FRONTEND_URL` locks CORS to the Vercel domain in production
+
+### 6. Beginner Mode in Tracker
 - Opt-in toggle on Beginner-difficulty patterns
 - "I'm confused" button on every step → AI explains that specific step differently
 - Visual milestone markers
@@ -194,9 +201,12 @@
 ✅ Shipped   Phase 2B — AI Tutor + DB indexes + form validation + a11y
 ✅ Shipped   Phase 2C — Rate limiting + monthly usage tracking + prompt caching
 ✅ Shipped   Phase 2D — Complete UI/UX redesign (Frozen Lake design system)
+✅ Shipped   Phase 2E — Production deployment (Vercel + Railway + SQLite persistent volume)
 
-Next         Phase 2E — Learn page + Beginner Mode + onboarding learning path
-             Phase 2F — Stripe billing + PDF export + discovery expansion
+Next         Phase 2F — Learn page + Beginner Mode + onboarding learning path
+             Phase 2G — Community (shareable links, pattern feed, Crochet-Alongs)
+             Phase 2H — PWA (installable on mobile, prerequisite for app store)
+             Phase 2I — Stripe billing + PDF export + discovery expansion
              Phase 3  — Photo→Pattern + Marketplace + Stash manager
              Phase 4  — Knitting + global + B2B + stitch diagrams
 ```

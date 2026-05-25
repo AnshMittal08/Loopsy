@@ -102,7 +102,15 @@ ANTHROPIC_API_KEY=sk-ant-...
 ollama run phi3
 ```
 
-No other environment variables are required. Sessions use a random secret generated at runtime.
+Optional environment variables:
+
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `ANTHROPIC_API_KEY` | backend | Claude AI — falls back to Ollama without it |
+| `DB_PATH` | backend | SQLite file path — defaults to `backend/data.db` |
+| `FRONTEND_URL` | backend | Restricts CORS to this origin in production |
+
+Sessions use a random secret generated at runtime.
 
 ### 3. Run both servers
 
@@ -331,4 +339,27 @@ Next priorities:
 1. **Learn page** — searchable stitch reference, embedded YouTube tutorials (data already in `crochetAbbreviations.js`)
 2. **Photo → Pattern** — upload a photo, get a reverse-engineered pattern (viral growth lever)
 3. **Beginner Mode** — "I'm confused" button per step, AI explains the step differently
-4. **Stripe billing** — wire up Maker Pro / Creator checkout to upgrade plans automatically
+4. **Community** — shareable pattern links, pattern feed, Crochet-Alongs
+5. **PWA** — installable on mobile (manifest + service worker), prerequisite for app store
+6. **Stripe billing** — wire up Maker Pro / Creator checkout to upgrade plans automatically
+
+## Deployment
+
+Production stack: **Vercel** (frontend) + **Railway** (backend + SQLite persistent volume).
+
+### Environment variables
+
+**Railway (backend):**
+```
+ANTHROPIC_API_KEY=sk-ant-...
+DB_PATH=/data/data.db
+NODE_ENV=production
+FRONTEND_URL=https://your-app.vercel.app
+```
+
+**Vercel (frontend):** none — API calls are proxied via `frontend/vercel.json` rewrites to the Railway backend URL.
+
+### Key production config files
+- `frontend/vercel.json` — rewrites `/api/*` → Railway backend
+- `backend/package.json` — start script uses `${PORT:-3000}` to bind Railway's injected `$PORT`
+- `backend/lib/db/index.js` — reads `DB_PATH` env var; creates parent directory automatically on startup

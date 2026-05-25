@@ -86,8 +86,11 @@ Use Conventional Commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `style:
 
 ## Configuration Notes
 
-- Keep backend on `3000` and frontend on `5173`.
-- SQLite data lives in `backend/data.db`.
+- Keep backend on `3000` and frontend on `5173` in local dev.
+- SQLite data lives in `backend/data.db` locally. In production the path is controlled by `DB_PATH` env var (Railway: `/data/data.db` on a persistent volume). `backend/lib/db/index.js` calls `fs.mkdirSync` on the parent directory before opening the DB — safe to run in any environment.
+- The backend start script is `next start -p ${PORT:-3000}` — binds to Railway's injected `$PORT` in production, falls back to `3000` locally.
 - The backend depends on `@anthropic-ai/sdk` when `ANTHROPIC_API_KEY` is used.
 - Local account sessions are cookie-based; if auth behaviour looks wrong, verify `/api/me` before debugging the UI.
 - Plan upgrades are currently manual DB edits (`UPDATE subscriptions SET plan='maker_pro' WHERE userId=...`). Stripe is not wired yet.
+- In production, `frontend/vercel.json` rewrites `/api/*` to the Railway backend URL. Never add `VITE_API_URL` or change frontend fetch paths — the rewrite keeps all calls as relative `/api/...`.
+- CORS origin is locked to `process.env.FRONTEND_URL` in production (`backend/next.config.js`). Set `FRONTEND_URL` in Railway env vars after the Vercel URL is known.
