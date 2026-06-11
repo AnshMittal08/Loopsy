@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Sparkles, X, Send } from 'lucide-react';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -14,23 +15,17 @@ const SUGGESTIONS = [
   "I made a mistake — how do I fix it?",
 ];
 
-export default function AiTutor({ patternId, currentStepIndex, patternTitle, difficulty }) {
+export default function AiTutor({ patternId, currentStepIndex, patternTitle }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [hasOpened, setHasOpened] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-  const hasOpened = useRef(false);
 
   const stepLabel = typeof currentStepIndex === 'number' ? `Step ${currentStepIndex + 1}` : null;
-
-  useEffect(() => {
-    if (isOpen && !hasOpened.current) {
-      hasOpened.current = true;
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -95,14 +90,14 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle, dif
     <>
       {/* FAB */}
       <button
-        onClick={() => setIsOpen(o => !o)}
+        onClick={() => { setIsOpen(o => !o); if (!hasOpened) setHasOpened(true); }}
         className="fixed bottom-6 right-6 z-[9000] flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-on-primary shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-transform"
         aria-label="Open AI crochet tutor"
         style={{ bottom: 24, right: 24 }}
       >
-        <span className="material-symbols-outlined text-xl">auto_awesome</span>
+        <Sparkles size={20} />
         <span className="hidden sm:inline text-sm font-bold">Ask tutor</span>
-        {!hasOpened.current && (
+        {!hasOpened && (
           <span
             className="absolute inset-0 rounded-full bg-primary opacity-30 animate-ping pointer-events-none"
             aria-hidden="true"
@@ -124,7 +119,7 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle, dif
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-surface-container-high shrink-0">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-lg">auto_awesome</span>
+              <Sparkles size={17} className="text-primary" />
               <span className="font-bold text-sm text-on-surface">AI Crochet Tutor</span>
               {stepLabel && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
@@ -137,7 +132,7 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle, dif
               className="text-on-surface-variant hover:text-on-surface transition-colors"
               aria-label="Close tutor"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <X size={18} />
             </button>
           </div>
 
@@ -222,7 +217,7 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle, dif
               className="rounded-xl bg-primary p-2.5 text-on-primary disabled:opacity-40 hover:scale-105 active:scale-95 transition-transform shrink-0"
               aria-label="Send message"
             >
-              <span className="material-symbols-outlined text-lg">send</span>
+              <Send size={18} />
             </button>
           </div>
         </div>

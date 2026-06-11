@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { ExternalLink } from 'lucide-react';
 import { ABBREVIATIONS, expandAbbreviations } from '../lib/crochetAbbreviations';
 
 let closeCurrentTooltip = null;
@@ -123,7 +124,7 @@ function StitchTooltip({ stitchData, children }) {
                   <p className="text-xs font-bold text-on-surface">Watch tutorial</p>
                   <p className="text-[11px] text-on-surface-variant truncate">{stitchData.videoLabel}</p>
                 </div>
-                <span className="material-symbols-outlined text-sm text-on-surface-variant/50 ml-auto shrink-0">open_in_new</span>
+                <ExternalLink size={14} className="text-on-surface-variant/50 ml-auto shrink-0" />
               </a>
             )}
 

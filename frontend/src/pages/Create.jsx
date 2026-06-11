@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion as Motion } from 'motion/react';
+import { ArrowLeft, Menu, Lock, AlertCircle, X, Sparkles, CheckCircle2, Lightbulb } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { SkeletonTemplatePreview } from '../components/Skeleton';
+import { ThreadSpinner } from '../components/motion/Thread';
+import { Reveal } from '../components/motion/Reveal';
 import { getPatternTheme } from '../lib/patternThemes';
+import { SPRING } from '../lib/motionTokens';
 import { useAuth } from '../components/AuthProvider';
 
 export default function Create() {
@@ -33,6 +38,7 @@ export default function Create() {
     ? (templateError?.templateId === templateId ? templateError.message : actionError)
     : actionError;
   const templateTheme = getPatternTheme(template?.category);
+  const TemplateIcon = templateTheme.icon;
 
   useEffect(() => {
     if (!user || !templateId) return;
@@ -59,7 +65,7 @@ export default function Create() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface">
-        <p className="text-on-surface-variant">Loading workspace…</p>
+        <ThreadSpinner size={56} />
       </div>
     );
   }
@@ -69,9 +75,9 @@ export default function Create() {
       <div className="flex min-h-screen bg-surface text-on-surface">
         <SideNav />
         <main className="flex-1 flex items-center justify-center px-6 py-16">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-10 text-center">
+          <Reveal className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 text-center">
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-              <span className="material-symbols-outlined text-primary text-2xl">lock</span>
+              <Lock size={24} className="text-primary" />
             </div>
             <h1 className="font-display text-2xl font-bold text-on-surface mb-2">Sign in to create</h1>
             <p className="text-sm text-on-surface-variant leading-relaxed mb-8">
@@ -85,7 +91,7 @@ export default function Create() {
                 Back to explore
               </Link>
             </div>
-          </div>
+          </Reveal>
         </main>
       </div>
     );
@@ -159,20 +165,38 @@ export default function Create() {
     }
   };
 
+  const generateButton = (onClick, disabled, label) => (
+    <Motion.button
+      onClick={onClick}
+      disabled={disabled}
+      whileHover={disabled ? {} : { scale: 1.03 }}
+      whileTap={disabled ? {} : { scale: 0.97 }}
+      transition={SPRING.snappy}
+      className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isGenerating ? (
+        <ThreadSpinner size={18} className="text-on-primary" />
+      ) : (
+        label === 'ai' ? <Sparkles size={17} /> : <CheckCircle2 size={17} />
+      )}
+      {isGenerating ? 'Spinning up your pattern…' : 'Generate Pattern'}
+    </Motion.button>
+  );
+
   return (
     <div className="flex min-h-screen bg-surface text-on-surface">
       <SideNav />
 
       <main className="flex-1 overflow-y-auto">
         {/* Mobile header */}
-        <header className="md:hidden sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-surface/90 backdrop-blur-md border-b border-outline-variant/15">
+        <header className="md:hidden sticky top-0 z-10 flex items-center justify-between px-5 py-4 glass-panel border-b border-outline-variant/15">
           <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <ArrowLeft size={19} />
             <span className="text-sm font-medium">Explore</span>
           </Link>
           <span className="font-display text-lg font-bold text-on-surface">Loopsy</span>
           <button className="text-on-surface-variant" onClick={() => setMobileOpen(true)} aria-label="Open menu">
-            <span className="material-symbols-outlined">menu</span>
+            <Menu size={24} />
           </button>
           <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
@@ -181,11 +205,11 @@ export default function Create() {
           <div className="max-w-3xl mx-auto">
 
             {/* Page header */}
-            <div className="mb-10">
+            <Reveal className="mb-10">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">
                 {mode === 'template' ? 'Template Studio' : 'AI Studio'}
               </p>
-              <h1 className="font-display text-[2.6rem] md:text-[3.2rem] font-bold text-on-surface leading-tight tracking-tight">
+              <h1 className="font-display display-wonk text-[2.6rem] md:text-[3.2rem] font-bold text-on-surface leading-tight tracking-tight">
                 {mode === 'template' ? 'Customize your pattern.' : 'Draft your next masterpiece.'}
               </h1>
               <p className="mt-4 text-on-surface-variant text-base leading-relaxed max-w-xl">
@@ -193,7 +217,7 @@ export default function Create() {
                   ? 'Personalize this template with your preferred colors and size.'
                   : 'Describe your idea and let AI generate a complete step-by-step crochet pattern.'}
               </p>
-            </div>
+            </Reveal>
 
             {/* Mode toggle (template route only) */}
             {hasTemplateRoute && (
@@ -205,13 +229,18 @@ export default function Create() {
                   <button
                     key={tab.id}
                     onClick={() => setTemplateMode(tab.id)}
-                    className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                      mode === tab.id
-                        ? 'bg-primary text-on-primary shadow-warm'
-                        : 'text-on-surface-variant hover:text-on-surface'
+                    className={`relative px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                      mode === tab.id ? 'text-on-primary' : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
-                    {tab.label}
+                    {mode === tab.id && (
+                      <Motion.span
+                        layoutId="create-mode-pill"
+                        className="absolute inset-0 rounded-full bg-primary shadow-warm"
+                        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative">{tab.label}</span>
                   </button>
                 ))}
               </div>
@@ -221,13 +250,13 @@ export default function Create() {
             {mode === 'template' && loadingTemplate && <SkeletonTemplatePreview />}
 
             {mode === 'template' && template && (
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm overflow-hidden">
+              <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
                 {visibleError && (
                   <div className="mx-6 mt-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">
-                    <span className="material-symbols-outlined shrink-0 text-[18px]">error</span>
+                    <AlertCircle size={18} className="shrink-0 mt-0.5" />
                     <p className="flex-1 text-sm">{visibleError}</p>
                     <button onClick={() => { setActionError(null); setTemplateError(null); }} className="shrink-0 hover:opacity-70">
-                      <span className="material-symbols-outlined text-[16px]">close</span>
+                      <X size={16} />
                     </button>
                   </div>
                 )}
@@ -237,15 +266,15 @@ export default function Create() {
                   <div className={`absolute -top-8 right-0 h-32 w-32 rounded-full blur-3xl ${templateTheme.orb}`} />
                   <div className="absolute inset-x-6 inset-y-5 rounded-xl border border-white/50 bg-white/30 backdrop-blur-sm" />
                   <div className="absolute bottom-5 left-6 right-6 flex items-end justify-between">
-                    <div className="rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm">
+                    <div className="rounded-xl bg-surface-container-lowest/85 px-4 py-2.5 backdrop-blur-sm">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">{template.category}</p>
                       <h3 className="mt-0.5 text-lg font-bold text-on-surface leading-tight">{template.name}</h3>
                     </div>
-                    <div className="rounded-full bg-white/85 p-2.5">
-                      <span className="material-symbols-outlined text-on-surface">{templateTheme.icon}</span>
+                    <div className="rounded-full bg-surface-container-lowest/85 p-2.5">
+                      <TemplateIcon size={20} className="text-on-surface" />
                     </div>
                   </div>
-                  <span className="absolute top-3 right-3 px-3 py-1 bg-white/80 backdrop-blur-md rounded-full text-xs font-semibold text-on-surface">
+                  <span className="absolute top-3 right-3 px-3 py-1 bg-surface-container-lowest/80 backdrop-blur-md rounded-full text-xs font-semibold text-on-surface">
                     {template.difficulty}
                   </span>
                 </div>
@@ -299,9 +328,11 @@ export default function Create() {
                           { value: 'medium', label: 'Medium', desc: 'Standard' },
                           { value: 'large', label: 'Large', desc: '×1.25 stitches' },
                         ].map((s) => (
-                          <button
+                          <Motion.button
                             key={s.value}
                             onClick={() => setSize(s.value)}
+                            whileTap={{ scale: 0.96 }}
+                            transition={SPRING.snappy}
                             className={`rounded-xl px-5 py-3 text-left min-w-[120px] border transition-all ${
                               size === s.value
                                 ? 'bg-primary/8 border-primary text-primary shadow-warm'
@@ -310,34 +341,25 @@ export default function Create() {
                           >
                             <p className="font-semibold text-sm">{s.label}</p>
                             <p className="text-xs text-on-surface-variant mt-0.5">{s.desc}</p>
-                          </button>
+                          </Motion.button>
                         ))}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-8 flex justify-end">
-                    <button
-                      onClick={handleTemplateGenerate}
-                      disabled={isGenerating}
-                      className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {isGenerating ? 'hourglass_empty' : 'check_circle'}
-                      </span>
-                      {isGenerating ? 'Generating…' : 'Generate Pattern'}
-                    </button>
+                    {generateButton(handleTemplateGenerate, isGenerating, 'template')}
                   </div>
                 </div>
-              </div>
+              </Reveal>
             )}
 
             {/* AI mode */}
             {mode === 'ai' && (
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-6 md:p-8">
+              <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 {visibleError && (
                   <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">
-                    <span className="material-symbols-outlined shrink-0 text-[18px]">error</span>
+                    <AlertCircle size={18} className="shrink-0 mt-0.5" />
                     <p className="flex-1 text-sm">
                       {visibleError}
                       {rateLimitHit && (
@@ -345,7 +367,7 @@ export default function Create() {
                       )}
                     </p>
                     <button onClick={() => { setActionError(null); setRateLimitHit(false); }} className="shrink-0 hover:opacity-70">
-                      <span className="material-symbols-outlined text-[16px]">close</span>
+                      <X size={16} />
                     </button>
                   </div>
                 )}
@@ -366,9 +388,11 @@ export default function Create() {
                     <label className="block text-sm font-semibold text-on-surface mb-3">Difficulty level</label>
                     <div className="flex flex-wrap gap-3">
                       {['beginner', 'intermediate', 'advanced'].map((level) => (
-                        <button
+                        <Motion.button
                           key={level}
                           onClick={() => setDifficulty(level)}
+                          whileTap={{ scale: 0.96 }}
+                          transition={SPRING.snappy}
                           className={`rounded-xl px-5 py-2.5 border text-sm font-medium capitalize transition-all ${
                             difficulty === level
                               ? 'bg-primary/8 border-primary text-primary shadow-warm'
@@ -376,13 +400,16 @@ export default function Create() {
                           }`}
                         >
                           {level}
-                        </button>
+                        </Motion.button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-primary-fixed/40 border border-primary-fixed-dim/30 p-4">
-                    <p className="text-sm font-semibold text-on-surface mb-1">Prompt tips</p>
+                  <div className="rounded-xl bg-tertiary-container/50 border border-tertiary/20 p-4">
+                    <p className="text-sm font-semibold text-on-surface mb-1 flex items-center gap-1.5">
+                      <Lightbulb size={14} className="text-tertiary" />
+                      Prompt tips
+                    </p>
                     <p className="text-sm text-on-surface-variant leading-relaxed">
                       Include project type, size, colors, and recipient. Example: "A beginner-friendly sunflower tote bag in cream and moss green with sturdy handles."
                     </p>
@@ -390,18 +417,9 @@ export default function Create() {
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                  <button
-                    onClick={handleAIGenerate}
-                    disabled={isGenerating || !prompt}
-                    className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      {isGenerating ? 'hourglass_empty' : 'auto_awesome'}
-                    </span>
-                    {isGenerating ? 'Generating…' : 'Generate Pattern'}
-                  </button>
+                  {generateButton(handleAIGenerate, isGenerating || !prompt, 'ai')}
                 </div>
-              </div>
+              </Reveal>
             )}
           </div>
         </div>

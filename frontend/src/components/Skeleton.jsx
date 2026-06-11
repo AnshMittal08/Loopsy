@@ -1,7 +1,7 @@
 import React from 'react';
 
 export function SkeletonBlock({ className = '' }) {
-  return <div className={`animate-pulse rounded-lg bg-surface-container-high ${className}`} />;
+  return <div className={`shimmer rounded-lg ${className}`} />;
 }
 
 export function SkeletonTemplateCard() {

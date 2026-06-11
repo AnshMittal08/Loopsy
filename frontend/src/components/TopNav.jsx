@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion as Motion } from 'motion/react';
+import { Menu } from 'lucide-react';
 import MobileNav from './MobileNav';
+import ThemeToggle from './ThemeToggle';
 import { useAuth } from './AuthProvider';
+
+const LINKS = [
+  { to: '/', label: 'Explore' },
+  { to: '/create', label: 'Create' },
+  { to: '/tracker', label: 'Projects' },
+  { to: '/account', label: 'Account' },
+];
 
 export default function TopNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -10,36 +20,38 @@ export default function TopNav() {
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl border-b border-outline-variant/20">
+    <nav className="fixed top-0 w-full z-50 glass-panel border-b border-outline-variant/20">
       <div className="flex justify-between items-center px-6 py-4 max-w-[1440px] mx-auto">
-        <Link to="/" className="font-display text-2xl font-bold text-on-surface tracking-tight hover:text-primary transition-colors">
+        <Link to="/" className="font-display text-2xl font-bold text-on-surface tracking-tight hover:text-primary transition-colors display-wonk">
           Loopsy
         </Link>
 
-        <div className="hidden md:flex items-center gap-7">
-          {[
-            { to: '/', label: 'Explore' },
-            { to: '/#discover', label: 'Library', href: true },
-            { to: '/create', label: 'Create' },
-            { to: '/account', label: 'Account' },
-          ].map(({ to, label, href }) =>
-            href ? (
-              <a key={label} href={to} className="text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">
-                {label}
-              </a>
-            ) : (
+        <div className="hidden md:flex items-center gap-1">
+          {LINKS.map(({ to, label }) => {
+            const active = isActive(to);
+            return (
               <Link
                 key={label}
                 to={to}
-                className={`text-sm font-medium transition-colors ${isActive(to) ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`}
+                className={`relative px-4 py-2 text-sm font-medium transition-colors ${
+                  active ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-on-surface'
+                }`}
               >
-                {label}
+                {active && (
+                  <Motion.span
+                    layoutId="topnav-pill"
+                    className="absolute inset-0 rounded-full bg-primary/10"
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <span className="relative">{label}</span>
               </Link>
-            )
-          )}
+            );
+          })}
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           {user && (
             <Link
               to="/account"
@@ -56,13 +68,16 @@ export default function TopNav() {
           </Link>
         </div>
 
-        <button
-          className="md:hidden text-on-surface-variant hover:text-on-surface transition-colors"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open menu"
-        >
-          <span className="material-symbols-outlined text-[28px]">menu</span>
-        </button>
+        <div className="flex md:hidden items-center gap-2">
+          <ThemeToggle />
+          <button
+            className="text-on-surface-variant hover:text-on-surface transition-colors p-1"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={26} />
+          </button>
+        </div>
       </div>
 
       <MobileNav isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />

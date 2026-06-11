@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion as Motion } from 'motion/react';
+import { Lock, BookMarked, Sparkles, CheckCircle2 } from 'lucide-react';
 import SideNav from '../components/SideNav';
+import { Reveal } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
 
@@ -69,7 +72,7 @@ export default function Account() {
       <main className="flex-1 px-6 py-10 md:px-10 lg:px-16">
         <div className="mx-auto max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Account</p>
-          <h1 className="font-display text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
+          <h1 className="font-display display-wonk text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
             Your crochet workspace.
           </h1>
           <p className="text-on-surface-variant max-w-xl mb-10">
@@ -77,28 +80,33 @@ export default function Account() {
           </p>
 
           {loading ? (
-            <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-8 animate-pulse">
-              <div className="h-6 w-40 rounded-lg bg-surface-container-high mb-3" />
-              <div className="h-4 w-60 rounded-lg bg-surface-container-high" />
+            <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-8">
+              <div className="h-6 w-40 rounded-lg shimmer mb-3" />
+              <div className="h-4 w-60 rounded-lg shimmer" />
             </div>
 
           ) : user ? (
             <div className="space-y-5">
               {/* Profile card */}
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-6 md:p-8">
+              <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-xl font-bold shadow-warm-md">
+                    <Motion.div
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-xl font-bold shadow-warm-md"
+                    >
                       {user.name.slice(0, 1).toUpperCase()}
-                    </div>
+                    </Motion.div>
                     <div>
                       <h2 className="text-xl font-bold text-on-surface">{user.name}</h2>
                       <p className="text-sm text-on-surface-variant mt-0.5">{user.email}</p>
                     </div>
                   </div>
                   <div className="rounded-xl bg-primary-fixed px-5 py-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary-container">Plan</p>
-                    <p className="mt-1 text-lg font-bold text-on-primary-container capitalize">{user.subscription?.plan || 'free'}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary-fixed">Plan</p>
+                    <p className="mt-1 text-lg font-bold text-on-primary-fixed capitalize">{user.subscription?.plan || 'free'}</p>
                     <p className="text-xs text-on-primary-fixed-variant capitalize">{user.subscription?.status || 'active'}</p>
                   </div>
                 </div>
@@ -114,15 +122,15 @@ export default function Account() {
                     Sign out
                   </button>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Usage */}
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-6 md:p-8">
+              <Reveal delay={0.08} className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-primary mb-5">Usage this month</h3>
                 {usage === null ? (
                   <div className="space-y-3">
-                    <div className="h-16 rounded-xl bg-surface-container-low animate-pulse" />
-                    <div className="h-16 rounded-xl bg-surface-container-low animate-pulse" />
+                    <div className="h-16 rounded-xl shimmer" />
+                    <div className="h-16 rounded-xl shimmer" />
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -130,11 +138,11 @@ export default function Account() {
                     <UsageBar label="AI Tutor" used={usage.used.tutor} limit={usage.limits.tutor} />
                   </div>
                 )}
-              </div>
+              </Reveal>
 
               {/* Upgrade cards */}
               {usage && (usage.plan === 'free' || usage.plan === 'maker_pro') && (
-                <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-6 md:p-8">
+                <Reveal delay={0.14} className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                   <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-primary mb-5">Upgrade your plan</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     {usage.plan === 'free' && (
@@ -152,14 +160,14 @@ export default function Account() {
                       highlight={true}
                     />
                   </div>
-                </div>
+                </Reveal>
               )}
             </div>
 
           ) : (
             <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
               {/* Auth form */}
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-7">
+              <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-7">
                 <div className="flex gap-2 p-1 rounded-full bg-surface-container-low w-fit mb-7">
                   {[
                     { id: 'signin', label: 'Sign in' },
@@ -168,13 +176,18 @@ export default function Account() {
                     <button
                       key={item.id}
                       onClick={() => setMode(item.id)}
-                      className={`rounded-full px-5 py-2 text-sm font-semibold transition-all ${
-                        mode === item.id
-                          ? 'bg-primary text-on-primary shadow-warm'
-                          : 'text-on-surface-variant hover:text-on-surface'
+                      className={`relative rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
+                        mode === item.id ? 'text-on-primary' : 'text-on-surface-variant hover:text-on-surface'
                       }`}
                     >
-                      {item.label}
+                      {mode === item.id && (
+                        <Motion.span
+                          layoutId="account-mode-pill"
+                          className="absolute inset-0 rounded-full bg-primary shadow-warm"
+                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative">{item.label}</span>
                     </button>
                   ))}
                 </div>
@@ -220,33 +233,34 @@ export default function Account() {
                     {fieldErrors.password && <p className="mt-1 text-xs text-error">{fieldErrors.password}</p>}
                   </div>
 
-                  <button
+                  <Motion.button
                     disabled={submitting}
-                    className="w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm disabled:opacity-60"
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-60"
                   >
                     {submitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
-                  </button>
+                  </Motion.button>
                 </form>
-              </div>
+              </Reveal>
 
               {/* Why sign in */}
-              <div className="rounded-2xl bg-white border border-outline-variant/20 shadow-warm p-7">
+              <Reveal delay={0.1} className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-7">
                 <h3 className="font-display text-xl font-bold text-on-surface mb-5">Why sign in?</h3>
                 <div className="space-y-3">
                   {[
-                    { icon: 'lock', text: 'Keep tracker progress tied to your account, not an anonymous session.' },
-                    { icon: 'collections_bookmark', text: 'Build a personal library of AI-generated and template-based projects.' },
-                    { icon: 'auto_awesome', text: 'Unlock AI tutor, subscriptions, and saved item history.' },
+                    { Icon: Lock, text: 'Keep tracker progress tied to your account, not an anonymous session.' },
+                    { Icon: BookMarked, text: 'Build a personal library of AI-generated and template-based projects.' },
+                    { Icon: Sparkles, text: 'Unlock AI tutor, subscriptions, and saved item history.' },
                   ].map((item) => (
-                    <div key={item.icon} className="flex items-start gap-3 rounded-xl bg-surface-container-low p-4">
+                    <div key={item.text} className="flex items-start gap-3 rounded-xl bg-surface-container-low p-4">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <span className="material-symbols-outlined text-primary text-[16px]">{item.icon}</span>
+                        <item.Icon size={15} className="text-primary" />
                       </div>
                       <p className="text-sm text-on-surface-variant leading-relaxed">{item.text}</p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Reveal>
             </div>
           )}
         </div>
@@ -273,10 +287,12 @@ function UsageBar({ label, used, limit }) {
         )}
       </div>
       {!isUnlimited && (
-        <div className="h-2 w-full rounded-full bg-surface-container-high">
-          <div
-            className={`h-2 rounded-full transition-all ${nearLimit ? 'bg-tertiary' : 'bg-primary'}`}
-            style={{ width: `${pct}%` }}
+        <div className="h-2 w-full rounded-full bg-surface-container-high overflow-hidden">
+          <Motion.div
+            className={`h-2 rounded-full ${nearLimit ? 'bg-tertiary' : 'bg-primary'}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ type: 'spring', stiffness: 60, damping: 16, delay: 0.2 }}
           />
         </div>
       )}
@@ -286,7 +302,7 @@ function UsageBar({ label, used, limit }) {
 
 function PlanCard({ name, price, features, highlight }) {
   return (
-    <div className={`rounded-xl px-5 py-5 border ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
+    <div className={`rounded-xl px-5 py-5 border card-lift ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
       <div className="flex items-baseline justify-between mb-3">
         <p className="font-bold text-on-surface">{name}</p>
         <p className={`text-sm font-bold ${highlight ? 'text-primary' : 'text-on-surface-variant'}`}>{price}</p>
@@ -294,7 +310,7 @@ function PlanCard({ name, price, features, highlight }) {
       <ul className="space-y-1.5 mb-4">
         {features.map((f) => (
           <li key={f} className="flex items-center gap-2 text-sm text-on-surface-variant">
-            <span className="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+            <CheckCircle2 size={14} className="text-secondary shrink-0" />
             {f}
           </li>
         ))}
