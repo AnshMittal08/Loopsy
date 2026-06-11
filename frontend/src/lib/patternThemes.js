@@ -1,46 +1,50 @@
+import { Shirt, ShoppingBag, Rabbit, BedDouble, Home, GraduationCap, Sparkles } from 'lucide-react';
+
+// Category themes in the Atelier yarn palette.
+// `icon` is a lucide component — render as <theme.icon size={16} />.
 const CATEGORY_THEMES = {
   wearable: {
-    accent: 'from-amber-300 via-yellow-200 to-orange-100',
-    panel: 'bg-amber-50',
-    orb: 'bg-amber-300/60',
-    icon: 'checkroom'
+    accent: 'from-yarn-marigold/85 to-yarn-coral/60',
+    orb: 'bg-yarn-marigold/60',
+    chip: 'bg-yarn-marigold/15 text-yarn-marigold',
+    icon: Shirt,
   },
   accessory: {
-    accent: 'from-blue-300 via-sky-200 to-cyan-100',
-    panel: 'bg-blue-50',
-    orb: 'bg-blue-300/60',
-    icon: 'shopping_bag'
+    accent: 'from-yarn-periwinkle/85 to-yarn-sage/50',
+    orb: 'bg-yarn-periwinkle/60',
+    chip: 'bg-yarn-periwinkle/15 text-yarn-periwinkle',
+    icon: ShoppingBag,
   },
   amigurumi: {
-    accent: 'from-pink-300 via-rose-200 to-fuchsia-100',
-    panel: 'bg-pink-50',
-    orb: 'bg-pink-300/60',
-    icon: 'toys'
+    accent: 'from-yarn-rose/85 to-yarn-periwinkle/55',
+    orb: 'bg-yarn-rose/60',
+    chip: 'bg-yarn-rose/15 text-yarn-rose',
+    icon: Rabbit,
   },
   blanket: {
-    accent: 'from-sky-300 via-blue-200 to-indigo-100',
-    panel: 'bg-sky-50',
-    orb: 'bg-sky-300/60',
-    icon: 'bed'
+    accent: 'from-yarn-periwinkle/80 to-yarn-rose/50',
+    orb: 'bg-yarn-periwinkle/60',
+    chip: 'bg-yarn-periwinkle/15 text-yarn-periwinkle',
+    icon: BedDouble,
   },
   home: {
-    accent: 'from-teal-300 via-cyan-200 to-sky-100',
-    panel: 'bg-teal-50',
-    orb: 'bg-teal-300/60',
-    icon: 'home'
+    accent: 'from-yarn-sage/85 to-yarn-marigold/55',
+    orb: 'bg-yarn-sage/60',
+    chip: 'bg-yarn-sage/15 text-yarn-sage',
+    icon: Home,
   },
   practice: {
-    accent: 'from-violet-300 via-purple-200 to-blue-100',
-    panel: 'bg-violet-50',
-    orb: 'bg-violet-300/60',
-    icon: 'school'
+    accent: 'from-yarn-coral/80 to-yarn-marigold/60',
+    orb: 'bg-yarn-coral/60',
+    chip: 'bg-yarn-coral/15 text-yarn-coral',
+    icon: GraduationCap,
   },
   custom: {
-    accent: 'from-blue-200 via-sky-100 to-indigo-50',
-    panel: 'bg-blue-50',
-    orb: 'bg-blue-200/60',
-    icon: 'auto_awesome'
-  }
+    accent: 'from-yarn-coral/70 to-yarn-periwinkle/50',
+    orb: 'bg-yarn-coral/60',
+    chip: 'bg-yarn-coral/15 text-yarn-coral',
+    icon: Sparkles,
+  },
 };
 
 export function getPatternTheme(category) {
