@@ -18,6 +18,7 @@
 
 const SUPPORTED_SHAPES = [
   'sphere',
+  'ellipsoid',
   'hemisphere',
   'tube',
   'cone',
@@ -30,6 +31,7 @@ const SUPPORTED_STITCHES = ['sc', 'hdc', 'dc'];
 
 const REQUIRED_DIMENSIONS = {
   sphere: ['diameterCm'],
+  ellipsoid: ['diameterCm', 'heightCm'],
   hemisphere: ['diameterCm'],
   tube: [], // diameterCm or circumferenceCm + heightCm (checked specially)
   cone: ['baseDiameterCm', 'heightCm'],

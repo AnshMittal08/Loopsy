@@ -18,7 +18,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { prompt, difficulty } = body;
+    const { prompt, difficulty, stream } = body;
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
@@ -26,12 +26,53 @@ export async function POST(request) {
 
     const raw = difficulty || "beginner";
     const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-    const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
-    pattern.userId = user.id;
-    createPattern(pattern);
 
-    recordUsage(user.id, "generation");
-    return NextResponse.json(pattern, { status: 201 });
+    if (!stream) {
+      const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
+      pattern.userId = user.id;
+      createPattern(pattern);
+
+      recordUsage(user.id, "generation");
+      return NextResponse.json(pattern, { status: 201 });
+    }
+
+    // Streaming mode (plan-v2): the generation theater is real, not simulated.
+    // Server-sent events: `status` (pipeline stage), `step` (a computed row),
+    // then a final `pattern` (the saved record) or `error`.
+    const encoder = new TextEncoder();
+    const sse = new ReadableStream({
+      async start(controller) {
+        const send = (event, data) => {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        };
+
+        try {
+          const pattern = await generatePatternFromAI(prompt, normalizedDifficulty, (e) => {
+            if (e.type === "step") send("step", { row: e.row, instruction: e.instruction });
+            else send("status", { stage: e.stage, message: e.message });
+          });
+          pattern.userId = user.id;
+          createPattern(pattern);
+
+          recordUsage(user.id, "generation");
+          send("pattern", pattern);
+        } catch (error) {
+          send("error", { error: "Failed to generate pattern via AI.", details: error.message });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(sse, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to generate pattern via AI.", details: error.message },

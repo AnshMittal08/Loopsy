@@ -68,7 +68,7 @@ const DESIGN_SPEC_TOOL = {
             shape: { type: "string", enum: SUPPORTED_SHAPES },
             dimensions: {
               type: "object",
-              description: "Real-world finished dimensions in cm. sphere/hemisphere: diameterCm. tube: heightCm + diameterCm or circumferenceCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. grannySquare: sideCm. hatCrown: size keyword instead.",
+              description: "Real-world finished dimensions in cm. sphere/hemisphere: diameterCm. ellipsoid: diameterCm (widest cross-section) + heightCm (long axis). tube: heightCm + diameterCm or circumferenceCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. grannySquare: sideCm. hatCrown: size keyword instead.",
               properties: {
                 diameterCm: { type: "number" },
                 heightCm: { type: "number" },
@@ -103,7 +103,7 @@ async function parseDesignIntent(prompt, difficulty) {
         type: "text",
         text: `You are the intent parser for a crochet pattern compiler. You translate a maker's request into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
 
-Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads, bodies), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). Be honest with the "feasible" flag: garments with shaping, lace charts, and complex colorwork are NOT feasible.`,
+Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). Be honest with the "feasible" flag: garments with shaping, lace charts, and complex colorwork are NOT feasible.`,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -177,11 +177,14 @@ async function humanizeCompiledPattern(prompt, difficulty, compiled) {
 /**
  * Try the compiler pipeline. Returns a complete pattern object, or null when
  * the request is outside the compiler vocabulary (caller falls back).
+ * Progress is reported through `emit` so the route can stream it live.
  */
-async function generateWithCompiler(prompt, difficulty) {
+async function generateWithCompiler(prompt, difficulty, emit) {
+  emit({ type: 'status', stage: 'parsing', message: 'Reading your idea…' });
   const spec = await parseDesignIntent(prompt, difficulty);
   if (!spec || spec.feasible === false) return null;
 
+  emit({ type: 'status', stage: 'compiling', message: 'Computing every stitch…' });
   const compiled = compileDesignSpec(spec);
   if (!compiled.ok) {
     console.warn("Design spec failed compilation:", compiled.errors);
@@ -196,6 +199,12 @@ async function generateWithCompiler(prompt, difficulty) {
     return null;
   }
 
+  // The math is settled — stream the rows out while the humanizer writes.
+  for (const step of compiled.steps) {
+    emit({ type: 'step', row: step.row, instruction: step.instruction });
+  }
+
+  emit({ type: 'status', stage: 'humanizing', message: 'Writing it up beautifully…' });
   let presentation = null;
   try {
     presentation = await humanizeCompiledPattern(prompt, difficulty, compiled);
@@ -396,7 +405,8 @@ function enrichPatternMetadata(pattern, prompt, difficulty) {
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
-export async function generatePatternFromAI(prompt, difficulty) {
+export async function generatePatternFromAI(prompt, difficulty, onEvent) {
+  const emit = typeof onEvent === 'function' ? onEvent : () => {};
   let patternData = null;
   let usedClaude = false;
 
@@ -404,7 +414,7 @@ export async function generatePatternFromAI(prompt, difficulty) {
     // 1. Compiler pipeline: intent → deterministic geometry → humanized
     //    presentation. Counts are computed, so the result ships verified.
     try {
-      patternData = await generateWithCompiler(prompt, difficulty);
+      patternData = await generateWithCompiler(prompt, difficulty, emit);
     } catch (err) {
       console.warn('Compiler pipeline failed, falling back to freeform:', err.message);
     }
@@ -413,7 +423,11 @@ export async function generatePatternFromAI(prompt, difficulty) {
     //    Labeled experimental; only verified if the validator can prove it.
     if (!patternData) {
       try {
+        emit({ type: 'status', stage: 'drafting', message: 'Drafting a freeform pattern…' });
         const freeform = await generateWithClaude(prompt, difficulty);
+        for (const step of freeform.steps) {
+          emit({ type: 'step', row: step.row, instruction: step.instruction });
+        }
         const validation = validatePattern(freeform.steps);
         patternData = {
           ...freeform,
@@ -434,8 +448,12 @@ export async function generatePatternFromAI(prompt, difficulty) {
   }
 
   if (!patternData) {
+    emit({ type: 'status', stage: 'drafting', message: 'Drafting with the local model…' });
     const ollamaPattern = await generateWithOllama(prompt, difficulty);
     if (ollamaPattern) {
+      for (const step of ollamaPattern.steps) {
+        emit({ type: 'step', row: step.row, instruction: step.instruction });
+      }
       const validation = validatePattern(ollamaPattern.steps);
       patternData = {
         ...ollamaPattern,

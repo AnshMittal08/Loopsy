@@ -12,6 +12,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING, fadeRise, staggerChildren, popIn } from '../lib/motionTokens';
 import { fireConfetti } from '../lib/confetti';
+import { readGenerationStream } from '../lib/generationStream';
 import { useAuth } from '../components/AuthProvider';
 
 const LOADING_LINES = [
@@ -22,13 +23,27 @@ const LOADING_LINES = [
   'Writing it up beautifully…',
 ];
 
-/* ── Generation theater — the loading state is a moment, not a spinner ── */
-function GenerationTheater() {
+/* ── Generation theater — the loading state is a moment, not a spinner ──
+   When the API streams (AI mode), `statusMessage` carries the real pipeline
+   stage and `steps` fills with computed rows that typewriter in live. */
+function GenerationTheater({ statusMessage, steps = [] }) {
   const [lineIdx, setLineIdx] = useState(0);
+  const [revealed, setRevealed] = useState(0);
+
   useEffect(() => {
     const id = setInterval(() => setLineIdx((i) => (i + 1) % LOADING_LINES.length), 1900);
     return () => clearInterval(id);
   }, []);
+
+  // Steps arrive in bursts from the compiler; pace the reveal so the feed
+  // reads as the pattern being written, one row at a time.
+  useEffect(() => {
+    if (revealed >= steps.length) return;
+    const id = setTimeout(() => setRevealed((r) => r + 1), 280);
+    return () => clearTimeout(id);
+  }, [revealed, steps.length]);
+
+  const feed = steps.slice(Math.max(0, revealed - 4), revealed);
 
   return (
     <Motion.div
@@ -44,20 +59,41 @@ function GenerationTheater() {
         <div className="h-6" aria-live="polite">
           <AnimatePresence mode="wait">
             <Motion.p
-              key={lineIdx}
+              key={statusMessage || lineIdx}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
               className="text-sm font-semibold text-on-surface"
             >
-              {LOADING_LINES[lineIdx]}
+              {statusMessage || LOADING_LINES[lineIdx]}
             </Motion.p>
           </AnimatePresence>
         </div>
-        <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
-          Loopsy is composing your pattern row by row — stitch counts are computed, never guessed.
-        </p>
+
+        {feed.length > 0 ? (
+          <div className="w-full max-w-md space-y-1.5 text-left" aria-live="polite">
+            <AnimatePresence initial={false}>
+              {feed.map((step) => (
+                <Motion.p
+                  key={step.row}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="truncate rounded-lg bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant"
+                >
+                  <span className="mr-2 font-bold text-primary">{step.row}</span>
+                  {step.instruction}
+                </Motion.p>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
+            Loopsy is composing your pattern row by row — stitch counts are computed, never guessed.
+          </p>
+        )}
       </div>
     </Motion.div>
   );
@@ -171,6 +207,8 @@ export default function Create() {
   const [difficulty, setDifficulty] = useState('beginner');
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamStatus, setStreamStatus] = useState(null);
+  const [streamSteps, setStreamSteps] = useState([]);
   const [result, setResult] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [rateLimitHit, setRateLimitHit] = useState(false);
@@ -279,20 +317,33 @@ export default function Create() {
     setIsGenerating(true);
     setActionError(null);
     setRateLimitHit(false);
+    setStreamStatus(null);
+    setStreamSteps([]);
     try {
       const res = await fetch('/api/ai/generate-pattern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, difficulty })
+        body: JSON.stringify({ prompt, difficulty, stream: true })
       });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 429 && data.code === 'RATE_LIMIT_EXCEEDED') {
-          setActionError(data.error);
-          setRateLimitHit(true);
-          return;
+
+      const contentType = res.headers.get('content-type') || '';
+      let data;
+      if (contentType.includes('text/event-stream')) {
+        // Streaming generation — pipeline stages and computed rows arrive live.
+        data = await readGenerationStream(res, {
+          onStatus: (status) => setStreamStatus(status.message),
+          onStep: (step) => setStreamSteps((prev) => [...prev, step]),
+        });
+      } else {
+        data = await res.json();
+        if (!res.ok) {
+          if (res.status === 429 && data.code === 'RATE_LIMIT_EXCEEDED') {
+            setActionError(data.error);
+            setRateLimitHit(true);
+            return;
+          }
+          throw new Error(data.error || 'Failed to generate pattern');
         }
-        throw new Error(data.error || 'Failed to generate pattern');
       }
 
       const progressRes = await fetch('/api/progress', {
@@ -368,7 +419,7 @@ export default function Create() {
             </Reveal>
 
             {/* Generation theater — the loading state is a moment */}
-            {isGenerating && <GenerationTheater />}
+            {isGenerating && <GenerationTheater statusMessage={streamStatus} steps={streamSteps} />}
 
             {/* Result view — verified badge, staggered steps, springy materials */}
             {!isGenerating && result && (

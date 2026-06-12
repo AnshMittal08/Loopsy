@@ -34,13 +34,14 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - **Compiler-first pipeline** (when `ANTHROPIC_API_KEY` is set): Claude Haiku parses intent into a Design Spec → the deterministic Pattern Compiler computes exact rounds → Claude Sonnet writes the friendly presentation around the engine's numbers
 - Freeform Claude generation as fallback for designs outside the compiler vocabulary — labeled **experimental**, verified only if the validator can prove the math
 - Falls back to local **Ollama** (phi3) if no API key is configured
+- **Streaming generation** — the endpoint streams server-sent events (pipeline stage, each computed row, final pattern) so the Create page's generation theater shows real progress, not a simulation
 - Always returns a usable pattern — clearly labeled fallback if AI is unavailable
 - Prompt caching (`cache_control: ephemeral`) on all Claude calls — ~90% cost reduction on repeated system-prompt tokens
 
 ### Pattern Compiler — "Verified math ✓" (M2)
 - Deterministic crochet geometry engine in `backend/lib/engine/` — stitch counts are **computed, never guessed**
 - **Gauge tables** by yarn weight (with tight amigurumi tension variants) drive every dimension→stitch conversion
-- **Shape generators**: `sphere`, `hemisphere`, `tube`, `cone`, `flatPanel`, `hatCrown` (head-size tables), `grannySquare` — each emits textbook increase/decrease distributions (a 6 cm amigurumi sphere always produces the 6-12-18-24-30… sequence)
+- **Shape generators**: `sphere`, `ellipsoid`, `hemisphere`, `tube`, `cone`, `flatPanel`, `hatCrown` (head-size tables), `grannySquare` — each emits textbook increase/decrease distributions (a 6 cm amigurumi sphere always produces the 6-12-18-24-30… sequence)
 - **Design Spec** — the JSON contract shared by every front door (text prompt today; photos and the design canvas in M3/M4)
 - **Validator** re-derives running stitch counts from any pattern's text and flags drift; it skips conventions it can't model rather than guessing
 - The **"Verified math ✓" badge** is earned, not given: shown only when every checkable count agrees
@@ -188,7 +189,7 @@ Loopsy/
 │   │   ├── db/index.js          SQLite singleton, schema init, migrations
 │   │   ├── engine/              Pattern Compiler — deterministic crochet geometry (M2)
 │   │   │   ├── gauge.js         Gauge tables by yarn weight + stitch height factors
-│   │   │   ├── shapes.js        sphere/hemisphere/tube/cone/flatPanel/hatCrown/grannySquare
+│   │   │   ├── shapes.js        sphere/ellipsoid/hemisphere/tube/cone/flatPanel/hatCrown/grannySquare
 │   │   │   ├── designSpec.js    Design Spec schema — normalize + validate
 │   │   │   ├── compiler.js      Spec → ordered steps with computed counts
 │   │   │   └── validator.js     Re-derives counts from pattern text, flags drift

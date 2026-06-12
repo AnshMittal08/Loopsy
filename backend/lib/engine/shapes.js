@@ -121,18 +121,12 @@ function labelRounds(rows, unit = 'Round') {
 // ─── Generators ─────────────────────────────────────────────────────────────
 
 /**
- * Amigurumi sphere worked in continuous rounds.
- * Textbook math: 6 sc magic ring, +6 per round to the target circumference,
- * even rounds through the equator, −6 per round back down, stuff, close.
+ * Shared body for closed round shapes (sphere, ellipsoid): increase rounds to
+ * maxSts, the given number of even rounds, then mirrored decreases, stuffing
+ * note, and a closed finish.
  */
-function sphere({ diameterCm }, gauge, stitch = 'sc') {
-  const circumference = Math.PI * diameterCm;
-  const maxSts = roundToMultiple(circumference * gauge.stsPerCm, 6, 12);
+function closedRoundRows(maxSts, evenRounds, stitch) {
   const k = maxSts / 6; // increase rounds, magic ring included
-  const targetRounds = Math.round(diameterCm / rowHeightCm(gauge, stitch));
-  const decRounds = k - 1;
-  const evenRounds = Math.max(1, targetRounds - (k + decRounds));
-
   const rows = [magicRingRow(6, stitch)];
   let count = 6;
   for (let i = 2; i <= k; i++) {
@@ -158,12 +152,52 @@ function sphere({ diameterCm }, gauge, stitch = 'sc') {
     )
   );
 
+  return { rows, finalCount: count };
+}
+
+/**
+ * Amigurumi sphere worked in continuous rounds.
+ * Textbook math: 6 sc magic ring, +6 per round to the target circumference,
+ * even rounds through the equator, −6 per round back down, stuff, close.
+ */
+function sphere({ diameterCm }, gauge, stitch = 'sc') {
+  const circumference = Math.PI * diameterCm;
+  const maxSts = roundToMultiple(circumference * gauge.stsPerCm, 6, 12);
+  const k = maxSts / 6;
+  const targetRounds = Math.round(diameterCm / rowHeightCm(gauge, stitch));
+  const evenRounds = Math.max(1, targetRounds - (k + (k - 1)));
+
+  const { rows, finalCount } = closedRoundRows(maxSts, evenRounds, stitch);
+
   return {
     shape: 'sphere',
     worked: 'rounds',
     rows: labelRounds(rows),
     maxStitchCount: maxSts,
-    finalCount: count,
+    finalCount,
+  };
+}
+
+/**
+ * Prolate ellipsoid (egg / amigurumi body): the same closed-round math as a
+ * sphere, but the run of even rounds is sized so the long axis reaches
+ * heightCm. diameterCm is the widest cross-section.
+ */
+function ellipsoid({ diameterCm, heightCm }, gauge, stitch = 'sc') {
+  const circumference = Math.PI * diameterCm;
+  const maxSts = roundToMultiple(circumference * gauge.stsPerCm, 6, 12);
+  const k = maxSts / 6;
+  const targetRounds = Math.round(heightCm / rowHeightCm(gauge, stitch));
+  const evenRounds = Math.max(1, targetRounds - (k + (k - 1)));
+
+  const { rows, finalCount } = closedRoundRows(maxSts, evenRounds, stitch);
+
+  return {
+    shape: 'ellipsoid',
+    worked: 'rounds',
+    rows: labelRounds(rows),
+    maxStitchCount: maxSts,
+    finalCount,
   };
 }
 
@@ -445,6 +479,7 @@ function grannySquare({ sideCm, rounds: roundsWanted }, gauge) {
 
 const SHAPE_GENERATORS = {
   sphere,
+  ellipsoid,
   hemisphere,
   tube,
   cone,
@@ -457,6 +492,7 @@ module.exports = {
   SHAPE_GENERATORS,
   HAT_SIZES,
   sphere,
+  ellipsoid,
   hemisphere,
   tube,
   cone,
