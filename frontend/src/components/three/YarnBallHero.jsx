@@ -1,23 +1,28 @@
-// The one 3D moment in the app: a yarn ball wound from real tube strands,
-// slowly turning, draggable to spin. Lazy-loaded from Home so three.js never
-// touches the initial bundle. Everything else stays SVG/CSS per the Atelier
-// design language.
-import { useMemo, useRef } from 'react';
+// The one 3D moment in the app: a densely wound yarn ball with a fabric
+// sheen, slowly turning over a soft contact shadow. Drag to spin (with
+// inertia), click/tap to give it a playful spin-and-squash. Lazy-loaded from
+// Home so three.js never touches the initial bundle.
+import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Float } from '@react-three/drei';
+import { OrbitControls, Float, ContactShadows } from '@react-three/drei';
 import { useReducedMotion } from 'motion/react';
 import * as THREE from 'three';
 
-const CORE = '#5B3FD6';
-const STRANDS = ['#8B7CF6', '#9D8DFF', '#7A66F0', '#A99CFF', '#F472B6', '#4ECBA0'];
+const CORE = '#4F35C2';
+// Mostly close violet shades so the winding reads as one skein, with two
+// accent plies catching the light.
+const STRANDS = [
+  '#8B7CF6', '#7A66F0', '#F472B6', '#9D8DFF', '#8474F4', '#4ECBA0',
+  '#9182FA', '#8B7CF6', '#7A66F0', '#9D8DFF', '#A99CFF', '#7E6AF2',
+];
 
-/** A pole-to-pole spherical winding, tilted to a random great-circle plane. */
+/** A pole-to-pole spherical winding, tilted to a pseudo-random plane. */
 function windingCurve(radius, turns, phase, seed) {
   const points = [];
   const quaternion = new THREE.Quaternion().setFromEuler(
     new THREE.Euler(Math.sin(seed * 12.9898) * Math.PI, seed * 7.233, Math.cos(seed * 4.1414) * Math.PI)
   );
-  const SAMPLES = 200;
+  const SAMPLES = 260;
   for (let i = 0; i <= SAMPLES; i++) {
     const t = i / SAMPLES;
     const phi = t * Math.PI;
@@ -44,37 +49,71 @@ function tailCurve() {
   ]);
 }
 
+// Soft fabric sheen makes the strands read as spun fiber, not plastic.
+function yarnMaterial(color) {
+  return (
+    <meshPhysicalMaterial
+      color={color}
+      roughness={0.78}
+      sheen={1}
+      sheenColor="#E5DDFF"
+      sheenRoughness={0.45}
+    />
+  );
+}
+
 function YarnBall({ spinning }) {
   const group = useRef();
+  const spinVel = useRef(0.22);
+  const squash = useRef(1);
+
   const strands = useMemo(
     () =>
       STRANDS.map((color, i) => ({
         color,
-        curve: windingCurve(1 + i * 0.014, 4 + (i % 3), i * 2.39996, i + 1),
+        // Varied turn counts + radii so the winding looks hand-wound, not
+        // procedural; later strands sit slightly proud of earlier ones.
+        curve: windingCurve(0.985 + i * 0.0085, 6 + ((i * 5) % 7), i * 2.39996, i + 1),
+        radius: 0.038 + ((i * 7) % 3) * 0.004,
       })),
     []
   );
   const tail = useMemo(() => tailCurve(), []);
 
   useFrame((_, delta) => {
-    if (spinning && group.current) group.current.rotation.y += delta * 0.25;
+    if (!group.current) return;
+    if (spinning) {
+      group.current.rotation.y += delta * spinVel.current;
+      // Click impulses decay back to the idle drift speed.
+      spinVel.current = THREE.MathUtils.lerp(spinVel.current, 0.22, delta * 1.2);
+    }
+    // Squash-and-stretch spring back to rest after a poke.
+    squash.current = THREE.MathUtils.lerp(squash.current, 1, delta * 6);
+    const s = squash.current;
+    group.current.scale.set(2 - s, s, 2 - s);
   });
 
+  const poke = (e) => {
+    e.stopPropagation();
+    spinVel.current += 3.2;
+    squash.current = 0.86;
+  };
+
   return (
-    <group ref={group}>
+    <group ref={group} onClick={poke}>
       <mesh>
-        <sphereGeometry args={[0.99, 48, 48]} />
-        <meshStandardMaterial color={CORE} roughness={0.95} />
+        <sphereGeometry args={[0.98, 48, 48]} />
+        {yarnMaterial(CORE)}
       </mesh>
       {strands.map((strand, i) => (
         <mesh key={i}>
-          <tubeGeometry args={[strand.curve, 220, 0.048, 8, false]} />
-          <meshStandardMaterial color={strand.color} roughness={0.8} />
+          <tubeGeometry args={[strand.curve, 260, strand.radius, 8, false]} />
+          {yarnMaterial(strand.color)}
         </mesh>
       ))}
       <mesh>
-        <tubeGeometry args={[tail, 64, 0.045, 8, false]} />
-        <meshStandardMaterial color={STRANDS[0]} roughness={0.8} />
+        <tubeGeometry args={[tail, 64, 0.04, 8, false]} />
+        {yarnMaterial(STRANDS[0])}
       </mesh>
     </group>
   );
@@ -82,9 +121,17 @@ function YarnBall({ spinning }) {
 
 export default function YarnBallHero({ className = '' }) {
   const reducedMotion = useReducedMotion();
+  const [grabbing, setGrabbing] = useState(false);
 
   return (
-    <div className={`cursor-grab active:cursor-grabbing ${className}`} aria-label="Interactive 3D yarn ball — drag to spin">
+    <div
+      className={`${grabbing ? 'cursor-grabbing' : 'cursor-grab'} ${className}`}
+      onPointerDown={() => setGrabbing(true)}
+      onPointerUp={() => setGrabbing(false)}
+      onPointerLeave={() => setGrabbing(false)}
+      aria-label="Interactive 3D yarn ball — drag to spin, click to poke"
+      title="Drag to spin · click to poke"
+    >
       <Canvas
         camera={{ position: [0, 0.4, 4.4], fov: 42 }}
         dpr={[1, 1.75]}
@@ -92,13 +139,14 @@ export default function YarnBallHero({ className = '' }) {
         gl={{ antialias: true, alpha: true }}
       >
         <ambientLight intensity={0.85} />
-        <directionalLight position={[4, 5, 3]} intensity={1.6} />
+        <directionalLight position={[4, 5, 3]} intensity={1.7} />
         <pointLight position={[-4, -2, -3]} intensity={6} color="#F472B6" />
         <pointLight position={[3, -3, 4]} intensity={2} color="#4ECBA0" />
-        <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.25} floatIntensity={0.7}>
+        <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.2} floatIntensity={0.55}>
           <YarnBall spinning={!reducedMotion} />
         </Float>
-        <OrbitControls enableZoom={false} enablePan={false} dampingFactor={0.08} />
+        <ContactShadows position={[0, -1.65, 0]} opacity={0.35} scale={6} blur={2.6} far={2.4} color="#1A1030" />
+        <OrbitControls enableZoom={false} enablePan={false} enableDamping dampingFactor={0.06} rotateSpeed={0.9} />
       </Canvas>
     </div>
   );
