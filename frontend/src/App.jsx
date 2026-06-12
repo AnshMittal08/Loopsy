@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'motion/react';
 import PageTransition from './components/motion/PageTransition';
+import CursorDot from './components/motion/CursorDot';
+import ScrollThread from './components/motion/ScrollThread';
 import Home from './pages/Home';
 import Create from './pages/Create';
 import Tracker from './pages/Tracker';
@@ -10,6 +12,8 @@ import Account from './pages/Account';
 function App() {
   return (
     <MotionConfig reducedMotion="user">
+      <ScrollThread />
+      <CursorDot />
       <PageTransition>
         {(location) => (
           <Routes location={location}>

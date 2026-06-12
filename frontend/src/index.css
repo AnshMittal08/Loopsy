@@ -355,6 +355,38 @@ html[data-theme="dark"] {
       0 6px 28px color-mix(in srgb, var(--primary) 22%, transparent);
   }
 
+  /* A sweep of light crossing the element on hover — for hero CTAs and cards */
+  .shine-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine-sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-130%) skewX(-18deg);
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, #ffffff 35%, transparent) 50%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+  .shine-sweep:hover::after {
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateX(130%) skewX(-18deg);
+  }
+
+  /* Seamless editorial marquee — two copies, each travels its own width */
+  .marquee-row {
+    animation: marqueeScroll 36s linear infinite;
+  }
+  .marquee-row:hover,
+  .marquee-row:has(~ .marquee-row:hover) {
+    animation-play-state: paused;
+  }
+
   .custom-scrollbar::-webkit-scrollbar { width: 5px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -424,6 +456,9 @@ input[type="checkbox"]:checked {
   0%, 100% { transform: translate(0, 0) scale(1); }
   33% { transform: translate(14px, -18px) scale(1.07); }
   66% { transform: translate(-12px, 12px) scale(0.96); }
+}
+@keyframes marqueeScroll {
+  to { transform: translateX(-100%); }
 }
 
 /* Respect users who prefer calm screens */

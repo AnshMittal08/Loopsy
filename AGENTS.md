@@ -47,8 +47,9 @@ The frontend uses the **Atelier** design language: dual theme, warm/tactile, ani
 
 **Motion:**
 - `motion` (Framer Motion successor) with shared tokens in `frontend/src/lib/motionTokens.js` (durations + spring presets)
-- Primitives in `frontend/src/components/motion/`: `Reveal`, `Thread`, `YarnBallProgress`; celebrations via `frontend/src/lib/confetti.js`
+- Primitives in `frontend/src/components/motion/`: `Reveal`, `Thread`, `YarnBallProgress`, `CursorDot`, `ScrollThread`, `Marquee`; celebrations via `frontend/src/lib/confetti.js`
 - Every animation must respect `prefers-reduced-motion` (global kill-switch exists in `index.css`)
+- **3D:** exactly one three.js surface exists — the lazy-loaded `frontend/src/components/three/YarnBallHero.jsx` on Home. Keep it the only one, and keep it behind `React.lazy` so three.js never enters the initial bundle.
 
 **Utility classes** (defined in `index.css`):
 - `shadow-warm`, `shadow-warm-md/lg/xl` — theme-aware drop shadows

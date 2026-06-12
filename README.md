@@ -364,7 +364,7 @@ See [plan-v2.md](./plan-v2.md) for the active roadmap ([plan.md](./plan.md) is k
 - Phase 2C — Per-plan AI rate limiting, monthly usage tracking, prompt caching, Account usage UI
 - Phase 2D (UI) — UI/UX redesign: Frozen Lake design system, Fraunces serif, card-lift components, all pages rebuilt
 - **M1 — "Glow-Up"** — Atelier design language: dual theme (Midnight Wool / Undyed), yarn accent palette, `motion` animation system, thread motif, winding yarn-ball tracker, Crochet Mode, lucide icons, three.js/dead-code removal
-- **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge; AI generation rewired to intent→compile→humanize; plus an app-wide animation/interactivity polish pass (route transitions, magnetic CTAs, 3D-tilt cards, theatrical generation view)
+- **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge; AI generation rewired to intent→compile→humanize with streaming SSE responses; plus an app-wide animation/interactivity polish pass (route transitions, magnetic CTAs, 3D-tilt cards, theatrical generation view) and the home redesign: lazy-loaded three.js yarn-ball hero (the one 3D moment plan-v2 reserves), custom cursor follower, scroll-progress thread, editorial marquee + footer
 
 Next milestones (plan-v2):
 

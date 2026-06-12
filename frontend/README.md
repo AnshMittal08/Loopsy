@@ -25,7 +25,9 @@ React 19 + Vite client for Loopsy.
 
 **Fonts:** Fraunces (variable serif display, `font-display`) + Plus Jakarta Sans (body)
 
-**Motion:** [`motion`](https://motion.dev) with shared tokens in `src/lib/motionTokens.js`; primitives in `src/components/motion/`; all animation respects `prefers-reduced-motion`
+**Motion:** [`motion`](https://motion.dev) with shared tokens in `src/lib/motionTokens.js`; primitives in `src/components/motion/`; all animation respects `prefers-reduced-motion`. App-wide signatures: custom cursor follower (`CursorDot`), yarn-gradient scroll progress (`ScrollThread`), editorial marquee (`Marquee`).
+
+**3D:** exactly one three.js moment — the lazy-loaded yarn-ball hero on Home (`src/components/three/YarnBallHero.jsx`, React Three Fiber + drei). It code-splits into its own chunk and never touches the initial bundle. Do not add more 3D surfaces; the thread/SVG motif remains the brand's motion language.
 
 **Icons:** `lucide-react` (tree-shakeable SVG — no icon font)
 
@@ -42,6 +44,10 @@ React 19 + Vite client for Loopsy.
 | `src/components/motion/Reveal.jsx` | Scroll/mount entrance animation primitive |
 | `src/components/motion/Thread.jsx` | Self-drawing SVG yarn-thread motif |
 | `src/components/motion/YarnBallProgress.jsx` | Winding yarn-ball progress indicator |
+| `src/components/motion/CursorDot.jsx` | Custom cursor follower (fine pointers only) |
+| `src/components/motion/ScrollThread.jsx` | Yarn-gradient scroll progress thread |
+| `src/components/motion/Marquee.jsx` | Editorial looping word strip |
+| `src/components/three/YarnBallHero.jsx` | Lazy-loaded 3D yarn ball (the only three.js surface) |
 | `src/lib/motionTokens.js` | Shared motion durations + spring presets |
 | `src/lib/confetti.js` | Yarn-confetti celebration bursts |
 | `src/components/AuthProvider.jsx` | `useAuth()` — user, signIn, signUp, signOut |
