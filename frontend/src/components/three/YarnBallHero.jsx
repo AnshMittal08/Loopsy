@@ -13,8 +13,8 @@ const CORE = '#4F35C2';
 // Mostly close violet shades so the winding reads as one skein, with two
 // accent plies tucked under the surface catching the light.
 const STRANDS = [
-  '#8B7CF6', '#7A66F0', '#F472B6', '#9D8DFF', '#8474F4', '#4ECBA0',
-  '#9182FA', '#8B7CF6', '#7A66F0', '#9D8DFF', '#A99CFF', '#7E6AF2',
+  '#8B7CF6', '#7A66F0', '#9D8DFF', '#8474F4', '#A99CFF', '#7E6AF2',
+  '#9182FA', '#8B7CF6', '#7A66F0', '#9D8DFF', '#8474F4', '#A99CFF',
 ];
 
 /** A pole-to-pole spherical winding, tilted to a pseudo-random plane. */
@@ -66,11 +66,11 @@ function yarnMaterial(color) {
 /** Small J-curve for a hook's head, in the hook's local space. */
 function hookHeadCurve() {
   return new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 1.66, 0),
-    new THREE.Vector3(0, 1.82, 0),
-    new THREE.Vector3(0.055, 1.9, 0),
-    new THREE.Vector3(0.115, 1.86, 0),
-    new THREE.Vector3(0.095, 1.76, 0),
+    new THREE.Vector3(0, 1.72, 0),
+    new THREE.Vector3(0, 1.94, 0),
+    new THREE.Vector3(0.09, 2.04, 0),
+    new THREE.Vector3(0.18, 1.97, 0),
+    new THREE.Vector3(0.15, 1.83, 0),
   ]);
 }
 
@@ -81,19 +81,19 @@ function ThroughHook({ rotation, color }) {
   return (
     <group rotation={rotation}>
       <mesh>
-        <cylinderGeometry args={[0.05, 0.06, 3.1, 16]} />
+        <cylinderGeometry args={[0.085, 0.095, 3.2, 16]} />
         {material}
       </mesh>
-      <mesh position={[0, 1.58, 0]}>
-        <cylinderGeometry args={[0.034, 0.05, 0.22, 16]} />
+      <mesh position={[0, 1.62, 0]}>
+        <cylinderGeometry args={[0.055, 0.085, 0.3, 16]} />
         {material}
       </mesh>
       <mesh>
-        <tubeGeometry args={[head, 32, 0.032, 8, false]} />
+        <tubeGeometry args={[head, 32, 0.052, 8, false]} />
         {material}
       </mesh>
-      <mesh position={[0, -1.55, 0]}>
-        <sphereGeometry args={[0.07, 16, 16]} />
+      <mesh position={[0, -1.6, 0]}>
+        <sphereGeometry args={[0.11, 16, 16]} />
         {material}
       </mesh>
     </group>
@@ -154,8 +154,8 @@ function YarnBall({ spinning }) {
         {yarnMaterial(STRANDS[0])}
       </mesh>
       {/* Crossed hooks through the ball's center — heads emerging up top */}
-      <ThroughHook rotation={[0.18, 0.5, -0.5]} color="#D9A86C" />
-      <ThroughHook rotation={[-0.15, -0.6, 0.34]} color="#F472B6" />
+      <ThroughHook rotation={[0.12, 0.45, -0.34]} color="#D9A86C" />
+      <ThroughHook rotation={[-0.1, -0.55, 0.24]} color="#F472B6" />
     </group>
   );
 }
@@ -166,15 +166,16 @@ export default function YarnBallHero({ className = '' }) {
 
   return (
     <div
-      className={`${grabbing ? 'cursor-grabbing' : 'cursor-grab'} ${className}`}
+      className={`relative ${grabbing ? 'cursor-grabbing' : 'cursor-grab'} ${className}`}
       onPointerDown={() => setGrabbing(true)}
       onPointerUp={() => setGrabbing(false)}
       onPointerLeave={() => setGrabbing(false)}
       aria-label="Interactive 3D yarn ball with crochet hooks — drag to spin, click to poke"
       title="Drag to spin · click to poke"
     >
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-yarn-periwinkle/20 blur-3xl" />
       <Canvas
-        camera={{ position: [0, 0.45, 5.1], fov: 42 }}
+        camera={{ position: [0, 0.35, 4.55], fov: 42 }}
         dpr={[1, 1.75]}
         frameloop={reducedMotion ? 'demand' : 'always'}
         gl={{ antialias: true, alpha: true }}
@@ -186,7 +187,7 @@ export default function YarnBallHero({ className = '' }) {
         <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.15} floatIntensity={0.45}>
           <YarnBall spinning={!reducedMotion} />
         </Float>
-        <ContactShadows position={[0, -1.85, 0]} opacity={0.35} scale={6.5} blur={2.6} far={2.6} color="#1A1030" />
+        <ContactShadows position={[0, -1.7, 0]} opacity={0.4} scale={6} blur={2.4} far={2.4} color="#1A1030" />
         <OrbitControls enableZoom={false} enablePan={false} enableDamping dampingFactor={0.06} rotateSpeed={0.9} />
       </Canvas>
     </div>
