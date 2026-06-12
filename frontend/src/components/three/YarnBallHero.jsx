@@ -175,7 +175,7 @@ export default function YarnBallHero({ className = '' }) {
     >
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-yarn-periwinkle/20 blur-3xl" />
       <Canvas
-        camera={{ position: [0, 0.35, 4.55], fov: 42 }}
+        camera={{ position: [0, 0.1, 5.7], fov: 42 }}
         dpr={[1, 1.75]}
         frameloop={reducedMotion ? 'demand' : 'always'}
         gl={{ antialias: true, alpha: true }}
@@ -184,7 +184,7 @@ export default function YarnBallHero({ className = '' }) {
         <directionalLight position={[4, 5, 3]} intensity={1.7} />
         <pointLight position={[-4, -2, -3]} intensity={6} color="#F472B6" />
         <pointLight position={[3, -3, 4]} intensity={2} color="#4ECBA0" />
-        <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.15} floatIntensity={0.45}>
+        <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.12} floatIntensity={0.3}>
           <YarnBall spinning={!reducedMotion} />
         </Float>
         <ContactShadows position={[0, -1.7, 0]} opacity={0.4} scale={6} blur={2.4} far={2.4} color="#1A1030" />
