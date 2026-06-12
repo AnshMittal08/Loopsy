@@ -71,6 +71,9 @@
 
   /* Grain overlay opacity */
   --grain-opacity: 0.035;
+
+  /* Aurora wash strength (yarn-tinted background glows) */
+  --aurora-strength: 7%;
 }
 
 html[data-theme="dark"] {
@@ -131,6 +134,8 @@ html[data-theme="dark"] {
   --shadow-strength: 2.2;
 
   --grain-opacity: 0.05;
+
+  --aurora-strength: 9%;
 }
 
 @theme inline {
@@ -233,6 +238,12 @@ html[data-theme="dark"] {
 
   body {
     background-color: var(--surface);
+    /* Aurora wash — faint yarn-tinted radial glows that give every page depth */
+    background-image:
+      radial-gradient(60rem 38rem at 85% -10%, color-mix(in srgb, #FF6B5B var(--aurora-strength), transparent), transparent 70%),
+      radial-gradient(50rem 34rem at -15% 30%, color-mix(in srgb, #7B8CDE var(--aurora-strength), transparent), transparent 70%),
+      radial-gradient(46rem 30rem at 60% 110%, color-mix(in srgb, #F5A623 calc(var(--aurora-strength) * 0.8), transparent), transparent 70%);
+    background-attachment: fixed;
     color: var(--on-surface);
     font-family: "Plus Jakarta Sans", sans-serif;
     overflow-x: hidden;
@@ -378,6 +389,19 @@ html[data-theme="dark"] {
     transform: translateX(130%) skewX(-18deg);
   }
 
+  /* Gradient-clipped display text — for hero/section accent words */
+  .gradient-text {
+    background: linear-gradient(100deg, var(--primary), #F5A623 60%, var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Soft breathing glow ring for the current tracker row */
+  .pulse-ring {
+    animation: pulseRing 2.6s ease-in-out infinite;
+  }
+
   /* Seamless editorial marquee — two copies, each travels its own width */
   .marquee-row {
     animation: marqueeScroll 36s linear infinite;
@@ -459,6 +483,10 @@ input[type="checkbox"]:checked {
 }
 @keyframes marqueeScroll {
   to { transform: translateX(-100%); }
+}
+@keyframes pulseRing {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 28%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 0%, transparent); }
 }
 
 /* Respect users who prefer calm screens */
