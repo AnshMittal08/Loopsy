@@ -1,7 +1,8 @@
-// The one 3D moment in the app: a densely wound yarn ball with a fabric
-// sheen, slowly turning over a soft contact shadow. Drag to spin (with
-// inertia), click/tap to give it a playful spin-and-squash. Lazy-loaded from
-// Home so three.js never touches the initial bundle.
+// The one 3D moment in the app: a densely wound yarn ball with two crochet
+// hooks stuck through its center — the classic craft-basket still life —
+// over a soft contact shadow. Drag to spin (with inertia), click/tap to give
+// it a playful spin-and-squash. Lazy-loaded from Home so three.js never
+// touches the initial bundle.
 import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Float, ContactShadows } from '@react-three/drei';
@@ -10,7 +11,7 @@ import * as THREE from 'three';
 
 const CORE = '#4F35C2';
 // Mostly close violet shades so the winding reads as one skein, with two
-// accent plies catching the light.
+// accent plies tucked under the surface catching the light.
 const STRANDS = [
   '#8B7CF6', '#7A66F0', '#F472B6', '#9D8DFF', '#8474F4', '#4ECBA0',
   '#9182FA', '#8B7CF6', '#7A66F0', '#9D8DFF', '#A99CFF', '#7E6AF2',
@@ -38,58 +39,15 @@ function windingCurve(radius, turns, phase, seed) {
   return new THREE.CatmullRomCurve3(points);
 }
 
-/** The working yarn: out of the ball, a relaxed sag, then up onto the hook. */
-function workingYarnCurve() {
+/** The loose tail of yarn trailing off the ball. */
+function tailCurve() {
   return new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.1, -0.5, 0.42),
-    new THREE.Vector3(0.5, -1.1, 0.5),
-    new THREE.Vector3(0.95, -0.9, 0.35),
-    new THREE.Vector3(1.18, 0.0, 0.25),
-    new THREE.Vector3(1.26, 0.3, 0.16),
-    new THREE.Vector3(1.12, 0.42, 0.1),
+    new THREE.Vector3(0.5, -0.85, 0.3),
+    new THREE.Vector3(0.95, -1.15, 0.55),
+    new THREE.Vector3(1.45, -1.0, 0.25),
+    new THREE.Vector3(1.8, -1.25, -0.15),
+    new THREE.Vector3(2.2, -1.1, 0.0),
   ]);
-}
-
-/** Small J-curve for the hook's head, in the hook's local space. */
-function hookHeadCurve() {
-  return new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0.92, 0),
-    new THREE.Vector3(0, 1.06, 0),
-    new THREE.Vector3(0.05, 1.13, 0),
-    new THREE.Vector3(0.11, 1.09, 0),
-    new THREE.Vector3(0.09, 1.0, 0),
-  ]);
-}
-
-/** A bamboo crochet hook, mid-project: chain loops sit on the shaft. */
-function CrochetHook() {
-  const head = useMemo(() => hookHeadCurve(), []);
-  const wood = <meshStandardMaterial color="#D9A86C" roughness={0.55} metalness={0.05} />;
-  const LOOP_SHADES = ['#8B7CF6', '#9D8DFF', '#F472B6'];
-
-  return (
-    <group position={[1.72, -0.62, 0.2]} rotation={[0, 0, 0.5]}>
-      <mesh position={[0, -0.05, 0]}>
-        <cylinderGeometry args={[0.045, 0.055, 1.8, 16]} />
-        {wood}
-      </mesh>
-      <mesh position={[0, 0.85, 0]}>
-        <cylinderGeometry args={[0.032, 0.045, 0.22, 16]} />
-        {wood}
-      </mesh>
-      <mesh>
-        <tubeGeometry args={[head, 32, 0.03, 8, false]} />
-        {wood}
-      </mesh>
-      {/* Working chain stitches threaded on the shaft */}
-      {LOOP_SHADES.map((color, i) => (
-        <mesh key={i} position={[0, 0.66 - i * 0.16, 0]} rotation={[Math.PI / 2, 0, i * 0.5]}>
-          <torusGeometry args={[0.075, 0.03, 8, 24]} />
-          {yarnMaterial(color)}
-        </mesh>
-      ))}
-    </group>
-  );
 }
 
 // Soft fabric sheen makes the strands read as spun fiber, not plastic.
@@ -102,6 +60,43 @@ function yarnMaterial(color) {
       sheenColor="#E5DDFF"
       sheenRoughness={0.45}
     />
+  );
+}
+
+/** Small J-curve for a hook's head, in the hook's local space. */
+function hookHeadCurve() {
+  return new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 1.66, 0),
+    new THREE.Vector3(0, 1.82, 0),
+    new THREE.Vector3(0.055, 1.9, 0),
+    new THREE.Vector3(0.115, 1.86, 0),
+    new THREE.Vector3(0.095, 1.76, 0),
+  ]);
+}
+
+/** A crochet hook skewered through the ball's center, head out the top. */
+function ThroughHook({ rotation, color }) {
+  const head = useMemo(() => hookHeadCurve(), []);
+  const material = <meshStandardMaterial color={color} roughness={0.5} metalness={0.08} />;
+  return (
+    <group rotation={rotation}>
+      <mesh>
+        <cylinderGeometry args={[0.05, 0.06, 3.1, 16]} />
+        {material}
+      </mesh>
+      <mesh position={[0, 1.58, 0]}>
+        <cylinderGeometry args={[0.034, 0.05, 0.22, 16]} />
+        {material}
+      </mesh>
+      <mesh>
+        <tubeGeometry args={[head, 32, 0.032, 8, false]} />
+        {material}
+      </mesh>
+      <mesh position={[0, -1.55, 0]}>
+        <sphereGeometry args={[0.07, 16, 16]} />
+        {material}
+      </mesh>
+    </group>
   );
 }
 
@@ -121,6 +116,8 @@ function YarnBall({ spinning }) {
       })),
     []
   );
+  const tail = useMemo(() => tailCurve(), []);
+
   useFrame((_, delta) => {
     if (!group.current) return;
     if (spinning) {
@@ -152,19 +149,14 @@ function YarnBall({ spinning }) {
           {yarnMaterial(strand.color)}
         </mesh>
       ))}
+      <mesh>
+        <tubeGeometry args={[tail, 64, 0.04, 8, false]} />
+        {yarnMaterial(STRANDS[0])}
+      </mesh>
+      {/* Crossed hooks through the ball's center — heads emerging up top */}
+      <ThroughHook rotation={[0.18, 0.5, -0.5]} color="#D9A86C" />
+      <ThroughHook rotation={[-0.15, -0.6, 0.34]} color="#F472B6" />
     </group>
-  );
-}
-
-/** Yarn feeding from the ball onto the hook — stays put while the ball spins,
- *  exactly like a real ball paying out thread. */
-function WorkingYarn() {
-  const curve = useMemo(() => workingYarnCurve(), []);
-  return (
-    <mesh>
-      <tubeGeometry args={[curve, 80, 0.038, 8, false]} />
-      {yarnMaterial(STRANDS[0])}
-    </mesh>
   );
 }
 
@@ -178,11 +170,11 @@ export default function YarnBallHero({ className = '' }) {
       onPointerDown={() => setGrabbing(true)}
       onPointerUp={() => setGrabbing(false)}
       onPointerLeave={() => setGrabbing(false)}
-      aria-label="Interactive 3D yarn ball — drag to spin, click to poke"
+      aria-label="Interactive 3D yarn ball with crochet hooks — drag to spin, click to poke"
       title="Drag to spin · click to poke"
     >
       <Canvas
-        camera={{ position: [0.4, 0.35, 4.7], fov: 42 }}
+        camera={{ position: [0, 0.45, 5.1], fov: 42 }}
         dpr={[1, 1.75]}
         frameloop={reducedMotion ? 'demand' : 'always'}
         gl={{ antialias: true, alpha: true }}
@@ -192,13 +184,9 @@ export default function YarnBallHero({ className = '' }) {
         <pointLight position={[-4, -2, -3]} intensity={6} color="#F472B6" />
         <pointLight position={[3, -3, 4]} intensity={2} color="#4ECBA0" />
         <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.15} floatIntensity={0.45}>
-          <group position={[-0.55, 0.1, 0]} scale={0.92}>
-            <YarnBall spinning={!reducedMotion} />
-          </group>
-          <WorkingYarn />
-          <CrochetHook />
+          <YarnBall spinning={!reducedMotion} />
         </Float>
-        <ContactShadows position={[0, -1.65, 0]} opacity={0.35} scale={6} blur={2.6} far={2.4} color="#1A1030" />
+        <ContactShadows position={[0, -1.85, 0]} opacity={0.35} scale={6.5} blur={2.6} far={2.6} color="#1A1030" />
         <OrbitControls enableZoom={false} enablePan={false} enableDamping dampingFactor={0.06} rotateSpeed={0.9} />
       </Canvas>
     </div>
