@@ -223,6 +223,7 @@ export default function Tracker() {
   const [allPatterns, setAllPatterns] = useState(null);
   const [progressMap, setProgressMap] = useState({});
   const [crochetMode, setCrochetMode] = useState(false);
+  const [panelTab, setPanelTab] = useState('steps');
   const currentRowRef = useRef(null);
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
@@ -644,139 +645,168 @@ export default function Tracker() {
               </div>
             </section>
 
-            {/* Right panel — steps */}
+            {/* Right panel — tabbed guide with timeline steps */}
             <section className="w-full lg:w-7/12 flex flex-col rounded-2xl border border-outline-variant/20 shadow-warm bg-surface-container-lowest overflow-hidden">
-              <div className="px-5 py-4 border-b border-outline-variant/15 flex items-center gap-2 shrink-0">
-                <BookOpen size={17} className="text-primary" />
-                <h2 className="font-semibold text-on-surface">Step-by-Step Guide</h2>
-                <span className="ml-auto text-xs text-on-surface-variant">{steps.length} steps</span>
-              </div>
-
-              {/* Tags strip */}
-              {(pattern.tags || []).length > 0 && (
-                <div className="border-b border-outline-variant/10 bg-surface-container-low px-5 py-3 shrink-0">
-                  <div className="flex flex-wrap gap-1.5">
-                    {(pattern.tags || []).map((tag) => (
-                      <span key={tag} className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs text-on-surface-variant">#{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Materials + Notes */}
-              {((pattern.materials || []).length > 0 || (pattern.notes || []).length > 0) && (
-                <div className="grid gap-4 border-b border-outline-variant/10 bg-surface-container-low px-5 py-4 md:grid-cols-2 shrink-0">
-                  {(pattern.materials || []).length > 0 && (
-                    <div>
-                      <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-2">Materials</h3>
-                      <ul className="space-y-1">
-                        {pattern.materials.map((item) => (
-                          <li key={item} className="rounded-lg bg-surface px-3 py-1.5 text-xs text-on-surface-variant">{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {(pattern.notes || []).length > 0 && (
-                    <div>
-                      <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-2">Maker Notes</h3>
-                      <ul className="space-y-1">
-                        {pattern.notes.map((note) => (
-                          <li key={note} className="rounded-lg bg-surface px-3 py-1.5 text-xs text-on-surface-variant">{note}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Steps list */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
-                {steps.map((stepData, index) => {
-                  const isCompleted = progress?.steps?.[index]?.completed ?? false;
-                  const isNext = !isCompleted && (index === 0 || (progress?.steps?.[index - 1]?.completed ?? false));
-
-                  return (
-                    <Motion.label
-                      key={index}
-                      ref={isNext ? currentRowRef : undefined}
-                      layout
-                      transition={SPRING.gentle}
-                      className={`flex items-start gap-3.5 p-3.5 rounded-xl cursor-pointer relative overflow-hidden transition-colors ${
-                        isCompleted
-                          ? 'bg-surface-container-low opacity-55'
-                          : isNext
-                            ? 'bg-primary/8 border border-primary/25 shadow-warm'
-                            : 'bg-surface-container-low hover:bg-surface-container'
+              {/* Tab bar */}
+              <div className="px-4 pt-2 border-b border-outline-variant/15 shrink-0">
+                <div className="flex gap-1">
+                  {[
+                    { id: 'steps', label: 'Steps', count: steps.length },
+                    { id: 'materials', label: 'Materials', count: (pattern.materials || []).length },
+                    { id: 'notes', label: 'Notes', count: (pattern.notes || []).length },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setPanelTab(tab.id)}
+                      className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
+                        panelTab === tab.id ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'
                       }`}
                     >
-                      {isNext && (
-                        <Motion.div
-                          layoutId="next-step-bar"
-                          className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-xl"
-                          transition={SPRING.gentle}
+                      {tab.label}
+                      {tab.count > 0 && <span className="ml-1.5 text-[11px] font-bold opacity-60">{tab.count}</span>}
+                      {panelTab === tab.id && (
+                        <Motion.span
+                          layoutId="tracker-panel-tab"
+                          className="absolute inset-x-3 -bottom-px h-[2.5px] rounded-full bg-primary"
+                          transition={SPRING.snappy}
                         />
                       )}
-
-                      <Motion.div
-                        className={`pt-0.5 ${isNext ? 'pl-2' : ''}`}
-                        animate={{ scale: isCompleted ? [1, 1.35, 1] : 1 }}
-                        transition={{ duration: 0.4, times: [0, 0.4, 1], ease: 'easeOut' }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isCompleted}
-                          onChange={() => toggleStep(index)}
-                          className="accent-primary w-4 h-4"
-                          aria-label={`Step ${index + 1}`}
-                        />
-                      </Motion.div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-bold mb-1 flex items-center gap-1.5 ${
-                          isCompleted ? 'text-on-surface-variant' : isNext ? 'text-primary' : 'text-on-surface-variant'
-                        }`}>
-                          Step {index + 1}
-                          {stitchCountOf(stepData.instruction) != null && (
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              isCompleted ? 'bg-surface-container text-on-surface-variant' : 'bg-secondary-container/70 text-on-secondary-container'
-                            }`}>
-                              {stitchCountOf(stepData.instruction)} sts
-                            </span>
-                          )}
-                          {isCompleted && <span className="font-normal opacity-60">· done</span>}
-                        </p>
-                        <p className={`relative text-sm leading-relaxed transition-colors ${isCompleted ? 'text-on-surface-variant' : 'text-on-surface'}`}>
-                          <StitchStep instruction={stepData.instruction} />
-                          {/* Strike-through that draws itself across the row */}
-                          <Motion.span
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-0 top-1/2 h-[1.5px] bg-on-surface-variant/80"
-                            initial={false}
-                            animate={{ width: isCompleted ? '100%' : '0%' }}
-                            transition={{ duration: reduceMotion ? 0 : 0.45, ease: EASE.out }}
-                          />
-                        </p>
-                        <AnimatePresence>
-                          {isNext && (
-                            <Motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.25 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="mt-2 px-2.5 py-1.5 bg-secondary-container/60 rounded-lg flex gap-1.5 items-start">
-                                <Lightbulb size={13} className="text-secondary shrink-0 mt-0.5" />
-                                <p className="text-xs text-on-secondary-container">Keep track of your stitch count as you work this row!</p>
-                              </div>
-                            </Motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </Motion.label>
-                  );
-                })}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Thin yarn-gradient progress bar */}
+              <div className="h-1 bg-surface-container-low shrink-0">
+                <Motion.div
+                  className="h-full bg-gradient-to-r from-yarn-periwinkle via-yarn-rose to-yarn-sage"
+                  initial={false}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 60, damping: 16 }}
+                />
+              </div>
+
+              {/* Steps — timeline rail with tappable nodes */}
+              {panelTab === 'steps' && (
+                <div className="flex-1 overflow-y-auto px-4 py-5">
+                  {steps.map((stepData, index) => {
+                    const isCompleted = progress?.steps?.[index]?.completed ?? false;
+                    const isNext = !isCompleted && (index === 0 || (progress?.steps?.[index - 1]?.completed ?? false));
+                    const sts = stitchCountOf(stepData.instruction);
+
+                    return (
+                      <div key={index} ref={isNext ? currentRowRef : undefined} className="group flex gap-3">
+                        {/* Rail node + connector */}
+                        <div className="flex flex-col items-center">
+                          <Motion.button
+                            onClick={() => toggleStep(index)}
+                            whileTap={{ scale: 0.82 }}
+                            transition={SPRING.snappy}
+                            aria-label={`Toggle step ${index + 1}`}
+                            aria-pressed={isCompleted}
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold transition-colors ${
+                              isCompleted
+                                ? 'bg-primary border-primary text-on-primary'
+                                : isNext
+                                  ? 'pulse-ring border-primary bg-primary/10 text-primary'
+                                  : 'border-outline-variant/50 text-on-surface-variant group-hover:border-primary/50 group-hover:text-primary'
+                            }`}
+                          >
+                            {isCompleted ? <Check size={13} /> : index + 1}
+                          </Motion.button>
+                          {index < steps.length - 1 && (
+                            <span className={`my-1 w-px flex-1 transition-colors ${isCompleted ? 'bg-primary/40' : 'bg-outline-variant/30'}`} />
+                          )}
+                        </div>
+
+                        {/* Instruction */}
+                        <div
+                          onClick={() => toggleStep(index)}
+                          className={`mb-3 flex-1 min-w-0 cursor-pointer rounded-xl px-3 py-1.5 -mt-0.5 transition-colors ${
+                            isNext ? 'bg-primary/8' : 'hover:bg-surface-container-low'
+                          } ${isCompleted ? 'opacity-50' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className={`relative text-sm leading-relaxed ${isCompleted ? 'text-on-surface-variant' : 'text-on-surface'}`}>
+                              <StitchStep instruction={stepData.instruction} />
+                              <Motion.span
+                                aria-hidden="true"
+                                className="pointer-events-none absolute left-0 top-1/2 h-[1.5px] bg-on-surface-variant/80"
+                                initial={false}
+                                animate={{ width: isCompleted ? '100%' : '0%' }}
+                                transition={{ duration: reduceMotion ? 0 : 0.45, ease: EASE.out }}
+                              />
+                            </p>
+                            {sts != null && (
+                              <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                isCompleted ? 'bg-surface-container text-on-surface-variant' : 'bg-secondary-container/70 text-on-secondary-container'
+                              }`}>
+                                {sts} sts
+                              </span>
+                            )}
+                          </div>
+                          <AnimatePresence>
+                            {isNext && (
+                              <Motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.25 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="mt-2 mb-1 flex items-start gap-1.5">
+                                  <Lightbulb size={13} className="text-secondary shrink-0 mt-0.5" />
+                                  <p className="text-xs text-on-surface-variant">You're here — tap the row when it's done.</p>
+                                </div>
+                              </Motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Materials checklist */}
+              {panelTab === 'materials' && (
+                <div className="flex-1 overflow-y-auto px-5 py-5">
+                  {(pattern.materials || []).length === 0 ? (
+                    <p className="text-sm text-on-surface-variant">No materials listed for this pattern.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {pattern.materials.map((item) => (
+                        <li key={item} className="flex items-center gap-3 rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface">
+                          <Check size={15} className="shrink-0 text-secondary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Notes + tags */}
+              {panelTab === 'notes' && (
+                <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+                  {(pattern.notes || []).length === 0 && (pattern.tags || []).length === 0 && (
+                    <p className="text-sm text-on-surface-variant">No maker notes for this pattern.</p>
+                  )}
+                  {(pattern.notes || []).map((note) => (
+                    <div key={note} className="flex items-start gap-2.5 rounded-xl bg-surface-container-low px-4 py-3">
+                      <Lightbulb size={15} className="mt-0.5 shrink-0 text-secondary" />
+                      <p className="text-sm leading-relaxed text-on-surface-variant">{note}</p>
+                    </div>
+                  ))}
+                  {(pattern.tags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {pattern.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs text-on-surface-variant">#{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </div>
         </div>
