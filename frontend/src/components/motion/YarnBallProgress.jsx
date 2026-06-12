@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion as Motion } from 'motion/react';
+import { motion as Motion, useReducedMotion } from 'motion/react';
 
 /**
  * Progress indicator as a yarn ball winding itself up.
@@ -7,6 +7,7 @@ import { motion as Motion } from 'motion/react';
  * thread wraps the outside; the percentage sits in the middle.
  */
 export default function YarnBallProgress({ percent = 0, size = 120 }) {
+  const reduceMotion = useReducedMotion();
   const clamped = Math.max(0, Math.min(100, percent));
   const radius = (size - 18) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,7 +40,7 @@ export default function YarnBallProgress({ percent = 0, size = 120 }) {
             className="stroke-primary/45"
             initial={false}
             animate={{ pathLength: clamped >= s.at ? 1 : 0, opacity: clamped >= s.at ? 1 : 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.7, ease: 'easeOut' }}
           />
         ))}
 
@@ -61,7 +62,7 @@ export default function YarnBallProgress({ percent = 0, size = 120 }) {
           style={{ rotate: -90, transformOrigin: '50% 50%' }}
           initial={false}
           animate={{ strokeDashoffset: circumference - (clamped / 100) * circumference }}
-          transition={{ type: 'spring', stiffness: 60, damping: 16 }}
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 60, damping: 16 }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">

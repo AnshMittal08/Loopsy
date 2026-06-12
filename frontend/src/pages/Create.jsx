@@ -1,15 +1,158 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion as Motion } from 'motion/react';
-import { ArrowLeft, Menu, Lock, AlertCircle, X, Sparkles, CheckCircle2, Lightbulb } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, ArrowRight, Menu, Lock, AlertCircle, X, Sparkles, CheckCircle2, Lightbulb, RotateCcw } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { SkeletonTemplatePreview } from '../components/Skeleton';
 import { ThreadSpinner } from '../components/motion/Thread';
 import { Reveal } from '../components/motion/Reveal';
+import Magnetic from '../components/motion/Magnetic';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
-import { SPRING } from '../lib/motionTokens';
+import { SPRING, fadeRise, staggerChildren, popIn } from '../lib/motionTokens';
+import { fireConfetti } from '../lib/confetti';
 import { useAuth } from '../components/AuthProvider';
+
+const LOADING_LINES = [
+  'Reading your idea…',
+  'Sketching the shape…',
+  'Counting every stitch…',
+  'Winding the yarn…',
+  'Writing it up beautifully…',
+];
+
+/* ── Generation theater — the loading state is a moment, not a spinner ── */
+function GenerationTheater() {
+  const [lineIdx, setLineIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setLineIdx((i) => (i + 1) % LOADING_LINES.length), 1900);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 md:p-14 text-center"
+    >
+      <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-yarn-coral/15 blur-3xl blob-drift" />
+      <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift-slow" />
+      <div className="relative flex flex-col items-center gap-6">
+        <ThreadSpinner size={72} />
+        <div className="h-6" aria-live="polite">
+          <AnimatePresence mode="wait">
+            <Motion.p
+              key={lineIdx}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="text-sm font-semibold text-on-surface"
+            >
+              {LOADING_LINES[lineIdx]}
+            </Motion.p>
+          </AnimatePresence>
+        </div>
+        <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
+          Loopsy is composing your pattern row by row — stitch counts are computed, never guessed.
+        </p>
+      </div>
+    </Motion.div>
+  );
+}
+
+/* ── Result view — steps stagger in, materials pop with springs ── */
+function GenerationResult({ pattern, onOpenTracker, onReset }) {
+  const steps = pattern.steps || [];
+  const materials = pattern.materials || [];
+
+  return (
+    <Motion.div
+      variants={staggerChildren(0.06)}
+      initial="hidden"
+      animate="visible"
+      className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden"
+    >
+      <div className="p-6 md:p-8 border-b border-outline-variant/15">
+        <Motion.div variants={fadeRise} className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Sparkles size={12} />
+            Pattern ready
+          </span>
+          <VerifiedBadge pattern={pattern} />
+          {pattern.isExperimental && (
+            <span className="rounded-full bg-tertiary-container px-3 py-1 text-xs font-semibold text-on-tertiary-container">
+              Experimental
+            </span>
+          )}
+        </Motion.div>
+        <Motion.h2 variants={fadeRise} className="font-display display-wonk text-2xl md:text-3xl font-bold text-on-surface leading-tight">
+          {pattern.title}
+        </Motion.h2>
+        <Motion.p variants={fadeRise} className="mt-1.5 text-sm text-on-surface-variant">
+          {pattern.category || 'Custom'} · {pattern.difficulty}
+        </Motion.p>
+      </div>
+
+      {materials.length > 0 && (
+        <div className="px-6 md:px-8 py-5 border-b border-outline-variant/10 bg-surface-container-low">
+          <Motion.h3 variants={fadeRise} className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">
+            Materials
+          </Motion.h3>
+          <Motion.ul variants={staggerChildren(0.05, 0.15)} className="flex flex-wrap gap-2">
+            {materials.map((item) => (
+              <Motion.li
+                key={item}
+                variants={popIn}
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-xs text-on-surface-variant"
+              >
+                <CheckCircle2 size={12} className="text-secondary shrink-0" />
+                {item}
+              </Motion.li>
+            ))}
+          </Motion.ul>
+        </div>
+      )}
+
+      <div className="px-6 md:px-8 py-5 max-h-80 overflow-y-auto custom-scrollbar">
+        <Motion.h3 variants={fadeRise} className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">
+          Steps ({steps.length})
+        </Motion.h3>
+        <Motion.ol variants={staggerChildren(0.04, 0.25)} className="space-y-2">
+          {steps.map((step, i) => (
+            <Motion.li key={i} variants={fadeRise} className="flex items-start gap-3 text-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {i + 1}
+              </span>
+              <p className="text-on-surface-variant leading-relaxed pt-0.5">{step.instruction}</p>
+            </Motion.li>
+          ))}
+        </Motion.ol>
+      </div>
+
+      <Motion.div variants={fadeRise} className="flex flex-wrap items-center justify-end gap-3 px-6 md:px-8 py-5 border-t border-outline-variant/15">
+        <button
+          onClick={onReset}
+          className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 px-6 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+        >
+          <RotateCcw size={15} />
+          Make another
+        </button>
+        <Magnetic>
+          <button
+            onClick={onOpenTracker}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
+          >
+            Start tracking
+            <ArrowRight size={16} />
+          </button>
+        </Magnetic>
+      </Motion.div>
+    </Motion.div>
+  );
+}
 
 export default function Create() {
   const { user, loading: authLoading } = useAuth();
@@ -28,6 +171,7 @@ export default function Create() {
   const [difficulty, setDifficulty] = useState('beginner');
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [templateMode, setTemplateMode] = useState('template');
@@ -121,7 +265,8 @@ export default function Create() {
       });
       const progressData = await progressRes.json();
       if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
-      navigate(`/tracker/${data.id}`);
+      setResult(data);
+      fireConfetti({ count: 70 });
     } catch (e) {
       setActionError(e.message);
     } finally {
@@ -157,7 +302,8 @@ export default function Create() {
       });
       const progressData = await progressRes.json();
       if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
-      navigate(`/tracker/${data.id}`);
+      setResult(data);
+      fireConfetti({ count: 90 });
     } catch (e) {
       setActionError(e.message);
     } finally {
@@ -166,21 +312,23 @@ export default function Create() {
   };
 
   const generateButton = (onClick, disabled, label) => (
-    <Motion.button
-      onClick={onClick}
-      disabled={disabled}
-      whileHover={disabled ? {} : { scale: 1.03 }}
-      whileTap={disabled ? {} : { scale: 0.97 }}
-      transition={SPRING.snappy}
-      className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {isGenerating ? (
-        <ThreadSpinner size={18} className="text-on-primary" />
-      ) : (
-        label === 'ai' ? <Sparkles size={17} /> : <CheckCircle2 size={17} />
-      )}
-      {isGenerating ? 'Spinning up your pattern…' : 'Generate Pattern'}
-    </Motion.button>
+    <Magnetic>
+      <Motion.button
+        onClick={onClick}
+        disabled={disabled}
+        whileHover={disabled ? {} : { scale: 1.03 }}
+        whileTap={disabled ? {} : { scale: 0.97 }}
+        transition={SPRING.snappy}
+        className="flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isGenerating ? (
+          <ThreadSpinner size={18} className="text-on-primary" />
+        ) : (
+          label === 'ai' ? <Sparkles size={17} /> : <CheckCircle2 size={17} />
+        )}
+        {isGenerating ? 'Spinning up your pattern…' : 'Generate Pattern'}
+      </Motion.button>
+    </Magnetic>
   );
 
   return (
@@ -219,8 +367,20 @@ export default function Create() {
               </p>
             </Reveal>
 
+            {/* Generation theater — the loading state is a moment */}
+            {isGenerating && <GenerationTheater />}
+
+            {/* Result view — verified badge, staggered steps, springy materials */}
+            {!isGenerating && result && (
+              <GenerationResult
+                pattern={result}
+                onOpenTracker={() => navigate(`/tracker/${result.id}`)}
+                onReset={() => setResult(null)}
+              />
+            )}
+
             {/* Mode toggle (template route only) */}
-            {hasTemplateRoute && (
+            {!isGenerating && !result && hasTemplateRoute && (
               <div className="flex gap-2 mb-8 p-1 rounded-full bg-surface-container-low w-fit">
                 {[
                   { id: 'template', label: 'Use Template' },
@@ -247,9 +407,9 @@ export default function Create() {
             )}
 
             {/* Template mode */}
-            {mode === 'template' && loadingTemplate && <SkeletonTemplatePreview />}
+            {!isGenerating && !result && mode === 'template' && loadingTemplate && <SkeletonTemplatePreview />}
 
-            {mode === 'template' && template && (
+            {!isGenerating && !result && mode === 'template' && template && (
               <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
                 {visibleError && (
                   <div className="mx-6 mt-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">
@@ -355,7 +515,7 @@ export default function Create() {
             )}
 
             {/* AI mode */}
-            {mode === 'ai' && (
+            {!isGenerating && !result && mode === 'ai' && (
               <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 {visibleError && (
                   <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl flex items-start gap-3">

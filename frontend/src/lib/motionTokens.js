@@ -14,6 +14,7 @@ export const DURATION = {
   fast: 0.15,
   base: 0.25,
   slow: 0.4,
+  slower: 0.65,
 };
 
 // Shared variants
@@ -26,3 +27,9 @@ export const staggerChildren = (stagger = 0.07, delay = 0) => ({
   hidden: {},
   visible: { transition: { staggerChildren: stagger, delayChildren: delay } },
 });
+
+// Springy pop for checklist items / chips arriving on screen.
+export const popIn = {
+  hidden: { opacity: 0, scale: 0.75 },
+  visible: { opacity: 1, scale: 1, transition: SPRING.bouncy },
+};

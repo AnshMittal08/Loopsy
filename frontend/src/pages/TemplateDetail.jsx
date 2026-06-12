@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion as Motion } from 'motion/react';
+import { motion as Motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Menu, Ruler, Layers, Clock, Scan, CheckCircle2 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { SkeletonTemplatePreview } from '../components/Skeleton';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
+import Magnetic from '../components/motion/Magnetic';
 import { getPatternTheme } from '../lib/patternThemes';
 import { expandAbbreviations } from '../lib/crochetAbbreviations';
 import { SPRING } from '../lib/motionTokens';
@@ -23,6 +24,13 @@ export default function TemplateDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+  const mainRef = useRef(null);
+
+  const handleScroll = useCallback(() => {
+    const el = mainRef.current;
+    if (el) setShowStickyCta(el.scrollTop > 420);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +78,7 @@ export default function TemplateDetail() {
     <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         {/* Mobile header */}
         <header className="md:hidden flex justify-between items-center px-5 py-4 border-b border-outline-variant/15">
           <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors" aria-label="Back to explore">
@@ -132,14 +140,14 @@ export default function TemplateDetail() {
 
           {/* CTAs */}
           <Reveal className="flex flex-wrap gap-3">
-            <Motion.span whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} transition={SPRING.snappy} className="inline-flex">
+            <Magnetic>
               <Link
                 to={`/create/${template.id}`}
                 className="rounded-full bg-primary px-7 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm"
               >
                 Customize This Pattern
               </Link>
-            </Motion.span>
+            </Magnetic>
             <Link
               to="/create"
               className="rounded-full border border-outline-variant/30 bg-surface-container-lowest px-7 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
@@ -229,7 +237,7 @@ export default function TemplateDetail() {
 
           {/* Bottom CTA */}
           <div className="py-8 text-center">
-            <Motion.span whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} transition={SPRING.snappy} className="inline-flex">
+            <Magnetic>
               <Link
                 to={`/create/${template.id}`}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
@@ -237,9 +245,37 @@ export default function TemplateDetail() {
                 <CheckCircle2 size={17} />
                 Start This Pattern
               </Link>
-            </Motion.span>
+            </Magnetic>
           </div>
         </div>
+
+        {/* Sticky CTA — slides in once the hero scrolls away */}
+        <AnimatePresence>
+          {showStickyCta && (
+            <Motion.div
+              initial={{ y: 72, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 72, opacity: 0 }}
+              transition={SPRING.snappy}
+              className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-6"
+            >
+              <div className="pointer-events-auto flex items-center gap-4 rounded-full glass-panel border border-outline-variant/30 shadow-warm-xl py-2 pl-5 pr-2">
+                <span className="hidden max-w-[220px] truncate text-sm font-semibold text-on-surface sm:block">
+                  {template.name}
+                </span>
+                <Magnetic>
+                  <Link
+                    to={`/create/${template.id}`}
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors"
+                  >
+                    <CheckCircle2 size={15} />
+                    Start This Pattern
+                  </Link>
+                </Magnetic>
+              </div>
+            </Motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

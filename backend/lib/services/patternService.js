@@ -1,6 +1,7 @@
 import { getTemplateById } from "../models/templateModel.js";
 import { createPattern } from "../models/patternModel.js";
 import { generateId, scaleStitchCount } from "../utils/helpers.js";
+import { validatePattern } from "../engine/index.js";
 
 const SIZE_FACTORS = {
   small: 0.75,
@@ -50,6 +51,10 @@ export function generatePattern(templateId, title, customization = {}, options =
     instruction: step,
   }));
 
+  // Earn the "Verified math" badge only when the validator can independently
+  // re-derive every stitch count (size-scaled patterns usually can't pass).
+  const validation = validatePattern(structuredSteps);
+
   const newPattern = {
     id: generateId(),
     userId: options.userId ?? null,
@@ -75,6 +80,8 @@ export function generatePattern(templateId, title, customization = {}, options =
     promptSummary: null,
     isAIGenerated: false,
     isFallback: false,
+    verified: validation.verified,
+    isExperimental: false,
     createdAt: new Date().toISOString(),
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { motion as Motion, AnimatePresence } from 'motion/react';
+import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
   Lightbulb, X, Check, ChevronLeft, ChevronRight, Maximize2,
@@ -15,8 +15,9 @@ import StitchStep from '../components/StitchTooltip';
 import { useAuth } from '../components/AuthProvider';
 import AiTutor from '../components/AiTutor';
 import YarnBallProgress from '../components/motion/YarnBallProgress';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { fireConfetti } from '../lib/confetti';
-import { SPRING } from '../lib/motionTokens';
+import { SPRING, EASE } from '../lib/motionTokens';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -38,6 +39,7 @@ function CrochetMode({ pattern, progress, onToggleStep, onClose }) {
   const firstOpen = steps.findIndex((_, i) => !(progress?.steps?.[i]?.completed ?? false));
   const [idx, setIdx] = useState(firstOpen >= 0 ? firstOpen : steps.length - 1);
   const wakeLockRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   const isDone = progress?.steps?.[idx]?.completed ?? false;
   const pct = progress?.progressPercentage ?? 0;
@@ -109,7 +111,7 @@ function CrochetMode({ pattern, progress, onToggleStep, onClose }) {
           className="h-1 bg-primary"
           initial={false}
           animate={{ width: `${pct}%` }}
-          transition={{ type: 'spring', stiffness: 60, damping: 16 }}
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 60, damping: 16 }}
         />
       </div>
 
@@ -184,6 +186,7 @@ export default function Tracker() {
   const [crochetMode, setCrochetMode] = useState(false);
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
+  const reduceMotion = useReducedMotion();
   const theme = getPatternTheme(pattern?.category);
   const ThemeIcon = theme.icon;
 
@@ -351,7 +354,10 @@ export default function Tracker() {
                           <TIcon size={18} className="text-white/90" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-on-surface truncate">{p.title}</p>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="font-semibold text-on-surface truncate">{p.title}</p>
+                            <VerifiedBadge pattern={p} compact />
+                          </div>
                           <p className="text-xs text-on-surface-variant mt-0.5">{p.difficulty} · {p.category}</p>
                         </div>
                         <ArrowRight size={18} className="text-primary shrink-0 transition-transform group-hover:translate-x-1" />
@@ -401,6 +407,7 @@ export default function Tracker() {
               <h1 className="font-display display-wonk text-2xl md:text-3xl font-bold text-on-surface leading-tight">{pattern.title}</h1>
               <p className="text-sm text-on-surface-variant mt-1">
                 {pattern.category || 'Custom'} · {pattern.difficulty}
+                <VerifiedBadge pattern={pattern} className="ml-2 align-text-bottom" />
                 {pattern.isFallback && (
                   <span className="ml-2 rounded-full bg-error-container px-2 py-0.5 text-xs font-semibold text-on-error-container">
                     AI fallback
@@ -567,7 +574,11 @@ export default function Tracker() {
                         />
                       )}
 
-                      <div className={`pt-0.5 ${isNext ? 'pl-2' : ''}`}>
+                      <Motion.div
+                        className={`pt-0.5 ${isNext ? 'pl-2' : ''}`}
+                        animate={{ scale: isCompleted ? [1, 1.35, 1] : 1 }}
+                        transition={{ duration: 0.4, times: [0, 0.4, 1], ease: 'easeOut' }}
+                      >
                         <input
                           type="checkbox"
                           checked={isCompleted}
@@ -575,17 +586,25 @@ export default function Tracker() {
                           className="accent-primary w-4 h-4"
                           aria-label={`Step ${index + 1}`}
                         />
-                      </div>
+                      </Motion.div>
 
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-bold mb-1 ${
-                          isCompleted ? 'line-through text-on-surface-variant' : isNext ? 'text-primary' : 'text-on-surface-variant'
+                          isCompleted ? 'text-on-surface-variant' : isNext ? 'text-primary' : 'text-on-surface-variant'
                         }`}>
                           Step {index + 1}
                           {isCompleted && <span className="ml-1.5 font-normal opacity-60">· done</span>}
                         </p>
-                        <p className={`text-sm leading-relaxed ${isCompleted ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
+                        <p className={`relative text-sm leading-relaxed transition-colors ${isCompleted ? 'text-on-surface-variant' : 'text-on-surface'}`}>
                           <StitchStep instruction={stepData.instruction} />
+                          {/* Strike-through that draws itself across the row */}
+                          <Motion.span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-0 top-1/2 h-[1.5px] bg-on-surface-variant/80"
+                            initial={false}
+                            animate={{ width: isCompleted ? '100%' : '0%' }}
+                            transition={{ duration: reduceMotion ? 0 : 0.45, ease: EASE.out }}
+                          />
                         </p>
                         <AnimatePresence>
                           {isNext && (

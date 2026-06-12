@@ -133,7 +133,9 @@ function initializeDatabase(db) {
     ['promptSummary', "ALTER TABLE patterns ADD COLUMN promptSummary TEXT"],
     ['isAIGenerated', "ALTER TABLE patterns ADD COLUMN isAIGenerated INTEGER DEFAULT 0"],
     ['isFallback', "ALTER TABLE patterns ADD COLUMN isFallback INTEGER DEFAULT 0"],
-    ['userId', "ALTER TABLE patterns ADD COLUMN userId TEXT"]
+    ['userId', "ALTER TABLE patterns ADD COLUMN userId TEXT"],
+    ['verified', "ALTER TABLE patterns ADD COLUMN verified INTEGER DEFAULT 0"],
+    ['isExperimental', "ALTER TABLE patterns ADD COLUMN isExperimental INTEGER DEFAULT 0"]
   ];
 
   for (const [columnName, statement] of requiredPatternColumns) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
+import { motion as Motion } from 'motion/react';
 import { Compass, Sparkles, BookOpen, User, X } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
@@ -9,14 +10,21 @@ function NavItem({ to, icon, label, active }) {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+      className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
         active
-          ? 'bg-primary/10 text-primary font-semibold'
+          ? 'text-primary font-semibold'
           : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
       }`}
     >
-      <Icon size={18} strokeWidth={active ? 2.4 : 2} />
-      {label}
+      {active && (
+        <Motion.span
+          layoutId="mobilenav-pill"
+          className="absolute inset-0 rounded-xl bg-primary/10"
+          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+        />
+      )}
+      <Icon size={18} className="relative shrink-0" strokeWidth={active ? 2.4 : 2} />
+      <span className="relative">{label}</span>
     </Link>
   );
 }

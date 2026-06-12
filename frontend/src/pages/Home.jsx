@@ -5,7 +5,10 @@ import { Sparkles, Search, ArrowDown, ArrowRight, Lightbulb, GraduationCap, Sear
 import TopNav from '../components/TopNav';
 import { SkeletonTemplateCard } from '../components/Skeleton';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
-import { ThreadDivider } from '../components/motion/Thread';
+import { ThreadDivider, ThreadHero } from '../components/motion/Thread';
+import Magnetic from '../components/motion/Magnetic';
+import TiltCard from '../components/motion/TiltCard';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING } from '../lib/motionTokens';
 import { useAuth } from '../components/AuthProvider';
@@ -30,7 +33,7 @@ function TemplateCardImage({ imageUrl, category, title, compact = false }) {
           src={imageUrl}
           alt={title}
           loading="lazy"
-          className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+          className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${imgLoaded ? 'opacity-100 scale-100 group-hover:scale-[1.06]' : 'opacity-0 scale-105'}`}
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
         />
@@ -66,8 +69,10 @@ function FilterChip({ active, onClick, children }) {
   return (
     <Motion.button
       onClick={onClick}
-      whileTap={{ scale: 0.94 }}
-      transition={SPRING.snappy}
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.92 }}
+      animate={{ scale: active ? 1.04 : 1 }}
+      transition={SPRING.bouncy}
       className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 ${
         active
           ? 'bg-primary text-on-primary shadow-warm'
@@ -82,11 +87,12 @@ function FilterChip({ active, onClick, children }) {
 function CountUp({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
+    // Reduced-motion users get the final value on the first frame.
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 800;
     let frame;
     const start = performance.now();
-    const duration = 800;
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration);
+      const t = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
       setDisplay(Math.round(value * (1 - Math.pow(1 - t, 3))));
       if (t < 1) frame = requestAnimationFrame(tick);
     };
@@ -172,18 +178,10 @@ export default function Home() {
 
         {/* ── Hero ── */}
         <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-lg px-8 py-12 md:px-14 md:py-16">
-          {/* Yarn gradient blobs */}
-          <Motion.div
-            className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-yarn-coral/15 blur-3xl"
-            animate={{ y: [0, 14, 0], x: [0, -10, 0] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <Motion.div
-            className="pointer-events-none absolute -bottom-10 left-1/4 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl"
-            animate={{ y: [0, -12, 0] }}
-            transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <div className="pointer-events-none absolute top-1/3 right-1/4 h-32 w-32 rounded-full bg-yarn-marigold/15 blur-2xl" />
+          {/* Yarn gradient-mesh blobs — slow CSS drift, killed by the reduced-motion switch */}
+          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-yarn-coral/15 blur-3xl blob-drift" />
+          <div className="pointer-events-none absolute -bottom-10 left-1/4 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift-slow" />
+          <div className="pointer-events-none absolute top-1/3 right-1/4 h-36 w-36 rounded-full bg-yarn-marigold/15 blur-2xl blob-drift-slower" />
 
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <RevealGroup stagger={0.1}>
@@ -194,7 +192,7 @@ export default function Home() {
                 </div>
               </RevealItem>
               <RevealItem>
-                <h1 className="font-display display-wonk max-w-2xl text-[3.2rem] font-bold leading-[1.05] tracking-tight text-on-surface md:text-[4.4rem]">
+                <h1 className="font-display display-wonk display-relax max-w-2xl text-[3.2rem] font-bold leading-[1.05] tracking-tight text-on-surface md:text-[4.4rem]">
                   From idea to finished pattern in minutes.
                 </h1>
               </RevealItem>
@@ -205,7 +203,7 @@ export default function Home() {
               </RevealItem>
               <RevealItem>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Motion.span whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} transition={SPRING.snappy} className="inline-flex">
+                  <Magnetic>
                     <Link
                       to={user ? '/create' : '/account'}
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
@@ -213,7 +211,7 @@ export default function Home() {
                       <Sparkles size={17} />
                       {user ? 'Start a project' : 'Get started'}
                     </Link>
-                  </Motion.span>
+                  </Magnetic>
                   <a
                     href="#discover"
                     className="inline-flex items-center justify-center gap-2 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-7 py-3.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
@@ -222,6 +220,9 @@ export default function Home() {
                     <ArrowDown size={15} />
                   </a>
                 </div>
+              </RevealItem>
+              <RevealItem>
+                <ThreadHero className="mt-8 max-w-xl -ml-1" />
               </RevealItem>
             </RevealGroup>
 
@@ -343,7 +344,7 @@ export default function Home() {
                 Filter by category or difficulty, then customize a template or let AI create something new.
               </p>
             </div>
-            <div className="w-full max-w-sm">
+            <div className="w-full max-w-sm focus-within:max-w-md transition-all duration-300">
               <label htmlFor="search" className="sr-only">Search patterns</label>
               <div className="relative">
                 <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
@@ -385,8 +386,8 @@ export default function Home() {
           {!loading && (
             <RevealGroup stagger={0.05} className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {filteredTemplates.map((template) => (
-                <RevealItem key={template.id}>
-                  <div className="group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift">
+                <RevealItem key={template.id} className="h-full">
+                  <TiltCard className="group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm transition-shadow duration-300 hover:shadow-warm-lg">
                     <TemplateCardImage
                       imageUrl={template.imageUrl}
                       category={template.category}
@@ -422,7 +423,7 @@ export default function Home() {
                         </Link>
                       </div>
                     </div>
-                  </div>
+                  </TiltCard>
                 </RevealItem>
               ))}
             </RevealGroup>
@@ -485,7 +486,10 @@ export default function Home() {
                       <RIcon size={18} className="text-white/90" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm text-on-surface truncate">{pattern.title}</h3>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h3 className="font-semibold text-sm text-on-surface truncate">{pattern.title}</h3>
+                        <VerifiedBadge pattern={pattern} compact />
+                      </div>
                       <p className="text-xs text-on-surface-variant">{pattern.category || 'Custom'} · {pattern.difficulty}</p>
                     </div>
                     <ArrowRight size={17} className="text-on-surface-variant shrink-0 transition-transform group-hover:translate-x-1" />

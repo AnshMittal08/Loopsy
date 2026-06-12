@@ -333,6 +333,28 @@ html[data-theme="dark"] {
     animation: shimmer 1.8s infinite;
   }
 
+  /* Hero headline "relaxes" on load — Fraunces SOFT/WONK axes settle in */
+  .display-relax {
+    animation: displayRelax 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+  }
+
+  /* Slow-drifting gradient-mesh blobs behind heroes (pure CSS, reduced-motion safe) */
+  .blob-drift { animation: blobDrift 16s ease-in-out infinite; }
+  .blob-drift-slow { animation: blobDrift 22s ease-in-out infinite reverse; }
+  .blob-drift-slower { animation: blobDrift 30s ease-in-out 2s infinite; }
+
+  /* Plan cards: lift + warm primary glow on hover */
+  .glow-lift {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .glow-lift:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+    box-shadow:
+      0 14px 36px rgba(var(--shadow-rgb), calc(0.14 * var(--shadow-strength))),
+      0 6px 28px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+
   .custom-scrollbar::-webkit-scrollbar { width: 5px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -393,6 +415,15 @@ input[type="checkbox"]:checked {
 @keyframes floaty {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
+}
+@keyframes displayRelax {
+  from { font-variation-settings: "SOFT" 100, "WONK" 1; }
+  to { font-variation-settings: "SOFT" 0, "WONK" 0; }
+}
+@keyframes blobDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(14px, -18px) scale(1.07); }
+  66% { transform: translate(-12px, 12px) scale(0.96); }
 }
 
 /* Respect users who prefer calm screens */

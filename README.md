@@ -31,10 +31,20 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 
 ### AI Pattern Generation
 - Describe what you want to make in plain English
-- Uses **Claude** (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY` is set — structured tool_use output, full metadata, no abbreviations
+- **Compiler-first pipeline** (when `ANTHROPIC_API_KEY` is set): Claude Haiku parses intent into a Design Spec → the deterministic Pattern Compiler computes exact rounds → Claude Sonnet writes the friendly presentation around the engine's numbers
+- Freeform Claude generation as fallback for designs outside the compiler vocabulary — labeled **experimental**, verified only if the validator can prove the math
 - Falls back to local **Ollama** (phi3) if no API key is configured
 - Always returns a usable pattern — clearly labeled fallback if AI is unavailable
 - Prompt caching (`cache_control: ephemeral`) on all Claude calls — ~90% cost reduction on repeated system-prompt tokens
+
+### Pattern Compiler — "Verified math ✓" (M2)
+- Deterministic crochet geometry engine in `backend/lib/engine/` — stitch counts are **computed, never guessed**
+- **Gauge tables** by yarn weight (with tight amigurumi tension variants) drive every dimension→stitch conversion
+- **Shape generators**: `sphere`, `hemisphere`, `tube`, `cone`, `flatPanel`, `hatCrown` (head-size tables), `grannySquare` — each emits textbook increase/decrease distributions (a 6 cm amigurumi sphere always produces the 6-12-18-24-30… sequence)
+- **Design Spec** — the JSON contract shared by every front door (text prompt today; photos and the design canvas in M3/M4)
+- **Validator** re-derives running stitch counts from any pattern's text and flags drift; it skips conventions it can't model rather than guessing
+- The **"Verified math ✓" badge** is earned, not given: shown only when every checkable count agrees
+- Audit the seed templates anytime: `cd backend && node scripts/validate-templates.js`
 
 ### Template Customization
 - Pick any template, set yarn colour and size (small / medium / large)
@@ -176,6 +186,12 @@ Loopsy/
 │   │   ├── auth/
 │   │   │   └── session.js       hashPassword, verifyPassword, createUserSession, setSessionCookie
 │   │   ├── db/index.js          SQLite singleton, schema init, migrations
+│   │   ├── engine/              Pattern Compiler — deterministic crochet geometry (M2)
+│   │   │   ├── gauge.js         Gauge tables by yarn weight + stitch height factors
+│   │   │   ├── shapes.js        sphere/hemisphere/tube/cone/flatPanel/hatCrown/grannySquare
+│   │   │   ├── designSpec.js    Design Spec schema — normalize + validate
+│   │   │   ├── compiler.js      Spec → ordered steps with computed counts
+│   │   │   └── validator.js     Re-derives counts from pattern text, flags drift
 │   │   ├── models/
 │   │   │   ├── userModel.js     createUser, getUserByEmail, getUserWithSubscriptionById
 │   │   │   ├── sessionModel.js  createSession, getSessionByToken, deleteSessionByToken
@@ -303,7 +319,8 @@ hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPatte
 **patterns** — user-created, scoped by userId
 ```sql
 id, userId, title, templateId, color, size, steps, difficulty, category, tags, materials,
-hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback, createdAt
+hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback,
+verified, isExperimental, createdAt
 ```
 
 **progress** — scoped by userId
@@ -346,14 +363,14 @@ See [plan-v2.md](./plan-v2.md) for the active roadmap ([plan.md](./plan.md) is k
 - Phase 2C — Per-plan AI rate limiting, monthly usage tracking, prompt caching, Account usage UI
 - Phase 2D (UI) — UI/UX redesign: Frozen Lake design system, Fraunces serif, card-lift components, all pages rebuilt
 - **M1 — "Glow-Up"** — Atelier design language: dual theme (Midnight Wool / Undyed), yarn accent palette, `motion` animation system, thread motif, winding yarn-ball tracker, Crochet Mode, lucide icons, three.js/dead-code removal
+- **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge; AI generation rewired to intent→compile→humanize; plus an app-wide animation/interactivity polish pass (route transitions, magnetic CTAs, 3D-tilt cards, theatrical generation view)
 
 Next milestones (plan-v2):
 
-1. **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge
-2. **M3 — "Vision Studio"** — photo → editable analysis → verified pattern
-3. **M4 — "Design Canvas"** — interactive amigurumi designer with shareable cards
-4. **M5 — "Get Paid"** — Stripe billing, PDF export, PWA
-5. **M6 — "The Flywheel"** — public share pages, creator seeding, Learn page, Crochet-Alongs
+1. **M3 — "Vision Studio"** — photo → editable analysis → verified pattern
+2. **M4 — "Design Canvas"** — interactive amigurumi designer with shareable cards
+3. **M5 — "Get Paid"** — Stripe billing, PDF export, PWA
+4. **M6 — "The Flywheel"** — public share pages, creator seeding, Learn page, Crochet-Alongs
 
 ## Deployment
 
