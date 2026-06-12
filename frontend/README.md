@@ -8,34 +8,42 @@ React 19 + Vite client for Loopsy.
 - Account-aware navigation (SideNav, TopNav, MobileNav)
 - Sign up / sign in / sign out UI
 - Template customization and AI generation UI with 429 rate-limit handling
-- Row-by-row progress tracker with stitch tooltips and animated progress ring
+- Row-by-row progress tracker with stitch tooltips, winding yarn-ball progress, Crochet Mode focus view
 - My Projects list at `/tracker` (no patternId)
 - AI Tutor floating chat panel
 - Account page: usage bars, upgrade plan cards
-- Design system: Frozen Lake palette, Fraunces display font, card-lift components
+- Design system: Atelier — dual theme, yarn accents, Fraunces display font, motion animation system
 
-## Design System
+## Design System — "Atelier"
 
-**Frozen Lake palette:**
-- Primary: `#1E40AF` (navy)
-- Secondary: `#4E6878` (slate)
-- Tertiary: `#B45309` (warm amber)
-- Surface: `#F6F9FF` (blue-white)
-- Text: `#0A1428` (deep navy-black)
+**Dual theme** (switched via `html[data-theme]`, persisted by `ThemeToggle`):
+- **Midnight Wool** (dark): deep warm charcoal `#16120E` surfaces, soft cream text
+- **Undyed** (light): warm oatmeal `#FAF5EC` surfaces, espresso text
+- Primary terracotta coral, secondary sage, tertiary periwinkle — each with light/dark variants
+- **Yarn accents** (theme-stable, used per category): coral `#FF6B5B`, marigold `#F5A623`, sage `#7FA37A`, periwinkle `#7B8CDE`, rose `#E8728C`
+- Film-grain overlay (`body::before`) so surfaces feel like fabric
 
-**Fonts:** Fraunces (serif display, `font-display`) + Plus Jakarta Sans (body)
+**Fonts:** Fraunces (variable serif display, `font-display`) + Plus Jakarta Sans (body)
 
-**Tokens live in:**
-- `src/index.css` — Tailwind v4 `@theme` CSS variables
-- `tailwind.config.js` — color + font extensions
+**Motion:** [`motion`](https://motion.dev) with shared tokens in `src/lib/motionTokens.js`; primitives in `src/components/motion/`; all animation respects `prefers-reduced-motion`
+
+**Icons:** `lucide-react` (tree-shakeable SVG — no icon font)
+
+**Tokens live in one place:**
+- `src/index.css` — Tailwind v4 `@theme` block (`tailwind.config.js` was removed; never reintroduce a second token source)
 
 ## Important Files
 
 | File | Purpose |
 |------|---------|
 | `src/App.jsx` | Route definitions |
-| `src/index.css` | Design system — color tokens, shadow utilities, card-lift |
-| `tailwind.config.js` | Frozen Lake color palette + font families |
+| `src/index.css` | Atelier design system — theme tokens, grain, utilities |
+| `src/components/ThemeToggle.jsx` | Midnight Wool ↔ Undyed switch (persists to localStorage) |
+| `src/components/motion/Reveal.jsx` | Scroll/mount entrance animation primitive |
+| `src/components/motion/Thread.jsx` | Self-drawing SVG yarn-thread motif |
+| `src/components/motion/YarnBallProgress.jsx` | Winding yarn-ball progress indicator |
+| `src/lib/motionTokens.js` | Shared motion durations + spring presets |
+| `src/lib/confetti.js` | Yarn-confetti celebration bursts |
 | `src/components/AuthProvider.jsx` | `useAuth()` — user, signIn, signUp, signOut |
 | `src/components/SideNav.jsx` | Desktop sidebar with logo + nav items |
 | `src/components/TopNav.jsx` | Top bar for non-sidebar pages |
@@ -67,5 +75,4 @@ If PowerShell blocks `npm`, use `npm.cmd`.
 - Pattern creation and tracking require sign-in — all data is user-scoped.
 - `/api/usage` is fetched on Account page mount to show monthly usage bars.
 - AI generation returns `429 { code: "RATE_LIMIT_EXCEEDED" }` when plan limit hit; Create page shows "View plans →" link to `/account`.
-- The `PaletteSwitcher` component in `src/components/PaletteSwitcher.jsx` was used for palette preview during design — it is not wired into `App.jsx` in production.
 - In production (Vercel), `vercel.json` rewrites `/api/*` to the Railway backend — no `VITE_API_URL` env var needed, all fetch calls stay as relative `/api/...` paths.

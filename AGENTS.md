@@ -31,32 +31,32 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd`.
 
 ## Design System
 
-The frontend uses the **Frozen Lake** palette. All color tokens are defined in two places that must stay in sync:
+The frontend uses the **Atelier** design language: dual theme, warm/tactile, animated. All tokens live in **one** place:
 
-- `frontend/src/index.css` — Tailwind v4 `@theme` block with CSS custom properties
-- `frontend/tailwind.config.js` — `theme.extend.colors` for JSX class usage
+- `frontend/src/index.css` — raw palette variables per theme (`:root` = "Undyed" light, `html[data-theme="dark"]` = "Midnight Wool" dark) mapped to Tailwind tokens via the `@theme inline` block. `tailwind.config.js` was removed — never reintroduce a second token source.
 
-**Key tokens:**
-- Primary: `#1E40AF` (navy) — buttons, active states, progress ring
-- Secondary: `#4E6878` (slate) — supporting elements, check icons
-- Tertiary: `#B45309` (warm amber) — accent badges, near-limit usage bars
-- Surface: `#F6F9FF` (blue-white) — page background
-- On-surface: `#0A1428` (deep navy-black) — body text
+**Key tokens** (each flips per theme — always use the Tailwind class, never the hex):
+- `primary` — terracotta coral (`#C2410C` light / `#FF7A50` dark) — buttons, active states
+- `secondary` — sage; `tertiary` — periwinkle; `error` — warm red
+- `surface` + `surface-container-*` ladder — warm cream (light) / warm charcoal (dark)
+- `yarn-coral/marigold/sage/periwinkle/rose` — theme-stable category accents
 
 **Typography:**
-- `font-display` → Fraunces (serif) — all page `<h1>` headings
+- `font-display` → Fraunces (variable serif) — page `<h1>` headings; `display-wonk` animates its SOFT/WONK axes on hover
 - `font-headline` / `font-body` → Plus Jakarta Sans — everything else
 
+**Motion:**
+- `motion` (Framer Motion successor) with shared tokens in `frontend/src/lib/motionTokens.js` (durations + spring presets)
+- Primitives in `frontend/src/components/motion/`: `Reveal`, `Thread`, `YarnBallProgress`; celebrations via `frontend/src/lib/confetti.js`
+- Every animation must respect `prefers-reduced-motion` (global kill-switch exists in `index.css`)
+
 **Utility classes** (defined in `index.css`):
-- `shadow-warm`, `shadow-warm-md/lg/xl` — teal-tinted drop shadows
-- `card-lift` — `translateY(-3px)` + shadow on hover
-- `ghost-border` — 1px navy border at 15% opacity
+- `shadow-warm`, `shadow-warm-md/lg/xl` — theme-aware drop shadows
+- `card-lift` — lift + shadow on hover; `glass-panel` — translucent blur; `ghost-border`; `shimmer` — skeleton sweep
 
-**Card pattern:** `rounded-2xl bg-white border border-outline-variant/20 shadow-warm`
+**Icons:** `lucide-react` only — no icon fonts.
 
-**CTA pattern:** `rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm`
-
-Never use hard-coded hex values in JSX — always use Tailwind color tokens. Never introduce a new color without adding it to both `index.css` and `tailwind.config.js`.
+Never use hard-coded hex values in JSX — always use Tailwind color tokens defined in `index.css`.
 
 ## Testing & Verification
 
