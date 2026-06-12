@@ -40,6 +40,7 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 - `lib/auth/` - password hashing, cookie sessions, auth helpers
 - `lib/models/` - SQLite queries for templates, patterns, progress, users, sessions
 - `lib/services/` - AI generation and template-to-pattern business logic
+- `lib/engine/` - Pattern Compiler (M2): gauge tables, shape generators, Design Spec schema, compiler, validator — stitch counts are computed, never guessed
 - `lib/db/index.js` - SQLite singleton, schema init, migrations
 
 ## Key Design Decisions
@@ -50,6 +51,7 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 4. `patterns` and `progress` are now scoped by `userId`.
 5. Most creation/tracker routes require authentication.
 6. AI generation uses Claude when `ANTHROPIC_API_KEY` is set and falls back to Ollama otherwise.
+7. AI generation is compiler-first (M2): Claude Haiku parses intent into a Design Spec, `lib/engine` computes exact stitch counts, Claude Sonnet humanizes the presentation. Freeform fallback is labeled experimental; the `verified` flag on patterns is set only when the validator proves the math.
 
 ## Auth Surface
 

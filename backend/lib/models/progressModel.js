@@ -35,6 +35,15 @@ function getProgressByPatternId(patternId, userId) {
   return getProgressByPatternIdStmt.all(patternId, userId).map(deserialize);
 }
 
+const getProgressSummaryForUserStmt = db.prepare(`
+  SELECT patternId, totalSteps, progressPercentage FROM progress WHERE userId = ?
+`);
+
+/** Lightweight per-pattern summary for the My Projects list (no steps blob). */
+function getProgressSummaryForUser(userId) {
+  return getProgressSummaryForUserStmt.all(userId);
+}
+
 function createProgress(record) {
   insertProgressStmt.run(
     record.id,
@@ -116,4 +125,4 @@ function updateProgress(id, userId, updates) {
   };
 }
 
-module.exports = { getProgressById, getProgressByPatternId, createProgress, getOrCreateProgress, toggleStepAtomic, updateProgress };
+module.exports = { getProgressById, getProgressByPatternId, getProgressSummaryForUser, createProgress, getOrCreateProgress, toggleStepAtomic, updateProgress };

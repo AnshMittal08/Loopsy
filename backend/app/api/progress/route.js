@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPatternById } from "@/lib/models/patternModel";
-import { getOrCreateProgress } from "@/lib/models/progressModel";
+import { getOrCreateProgress, getProgressSummaryForUser } from "@/lib/models/progressModel";
 import { generateId } from "@/lib/utils/helpers";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 
@@ -39,6 +39,20 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to initialize progress.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request) {
+  try {
+    const { user, response } = requireAuthenticatedUser(request);
+    if (response) return response;
+
+    return NextResponse.json(getProgressSummaryForUser(user.id));
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to load progress summary.", details: error.message },
       { status: 500 }
     );
   }

@@ -1,7 +1,7 @@
 // Tiny dependency-free confetti in Loopsy's yarn colors.
 // fireConfetti() — full-width celebration burst from the top of the viewport.
 
-const YARN_COLORS = ['#FF6B5B', '#F5A623', '#7FA37A', '#7B8CDE', '#E8728C'];
+const YARN_COLORS = ['#FF6584', '#FFB02E', '#4ECBA0', '#8B7CF6', '#F472B6'];
 
 export function fireConfetti({ count = 90, duration = 1800 } = {}) {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

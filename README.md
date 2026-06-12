@@ -31,17 +31,30 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 
 ### AI Pattern Generation
 - Describe what you want to make in plain English
-- Uses **Claude** (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY` is set — structured tool_use output, full metadata, no abbreviations
+- **Compiler-first pipeline** (when `ANTHROPIC_API_KEY` is set): Claude Haiku parses intent into a Design Spec → the deterministic Pattern Compiler computes exact rounds → Claude Sonnet writes the friendly presentation around the engine's numbers
+- Freeform Claude generation as fallback for designs outside the compiler vocabulary — labeled **experimental**, verified only if the validator can prove the math
 - Falls back to local **Ollama** (phi3) if no API key is configured
+- **Streaming generation** — the endpoint streams server-sent events (pipeline stage, each computed row, final pattern) so the Create page's generation theater shows real progress, not a simulation
 - Always returns a usable pattern — clearly labeled fallback if AI is unavailable
 - Prompt caching (`cache_control: ephemeral`) on all Claude calls — ~90% cost reduction on repeated system-prompt tokens
+
+### Pattern Compiler — "Verified math ✓" (M2)
+- Deterministic crochet geometry engine in `backend/lib/engine/` — stitch counts are **computed, never guessed**
+- **Gauge tables** by yarn weight (with tight amigurumi tension variants) drive every dimension→stitch conversion
+- **Shape generators**: `sphere`, `ellipsoid`, `hemisphere`, `tube`, `cone`, `flatPanel`, `hatCrown` (head-size tables), `grannySquare` — each emits textbook increase/decrease distributions (a 6 cm amigurumi sphere always produces the 6-12-18-24-30… sequence)
+- **Design Spec** — the JSON contract shared by every front door (text prompt today; photos and the design canvas in M3/M4)
+- **Validator** re-derives running stitch counts from any pattern's text and flags drift; it skips conventions it can't model rather than guessing
+- The **"Verified math ✓" badge** is earned, not given: shown only when every checkable count agrees
+- Audit the seed templates anytime: `cd backend && node scripts/validate-templates.js`
 
 ### Template Customization
 - Pick any template, set yarn colour and size (small / medium / large)
 - Stitch counts scale automatically; colour prefix applied to every step
 
 ### Progress Tracker
-- Row-by-row checkbox tracker with animated SVG progress ring (navy blue)
+- Row-by-row checkbox tracker with an animated **winding yarn-ball progress indicator** — thread wraps around the ball as rows complete
+- **Crochet Mode** — full-screen focus view: huge type, dimmed chrome, tap/space to advance, screen wake-lock
+- Milestone celebrations at 25/50/75/100% (confetti + encouragement)
 - Stitch term tooltips with YouTube tutorial links (hover/tap on any stitch name)
 - Step instructions in plain English — all crochet abbreviations expanded
 - Materials list and maker notes visible while you crochet
@@ -65,11 +78,14 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - `GET /api/usage` returns live usage counts and plan limits
 - Account page shows animated progress bars ("X of Y used this month") and upgrade cards (coming soon)
 
-### Design System
-- **Frozen Lake palette** — navy `#1E40AF` primary, slate `#4E6878` secondary, warm amber `#B45309` tertiary, crisp blue-white surfaces
-- **Fraunces** serif display font + **Plus Jakarta Sans** body text
-- White cards with subtle border and shadow on a light blue-white background
-- Consistent `rounded-2xl` cards, `rounded-full` CTAs, `card-lift` hover effect
+### Design System — "Atelier"
+- **Dual theme**: **Ink** (dark — violet-tinted charcoal `#0E0D15`, lavender-white text) and **Cloud** (light — cool white `#F7F7FB`, ink text), toggled via `ThemeToggle` (`html[data-theme]`)
+- **Yarn accent palette** used semantically per category: coral, marigold, sage, periwinkle, rose
+- Subtle film-grain texture overlay so surfaces feel like fabric, not glass
+- **Fraunces** serif display font (variable axes) + **Plus Jakarta Sans** body text
+- **Motion system** built on [`motion`](https://motion.dev): shared motion tokens (`src/lib/motionTokens.js`), `Reveal`/`Thread`/`YarnBallProgress` primitives, confetti celebrations — all respecting `prefers-reduced-motion`
+- **lucide-react** SVG icons (the Material Symbols icon font was dropped)
+- Tokens live in a single source of truth: the Tailwind v4 `@theme` block in `frontend/src/index.css` (`tailwind.config.js` was removed)
 
 ---
 
@@ -171,6 +187,12 @@ Loopsy/
 │   │   ├── auth/
 │   │   │   └── session.js       hashPassword, verifyPassword, createUserSession, setSessionCookie
 │   │   ├── db/index.js          SQLite singleton, schema init, migrations
+│   │   ├── engine/              Pattern Compiler — deterministic crochet geometry (M2)
+│   │   │   ├── gauge.js         Gauge tables by yarn weight + stitch height factors
+│   │   │   ├── shapes.js        sphere/ellipsoid/hemisphere/tube/cone/flatPanel/hatCrown/grannySquare
+│   │   │   ├── designSpec.js    Design Spec schema — normalize + validate
+│   │   │   ├── compiler.js      Spec → ordered steps with computed counts
+│   │   │   └── validator.js     Re-derives counts from pattern text, flags drift
 │   │   ├── models/
 │   │   │   ├── userModel.js     createUser, getUserByEmail, getUserWithSubscriptionById
 │   │   │   ├── sessionModel.js  createSession, getSessionByToken, deleteSessionByToken
@@ -200,18 +222,25 @@ Loopsy/
 │   │   │   ├── MobileNav.jsx    Portal-rendered slide-in drawer
 │   │   │   ├── StitchTooltip.jsx  Stitch term overlay with YouTube links
 │   │   │   ├── Skeleton.jsx     Loading skeleton components
+│   │   │   ├── ThemeToggle.jsx  Midnight Wool ↔ Undyed theme switch
 │   │   │   ├── Toast.jsx        Toast notification system
 │   │   │   ├── TopNav.jsx       Desktop top navigation bar
-│   │   │   └── SideNav.jsx      Desktop side navigation
+│   │   │   ├── SideNav.jsx      Desktop side navigation
+│   │   │   └── motion/
+│   │   │       ├── Reveal.jsx          Scroll/mount entrance animations
+│   │   │       ├── Thread.jsx          Self-drawing SVG yarn thread motif
+│   │   │       └── YarnBallProgress.jsx  Winding yarn-ball progress indicator
 │   │   └── lib/
+│   │       ├── motionTokens.js       Shared durations + spring presets
+│   │       ├── confetti.js           Yarn-confetti celebration bursts
 │   │       ├── patternThemes.js      Category → colour/icon design tokens
 │   │       └── crochetAbbreviations.js  Plain-English expander + stitch metadata
-│   ├── index.css               Tailwind v4 @theme + design system utilities
-│   ├── tailwind.config.js      Frozen Lake color tokens
+│   ├── index.css               Tailwind v4 @theme — Atelier tokens (single source of truth) + utilities
 │   └── vite.config.js
 │
 ├── CLAUDE.md                    Claude Code developer guidance
-├── plan.md                      Product roadmap
+├── plan.md                      Original roadmap (historical)
+├── plan-v2.md                   Active roadmap — milestones M1–M6
 ├── vision.md                    Product vision and market analysis
 └── README.md
 ```
@@ -291,7 +320,8 @@ hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPatte
 **patterns** — user-created, scoped by userId
 ```sql
 id, userId, title, templateId, color, size, steps, difficulty, category, tags, materials,
-hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback, createdAt
+hookSize, yarnWeight, timeEstimate, finishedSize, notes, promptSummary, isAIGenerated, isFallback,
+verified, isExperimental, createdAt
 ```
 
 **progress** — scoped by userId
@@ -325,23 +355,23 @@ rm backend/data.db
 
 ## Roadmap
 
-See [plan.md](./plan.md) for the full roadmap. Shipped so far:
+See [plan-v2.md](./plan-v2.md) for the active roadmap ([plan.md](./plan.md) is kept for history). Shipped so far:
 
 - Phase 1 — Core tracker, AI generation, template library, SQLite backend
 - Phase 1.5 — Stitch tooltips, beginner path, mobile nav, skeletons, toasts, template detail page
 - Phase 2A — Local auth with cookie sessions, user-scoped patterns and progress
 - Phase 2B — AI Tutor in tracker, DB performance indexes, form validation, accessibility fixes
 - Phase 2C — Per-plan AI rate limiting, monthly usage tracking, prompt caching, Account usage UI
-- Phase 2D (UI) — Complete UI/UX redesign: Frozen Lake design system, Fraunces serif, card-lift components, all pages rebuilt
+- Phase 2D (UI) — UI/UX redesign: Frozen Lake design system, Fraunces serif, card-lift components, all pages rebuilt
+- **M1 — "Glow-Up"** — Atelier design language: dual theme (Midnight Wool / Undyed), yarn accent palette, `motion` animation system, thread motif, winding yarn-ball tracker, Crochet Mode, lucide icons, three.js/dead-code removal
+- **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge; AI generation rewired to intent→compile→humanize with streaming SSE responses; plus an app-wide animation/interactivity polish pass (route transitions, magnetic CTAs, 3D-tilt cards, theatrical generation view) and the home redesign: lazy-loaded three.js yarn-ball hero (the one 3D moment plan-v2 reserves), custom cursor follower, scroll-progress thread, editorial marquee + footer
 
-Next priorities:
+Next milestones (plan-v2):
 
-1. **Learn page** — searchable stitch reference, embedded YouTube tutorials (data already in `crochetAbbreviations.js`)
-2. **Photo → Pattern** — upload a photo, get a reverse-engineered pattern (viral growth lever)
-3. **Beginner Mode** — "I'm confused" button per step, AI explains the step differently
-4. **Community** — shareable pattern links, pattern feed, Crochet-Alongs
-5. **PWA** — installable on mobile (manifest + service worker), prerequisite for app store
-6. **Stripe billing** — wire up Maker Pro / Creator checkout to upgrade plans automatically
+1. **M3 — "Vision Studio"** — photo → editable analysis → verified pattern
+2. **M4 — "Design Canvas"** — interactive amigurumi designer with shareable cards
+3. **M5 — "Get Paid"** — Stripe billing, PDF export, PWA
+4. **M6 — "The Flywheel"** — public share pages, creator seeding, Learn page, Crochet-Alongs
 
 ## Deployment
 

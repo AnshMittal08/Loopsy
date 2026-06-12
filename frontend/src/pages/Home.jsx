@@ -1,14 +1,52 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Sparkles, Search, ArrowDown, ArrowRight, Lightbulb, GraduationCap, SearchX } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import { SkeletonTemplateCard } from '../components/Skeleton';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
-import { ThreadDivider } from '../components/motion/Thread';
+import { ThreadDivider, ThreadHero, ThreadSpinner } from '../components/motion/Thread';
+import Magnetic from '../components/motion/Magnetic';
+import TiltCard from '../components/motion/TiltCard';
+import Marquee from '../components/motion/Marquee';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING } from '../lib/motionTokens';
 import { useAuth } from '../components/AuthProvider';
+
+// three.js stays out of the initial bundle — the yarn ball arrives lazily.
+const YarnBallHero = lazy(() => import('../components/three/YarnBallHero'));
+
+/* Word-by-word headline entrance; accent words land in italic Fraunces. */
+function StaggeredHeadline({ words, className }) {
+  return (
+    <h1 className={className} aria-label={words.map((w) => w.text).join(' ')}>
+      {words.map((word, i) => (
+        <Motion.span
+          key={i}
+          aria-hidden
+          className={`inline-block ${word.accent ? 'italic text-primary' : ''}`}
+          initial={{ opacity: 0, y: 28, rotate: 3 }}
+          animate={{ opacity: 1, y: 0, rotate: 0 }}
+          transition={{ ...SPRING.gentle, delay: 0.15 + i * 0.07 }}
+        >
+          {word.text}&nbsp;
+        </Motion.span>
+      ))}
+    </h1>
+  );
+}
+
+const HEADLINE = [
+  { text: 'From' }, { text: 'idea' }, { text: 'to' },
+  { text: 'finished', accent: true }, { text: 'pattern', accent: true },
+  { text: 'in' }, { text: 'minutes.' },
+];
+
+const MARQUEE_ITEMS = [
+  'Amigurumi', 'Verified math ✓', 'Wearables', 'Granny squares',
+  'Stitch by stitch', 'Home decor', 'Computed, never guessed', 'Accessories',
+];
 
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -30,7 +68,7 @@ function TemplateCardImage({ imageUrl, category, title, compact = false }) {
           src={imageUrl}
           alt={title}
           loading="lazy"
-          className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+          className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${imgLoaded ? 'opacity-100 scale-100 group-hover:scale-[1.06]' : 'opacity-0 scale-105'}`}
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
         />
@@ -66,8 +104,10 @@ function FilterChip({ active, onClick, children }) {
   return (
     <Motion.button
       onClick={onClick}
-      whileTap={{ scale: 0.94 }}
-      transition={SPRING.snappy}
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.92 }}
+      animate={{ scale: active ? 1.04 : 1 }}
+      transition={SPRING.bouncy}
       className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 ${
         active
           ? 'bg-primary text-on-primary shadow-warm'
@@ -82,11 +122,12 @@ function FilterChip({ active, onClick, children }) {
 function CountUp({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
+    // Reduced-motion users get the final value on the first frame.
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 800;
     let frame;
     const start = performance.now();
-    const duration = 800;
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration);
+      const t = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
       setDisplay(Math.round(value * (1 - Math.pow(1 - t, 3))));
       if (t < 1) frame = requestAnimationFrame(tick);
     };
@@ -172,18 +213,10 @@ export default function Home() {
 
         {/* ── Hero ── */}
         <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-lg px-8 py-12 md:px-14 md:py-16">
-          {/* Yarn gradient blobs */}
-          <Motion.div
-            className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-yarn-coral/15 blur-3xl"
-            animate={{ y: [0, 14, 0], x: [0, -10, 0] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <Motion.div
-            className="pointer-events-none absolute -bottom-10 left-1/4 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl"
-            animate={{ y: [0, -12, 0] }}
-            transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <div className="pointer-events-none absolute top-1/3 right-1/4 h-32 w-32 rounded-full bg-yarn-marigold/15 blur-2xl" />
+          {/* Yarn gradient-mesh blobs — slow CSS drift, killed by the reduced-motion switch */}
+          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-yarn-coral/15 blur-3xl blob-drift" />
+          <div className="pointer-events-none absolute -bottom-10 left-1/4 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift-slow" />
+          <div className="pointer-events-none absolute top-1/3 right-1/4 h-36 w-36 rounded-full bg-yarn-marigold/15 blur-2xl blob-drift-slower" />
 
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <RevealGroup stagger={0.1}>
@@ -194,9 +227,10 @@ export default function Home() {
                 </div>
               </RevealItem>
               <RevealItem>
-                <h1 className="font-display display-wonk max-w-2xl text-[3.2rem] font-bold leading-[1.05] tracking-tight text-on-surface md:text-[4.4rem]">
-                  From idea to finished pattern in minutes.
-                </h1>
+                <StaggeredHeadline
+                  words={HEADLINE}
+                  className="font-display display-wonk max-w-2xl text-[3.2rem] font-bold leading-[1.05] tracking-tight text-on-surface md:text-[4.4rem]"
+                />
               </RevealItem>
               <RevealItem>
                 <p className="mt-5 max-w-xl text-lg leading-relaxed text-on-surface-variant">
@@ -205,15 +239,15 @@ export default function Home() {
               </RevealItem>
               <RevealItem>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Motion.span whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} transition={SPRING.snappy} className="inline-flex">
+                  <Magnetic>
                     <Link
                       to={user ? '/create' : '/account'}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
+                      className="shine-sweep inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
                     >
                       <Sparkles size={17} />
                       {user ? 'Start a project' : 'Get started'}
                     </Link>
-                  </Motion.span>
+                  </Magnetic>
                   <a
                     href="#discover"
                     className="inline-flex items-center justify-center gap-2 rounded-full border border-outline-variant/40 bg-surface-container-lowest px-7 py-3.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
@@ -223,60 +257,83 @@ export default function Home() {
                   </a>
                 </div>
               </RevealItem>
+              <RevealItem>
+                <ThreadHero className="mt-8 max-w-xl -ml-1" />
+              </RevealItem>
             </RevealGroup>
 
-            <RevealGroup stagger={0.12} delay={0.2} className="grid gap-3 md:grid-cols-2">
-              <RevealItem className="md:col-span-2">
-                <Motion.div
-                  className="overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm"
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  {featuredTemplate?.imageUrl && (
-                    <div className="relative h-32 w-full overflow-hidden">
-                      <img src={featuredTemplate.imageUrl} alt={featuredTemplate.name} className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
-                      <span className="absolute left-3 top-3 rounded-full bg-surface-container-lowest/90 px-2.5 py-1 text-xs font-semibold text-on-surface backdrop-blur-sm">
-                        {featuredTemplate.difficulty} · {featuredTemplate.category}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between gap-4 p-4">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Featured</p>
-                      <h2 className="mt-1 text-base font-bold text-on-surface">{featuredTemplate?.name || 'Loading…'}</h2>
-                      <p className="mt-0.5 text-sm leading-relaxed text-on-surface-variant line-clamp-1">
-                        {featuredTemplate?.description}
-                      </p>
-                    </div>
-                    {featuredTemplate && (
-                      <Link to={`/create/${featuredTemplate.id}`} className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:bg-primary-dim transition-colors">
-                        Customize
-                      </Link>
-                    )}
+            {/* The one 3D moment: lazy-loaded yarn ball, drag to spin */}
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block h-[420px]"
+            >
+              <Suspense
+                fallback={
+                  <div className="grid h-full place-items-center">
+                    <ThreadSpinner size={64} />
                   </div>
-                </Motion.div>
-              </RevealItem>
-
-              <RevealItem>
-                <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-4 shadow-warm h-full">
-                  <p className="text-xs font-semibold text-on-surface-variant">Templates</p>
-                  <p className="mt-2 font-display text-4xl font-bold text-on-surface"><CountUp value={templates.length} /></p>
-                  <p className="mt-1 text-xs text-on-surface-variant">Ready to customize.</p>
-                </div>
-              </RevealItem>
-              <RevealItem>
-                <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-4 shadow-warm h-full">
-                  <p className="text-xs font-semibold text-on-surface-variant">Your projects</p>
-                  <p className="mt-2 font-display text-4xl font-bold text-on-surface"><CountUp value={recentPatterns.length} /></p>
-                  <p className="mt-1 text-xs text-on-surface-variant">
-                    {user ? (recentPatterns.length > 0 ? 'Keep going.' : 'Start your first.') : 'Sign in to save.'}
-                  </p>
-                </div>
-              </RevealItem>
-            </RevealGroup>
+                }
+              >
+                <YarnBallHero className="h-full w-full" />
+              </Suspense>
+            </Motion.div>
           </div>
         </section>
+
+        {/* ── Editorial marquee ── */}
+        <Reveal>
+          <Marquee items={MARQUEE_ITEMS} className="mt-10 border-y border-outline-variant/20 py-4 opacity-90" />
+        </Reveal>
+
+        {/* ── Featured + stats strip ── */}
+        <RevealGroup stagger={0.1} className="mt-10 grid gap-4 md:grid-cols-[1.3fr_0.5fr_0.5fr]">
+          <RevealItem>
+            <div className="shine-sweep group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift">
+              {featuredTemplate?.imageUrl && (
+                <div className="relative h-32 w-full overflow-hidden">
+                  <img src={featuredTemplate.imageUrl} alt={featuredTemplate.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-full bg-surface-container-lowest/90 px-2.5 py-1 text-xs font-semibold text-on-surface backdrop-blur-sm">
+                    {featuredTemplate.difficulty} · {featuredTemplate.category}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4 p-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Featured</p>
+                  <h2 className="mt-1 text-base font-bold text-on-surface">{featuredTemplate?.name || 'Loading…'}</h2>
+                  <p className="mt-0.5 text-sm leading-relaxed text-on-surface-variant line-clamp-1">
+                    {featuredTemplate?.description}
+                  </p>
+                </div>
+                {featuredTemplate && (
+                  <Link to={`/create/${featuredTemplate.id}`} className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:bg-primary-dim transition-colors">
+                    Customize
+                  </Link>
+                )}
+              </div>
+            </div>
+          </RevealItem>
+
+          <RevealItem>
+            <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-4 shadow-warm h-full card-lift">
+              <p className="text-xs font-semibold text-on-surface-variant">Templates</p>
+              <p className="mt-2 font-display text-4xl font-bold text-on-surface"><CountUp value={templates.length} /></p>
+              <p className="mt-1 text-xs text-on-surface-variant">Ready to customize.</p>
+            </div>
+          </RevealItem>
+          <RevealItem>
+            <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-4 shadow-warm h-full card-lift">
+              <p className="text-xs font-semibold text-on-surface-variant">Your projects</p>
+              <p className="mt-2 font-display text-4xl font-bold text-on-surface"><CountUp value={recentPatterns.length} /></p>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {user ? (recentPatterns.length > 0 ? 'Keep going.' : 'Start your first.') : 'Sign in to save.'}
+              </p>
+            </div>
+          </RevealItem>
+        </RevealGroup>
 
         {/* ── Beginner Path ── */}
         {!loading && !search && difficultyFilter === 'All' && categoryFilter === 'All' && beginnerPath.length >= 4 && (
@@ -343,7 +400,7 @@ export default function Home() {
                 Filter by category or difficulty, then customize a template or let AI create something new.
               </p>
             </div>
-            <div className="w-full max-w-sm">
+            <div className="w-full max-w-sm focus-within:max-w-md transition-all duration-300">
               <label htmlFor="search" className="sr-only">Search patterns</label>
               <div className="relative">
                 <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
@@ -385,8 +442,8 @@ export default function Home() {
           {!loading && (
             <RevealGroup stagger={0.05} className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {filteredTemplates.map((template) => (
-                <RevealItem key={template.id}>
-                  <div className="group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift">
+                <RevealItem key={template.id} className="h-full">
+                  <TiltCard className="group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm transition-shadow duration-300 hover:shadow-warm-lg">
                     <TemplateCardImage
                       imageUrl={template.imageUrl}
                       category={template.category}
@@ -422,7 +479,7 @@ export default function Home() {
                         </Link>
                       </div>
                     </div>
-                  </div>
+                  </TiltCard>
                 </RevealItem>
               ))}
             </RevealGroup>
@@ -485,7 +542,10 @@ export default function Home() {
                       <RIcon size={18} className="text-white/90" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm text-on-surface truncate">{pattern.title}</h3>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h3 className="font-semibold text-sm text-on-surface truncate">{pattern.title}</h3>
+                        <VerifiedBadge pattern={pattern} compact />
+                      </div>
                       <p className="text-xs text-on-surface-variant">{pattern.category || 'Custom'} · {pattern.difficulty}</p>
                     </div>
                     <ArrowRight size={17} className="text-on-surface-variant shrink-0 transition-transform group-hover:translate-x-1" />
@@ -495,6 +555,30 @@ export default function Home() {
             </div>
           </Reveal>
         </section>
+
+        {/* ── Editorial footer ── */}
+        <footer className="mt-24">
+          <ThreadDivider />
+          <Reveal className="mt-10 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">
+              Made stitch by stitch
+            </p>
+            <p className="display-wonk font-display mt-2 select-none text-[18vw] font-bold leading-none tracking-tight text-on-surface/[0.08] md:text-[11rem]">
+              Loopsy
+            </p>
+            <div className="-mt-6 flex flex-col items-center gap-4 pb-4 md:-mt-10">
+              <p className="max-w-md text-sm leading-relaxed text-on-surface-variant">
+                Patterns with the math proven — computed, never guessed.
+              </p>
+              <div className="flex items-center gap-2">
+                {['bg-yarn-coral', 'bg-yarn-marigold', 'bg-yarn-sage', 'bg-yarn-periwinkle', 'bg-yarn-rose'].map((c) => (
+                  <span key={c} className={`h-2 w-2 rounded-full ${c}`} />
+                ))}
+              </div>
+              <p className="text-xs text-on-surface-variant/70">© {new Date().getFullYear()} Loopsy</p>
+            </div>
+          </Reveal>
+        </footer>
       </main>
     </>
   );

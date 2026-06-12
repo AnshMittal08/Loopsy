@@ -4,6 +4,7 @@ import { motion as Motion } from 'motion/react';
 import { Menu } from 'lucide-react';
 import MobileNav from './MobileNav';
 import ThemeToggle from './ThemeToggle';
+import Magnetic from './motion/Magnetic';
 import { useAuth } from './AuthProvider';
 
 const LINKS = [
@@ -60,12 +61,14 @@ export default function TopNav() {
               {user.name.slice(0, 1).toUpperCase()}
             </Link>
           )}
-          <Link
-            to={user ? '/create' : '/account'}
-            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dim active:scale-95 transition-all shadow-warm"
-          >
-            {user ? 'Start Project' : 'Sign In'}
-          </Link>
+          <Magnetic>
+            <Link
+              to={user ? '/create' : '/account'}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm"
+            >
+              {user ? 'Start Project' : 'Sign In'}
+            </Link>
+          </Magnetic>
         </div>
 
         <div className="flex md:hidden items-center gap-2">

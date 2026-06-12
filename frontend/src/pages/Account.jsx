@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion as Motion } from 'motion/react';
+import { motion as Motion, useReducedMotion } from 'motion/react';
 import { Lock, BookMarked, Sparkles, CheckCircle2 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import { Reveal } from '../components/motion/Reveal';
@@ -270,6 +270,7 @@ export default function Account() {
 }
 
 function UsageBar({ label, used, limit }) {
+  const reduceMotion = useReducedMotion();
   const isUnlimited = limit === null;
   const pct = isUnlimited ? 0 : Math.min(100, Math.round((used / limit) * 100));
   const nearLimit = !isUnlimited && pct >= 80;
@@ -292,7 +293,7 @@ function UsageBar({ label, used, limit }) {
             className={`h-2 rounded-full ${nearLimit ? 'bg-tertiary' : 'bg-primary'}`}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
-            transition={{ type: 'spring', stiffness: 60, damping: 16, delay: 0.2 }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 60, damping: 16, delay: 0.2 }}
           />
         </div>
       )}
@@ -302,7 +303,7 @@ function UsageBar({ label, used, limit }) {
 
 function PlanCard({ name, price, features, highlight }) {
   return (
-    <div className={`rounded-xl px-5 py-5 border card-lift ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
+    <div className={`rounded-xl px-5 py-5 border glow-lift ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
       <div className="flex items-baseline justify-between mb-3">
         <p className="font-bold text-on-surface">{name}</p>
         <p className={`text-sm font-bold ${highlight ? 'text-primary' : 'text-on-surface-variant'}`}>{price}</p>

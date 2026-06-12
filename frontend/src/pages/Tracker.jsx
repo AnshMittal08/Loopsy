@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { motion as Motion, AnimatePresence } from 'motion/react';
+import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
   Lightbulb, X, Check, ChevronLeft, ChevronRight, Maximize2,
@@ -15,8 +15,9 @@ import StitchStep from '../components/StitchTooltip';
 import { useAuth } from '../components/AuthProvider';
 import AiTutor from '../components/AiTutor';
 import YarnBallProgress from '../components/motion/YarnBallProgress';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { fireConfetti } from '../lib/confetti';
-import { SPRING } from '../lib/motionTokens';
+import { SPRING, EASE } from '../lib/motionTokens';
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -32,12 +33,44 @@ const MILESTONES = [
   { at: 100, message: 'Finished! You made this. Take the victory lap. 🎉' },
 ];
 
+/** Pull the declared stitch count out of "(24 stitches)" for the row chip. */
+function stitchCountOf(instruction = '') {
+  const m = instruction.match(/\((\d+)\s*(?:stitches|sts|chains)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* Animated circular progress — used on My Projects cards. */
+function ProgressRing({ percent, size = 52 }) {
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-container-high)" strokeWidth={stroke} />
+        <Motion.circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={percent >= 100 ? 'var(--secondary)' : 'var(--primary)'}
+          strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c}
+          initial={{ strokeDashoffset: c }}
+          animate={{ strokeDashoffset: c * (1 - Math.min(100, percent) / 100) }}
+          transition={{ duration: 0.9, ease: 'easeOut' }}
+        />
+      </svg>
+      <span className="absolute inset-0 grid place-items-center text-[11px] font-bold text-on-surface">
+        {Math.round(percent)}%
+      </span>
+    </div>
+  );
+}
+
 /* ── Crochet Mode — fullscreen focus view ─────────────────────── */
 function CrochetMode({ pattern, progress, onToggleStep, onClose }) {
   const steps = pattern.steps || [];
   const firstOpen = steps.findIndex((_, i) => !(progress?.steps?.[i]?.completed ?? false));
   const [idx, setIdx] = useState(firstOpen >= 0 ? firstOpen : steps.length - 1);
   const wakeLockRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   const isDone = progress?.steps?.[idx]?.completed ?? false;
   const pct = progress?.progressPercentage ?? 0;
@@ -106,10 +139,10 @@ function CrochetMode({ pattern, progress, onToggleStep, onClose }) {
       {/* Progress thread */}
       <div className="h-1 bg-surface-container-low shrink-0">
         <Motion.div
-          className="h-1 bg-primary"
+          className="h-1 bg-gradient-to-r from-yarn-coral via-yarn-marigold to-yarn-periwinkle"
           initial={false}
           animate={{ width: `${pct}%` }}
-          transition={{ type: 'spring', stiffness: 60, damping: 16 }}
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 60, damping: 16 }}
         />
       </div>
 
@@ -131,6 +164,13 @@ function CrochetMode({ pattern, progress, onToggleStep, onClose }) {
             <p className={`font-display text-[1.7rem] md:text-[2.2rem] leading-snug text-on-surface ${isDone ? 'opacity-50 line-through' : ''}`}>
               <StitchStep instruction={steps[idx]?.instruction || ''} />
             </p>
+            {stitchCountOf(steps[idx]?.instruction) != null && (
+              <p className="mt-5">
+                <span className="rounded-full bg-secondary-container px-4 py-1.5 text-sm font-semibold text-on-secondary-container">
+                  {stitchCountOf(steps[idx]?.instruction)} stitches this round
+                </span>
+              </p>
+            )}
           </Motion.div>
         </AnimatePresence>
       </div>
@@ -181,9 +221,12 @@ export default function Tracker() {
   const [templateImageUrl, setTemplateImageUrl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [allPatterns, setAllPatterns] = useState(null);
+  const [progressMap, setProgressMap] = useState({});
   const [crochetMode, setCrochetMode] = useState(false);
+  const currentRowRef = useRef(null);
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
+  const reduceMotion = useReducedMotion();
   const theme = getPatternTheme(pattern?.category);
   const ThemeIcon = theme.icon;
 
@@ -194,8 +237,13 @@ export default function Tracker() {
       if (!user) { setLoading(false); return; }
       if (!patternId) {
         try {
-          const data = await fetchJson('/api/patterns');
-          if (!cancelled) setAllPatterns(data);
+          const [data, summary] = await Promise.all([
+            fetchJson('/api/patterns'),
+            fetchJson('/api/progress').catch(() => []),
+          ]);
+          if (cancelled) return;
+          setAllPatterns(data);
+          setProgressMap(Object.fromEntries(summary.map((s) => [s.patternId, s.progressPercentage ?? 0])));
         } catch {
           if (!cancelled) setAllPatterns([]);
         } finally {
@@ -246,6 +294,18 @@ export default function Tracker() {
     loadTracker();
     return () => { cancelled = true; };
   }, [patternId, user]);
+
+  // Keep the active row in view as rows are completed — but not on first
+  // load, where the studio header should be what greets you.
+  const lastPctRef = useRef(null);
+  useEffect(() => {
+    const pct = progress?.progressPercentage;
+    if (pct == null) return;
+    if (lastPctRef.current != null && lastPctRef.current !== pct) {
+      currentRowRef.current?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    }
+    lastPctRef.current = pct;
+  }, [progress?.progressPercentage, reduceMotion]);
 
   const toggleStep = async (stepIndex) => {
     if (!progress) return;
@@ -333,7 +393,7 @@ export default function Tracker() {
               </div>
             ) : (
               <Motion.div
-                className="space-y-3"
+                className="grid gap-4 sm:grid-cols-2"
                 initial="hidden"
                 animate="visible"
                 variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
@@ -341,20 +401,32 @@ export default function Tracker() {
                 {allPatterns.map((p) => {
                   const t = getPatternTheme(p.category);
                   const TIcon = t.icon;
+                  const pct = progressMap[p.id] ?? 0;
+                  const finished = pct >= 100;
                   return (
                     <Motion.div key={p.id} variants={{ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } }}>
                       <Link
                         to={`/tracker/${p.id}`}
-                        className="flex items-center gap-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm px-5 py-4 card-lift group"
+                        className="group block h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift"
                       >
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${t.accent}`}>
-                          <TIcon size={18} className="text-white/90" />
+                        <div className={`relative h-2 bg-gradient-to-r ${t.accent}`} />
+                        <div className="flex items-center gap-4 p-5">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${t.accent}`}>
+                            <TIcon size={19} className="text-white/90" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="font-semibold text-on-surface truncate">{p.title}</p>
+                              <VerifiedBadge pattern={p} compact />
+                            </div>
+                            <p className="text-xs text-on-surface-variant mt-0.5">{p.difficulty} · {p.category}</p>
+                            <p className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold ${finished ? 'text-secondary' : 'text-primary'}`}>
+                              {finished ? 'Finished — well made!' : pct > 0 ? 'In progress' : 'Ready to start'}
+                              <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+                            </p>
+                          </div>
+                          <ProgressRing percent={pct} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-on-surface truncate">{p.title}</p>
-                          <p className="text-xs text-on-surface-variant mt-0.5">{p.difficulty} · {p.category}</p>
-                        </div>
-                        <ArrowRight size={18} className="text-primary shrink-0 transition-transform group-hover:translate-x-1" />
                       </Link>
                     </Motion.div>
                   );
@@ -379,6 +451,7 @@ export default function Tracker() {
   const progressPercent = progress?.progressPercentage ?? 0;
   const steps = pattern?.steps || [];
   const nextIdx = steps.findIndex((_, i) => !(progress?.steps?.[i]?.completed ?? false));
+  const completedCount = steps.filter((_, i) => progress?.steps?.[i]?.completed ?? false).length;
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
@@ -395,30 +468,106 @@ export default function Tracker() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-5 md:p-8">
-          {/* Title row */}
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div>
+          {/* Studio header — title, live stats, yarn ball */}
+          <div className="flex flex-wrap items-start justify-between gap-5 mb-6">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary mb-1.5">Project Studio</p>
               <h1 className="font-display display-wonk text-2xl md:text-3xl font-bold text-on-surface leading-tight">{pattern.title}</h1>
               <p className="text-sm text-on-surface-variant mt-1">
                 {pattern.category || 'Custom'} · {pattern.difficulty}
+                <VerifiedBadge pattern={pattern} className="ml-2 align-text-bottom" />
                 {pattern.isFallback && (
                   <span className="ml-2 rounded-full bg-error-container px-2 py-0.5 text-xs font-semibold text-on-error-container">
                     AI fallback
                   </span>
                 )}
               </p>
-              <Motion.button
-                onClick={() => setCrochetMode(true)}
-                whileTap={{ scale: 0.96 }}
-                transition={SPRING.snappy}
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/8 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/15 transition-colors"
-              >
-                <Maximize2 size={13} />
-                Crochet Mode
-              </Motion.button>
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                {[
+                  { label: 'Rows done', value: `${completedCount} / ${steps.length}` },
+                  { label: 'Remaining', value: steps.length - completedCount },
+                  { label: 'Est. time', value: pattern.timeEstimate || '—' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl bg-surface-container-lowest border border-outline-variant/20 px-3.5 py-2 shadow-warm">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">{s.label}</p>
+                    <p className="text-sm font-bold text-on-surface">{s.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
             <YarnBallProgress percent={progressPercent} size={110} />
           </div>
+
+          {/* Up-next spotlight — the row you're working, front and center */}
+          {nextIdx >= 0 ? (
+            <Motion.section
+              layout
+              className="pulse-ring relative overflow-hidden rounded-2xl border border-primary/25 bg-surface-container-lowest shadow-warm-lg p-6 md:p-7 mb-6"
+            >
+              <div className="pointer-events-none absolute -top-12 -right-12 h-44 w-44 rounded-full bg-yarn-coral/12 blur-3xl blob-drift" />
+              <div className="relative">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                    Up next · Row {nextIdx + 1} of {steps.length}
+                  </span>
+                  {stitchCountOf(steps[nextIdx]?.instruction) != null && (
+                    <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-semibold text-on-secondary-container">
+                      {stitchCountOf(steps[nextIdx]?.instruction)} stitches
+                    </span>
+                  )}
+                </div>
+                <AnimatePresence mode="wait">
+                  <Motion.p
+                    key={nextIdx}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: EASE.out }}
+                    className="font-display text-lg md:text-[1.45rem] leading-snug text-on-surface max-w-3xl"
+                  >
+                    <StitchStep instruction={steps[nextIdx]?.instruction || ''} />
+                  </Motion.p>
+                </AnimatePresence>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <Motion.button
+                    onClick={() => toggleStep(nextIdx)}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={SPRING.snappy}
+                    className="shine-sweep inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md"
+                  >
+                    <Check size={16} />
+                    Mark row done
+                  </Motion.button>
+                  <Motion.button
+                    onClick={() => setCrochetMode(true)}
+                    whileTap={{ scale: 0.96 }}
+                    transition={SPRING.snappy}
+                    className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/8 px-5 py-3 text-sm font-semibold text-primary hover:bg-primary/15 transition-colors"
+                  >
+                    <Maximize2 size={14} />
+                    Crochet Mode
+                  </Motion.button>
+                </div>
+              </div>
+            </Motion.section>
+          ) : (
+            <Motion.section
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative overflow-hidden rounded-2xl border border-secondary/30 bg-secondary-container/40 shadow-warm-lg p-6 md:p-7 mb-6 text-center"
+            >
+              <p className="font-display text-xl md:text-2xl font-bold text-on-surface">Finished! You made this. 🎉</p>
+              <p className="mt-1.5 text-sm text-on-surface-variant">Every row checked — take the victory lap.</p>
+              <button
+                onClick={() => fireConfetti({ count: 160 })}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-on-secondary hover:opacity-90 transition-opacity"
+              >
+                <Sparkles size={15} />
+                Celebrate again
+              </button>
+            </Motion.section>
+          )}
 
           <div className="flex flex-col lg:flex-row gap-5 min-h-0">
             {/* Left panel */}
@@ -549,6 +698,7 @@ export default function Tracker() {
                   return (
                     <Motion.label
                       key={index}
+                      ref={isNext ? currentRowRef : undefined}
                       layout
                       transition={SPRING.gentle}
                       className={`flex items-start gap-3.5 p-3.5 rounded-xl cursor-pointer relative overflow-hidden transition-colors ${
@@ -567,7 +717,11 @@ export default function Tracker() {
                         />
                       )}
 
-                      <div className={`pt-0.5 ${isNext ? 'pl-2' : ''}`}>
+                      <Motion.div
+                        className={`pt-0.5 ${isNext ? 'pl-2' : ''}`}
+                        animate={{ scale: isCompleted ? [1, 1.35, 1] : 1 }}
+                        transition={{ duration: 0.4, times: [0, 0.4, 1], ease: 'easeOut' }}
+                      >
                         <input
                           type="checkbox"
                           checked={isCompleted}
@@ -575,17 +729,32 @@ export default function Tracker() {
                           className="accent-primary w-4 h-4"
                           aria-label={`Step ${index + 1}`}
                         />
-                      </div>
+                      </Motion.div>
 
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-bold mb-1 ${
-                          isCompleted ? 'line-through text-on-surface-variant' : isNext ? 'text-primary' : 'text-on-surface-variant'
+                        <p className={`text-xs font-bold mb-1 flex items-center gap-1.5 ${
+                          isCompleted ? 'text-on-surface-variant' : isNext ? 'text-primary' : 'text-on-surface-variant'
                         }`}>
                           Step {index + 1}
-                          {isCompleted && <span className="ml-1.5 font-normal opacity-60">· done</span>}
+                          {stitchCountOf(stepData.instruction) != null && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              isCompleted ? 'bg-surface-container text-on-surface-variant' : 'bg-secondary-container/70 text-on-secondary-container'
+                            }`}>
+                              {stitchCountOf(stepData.instruction)} sts
+                            </span>
+                          )}
+                          {isCompleted && <span className="font-normal opacity-60">· done</span>}
                         </p>
-                        <p className={`text-sm leading-relaxed ${isCompleted ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
+                        <p className={`relative text-sm leading-relaxed transition-colors ${isCompleted ? 'text-on-surface-variant' : 'text-on-surface'}`}>
                           <StitchStep instruction={stepData.instruction} />
+                          {/* Strike-through that draws itself across the row */}
+                          <Motion.span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-0 top-1/2 h-[1.5px] bg-on-surface-variant/80"
+                            initial={false}
+                            animate={{ width: isCompleted ? '100%' : '0%' }}
+                            transition={{ duration: reduceMotion ? 0 : 0.45, ease: EASE.out }}
+                          />
                         </p>
                         <AnimatePresence>
                           {isNext && (

@@ -4,9 +4,9 @@ const insertPatternStmt = db.prepare(`
   INSERT INTO patterns (
     id, userId, title, templateId, color, size, steps, difficulty, category, tags,
     materials, hookSize, yarnWeight, timeEstimate, finishedSize, notes,
-    promptSummary, isAIGenerated, isFallback, createdAt
+    promptSummary, isAIGenerated, isFallback, verified, isExperimental, createdAt
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const getAllPatternsStmt = db.prepare(`
@@ -62,6 +62,8 @@ function createPattern(pattern) {
     pattern.promptSummary ?? null,
     pattern.isAIGenerated ? 1 : 0,
     pattern.isFallback ? 1 : 0,
+    pattern.verified ? 1 : 0,
+    pattern.isExperimental ? 1 : 0,
     pattern.createdAt
   );
 
@@ -84,7 +86,9 @@ function deserializePatternRow(row) {
       size: row.size
     },
     isAIGenerated: Boolean(row.isAIGenerated),
-    isFallback: Boolean(row.isFallback)
+    isFallback: Boolean(row.isFallback),
+    verified: Boolean(row.verified),
+    isExperimental: Boolean(row.isExperimental)
   };
 }
 
