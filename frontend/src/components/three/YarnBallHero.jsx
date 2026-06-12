@@ -8,8 +8,8 @@ import { OrbitControls, Float } from '@react-three/drei';
 import { useReducedMotion } from 'motion/react';
 import * as THREE from 'three';
 
-const CORE = '#E05A3A';
-const STRANDS = ['#FF6B5B', '#FF7E66', '#F2604C', '#FF8A70', '#F5A623', '#7B8CDE'];
+const CORE = '#5B3FD6';
+const STRANDS = ['#8B7CF6', '#9D8DFF', '#7A66F0', '#A99CFF', '#F472B6', '#4ECBA0'];
 
 /** A pole-to-pole spherical winding, tilted to a random great-circle plane. */
 function windingCurve(radius, turns, phase, seed) {
@@ -93,8 +93,8 @@ export default function YarnBallHero({ className = '' }) {
       >
         <ambientLight intensity={0.85} />
         <directionalLight position={[4, 5, 3]} intensity={1.6} />
-        <pointLight position={[-4, -2, -3]} intensity={6} color="#7B8CDE" />
-        <pointLight position={[3, -3, 4]} intensity={4} color="#F5A623" />
+        <pointLight position={[-4, -2, -3]} intensity={6} color="#F472B6" />
+        <pointLight position={[3, -3, 4]} intensity={2} color="#4ECBA0" />
         <Float enabled={!reducedMotion} speed={1.6} rotationIntensity={0.25} floatIntensity={0.7}>
           <YarnBall spinning={!reducedMotion} />
         </Float>

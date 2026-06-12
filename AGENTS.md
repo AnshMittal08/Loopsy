@@ -33,12 +33,12 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd`.
 
 The frontend uses the **Atelier** design language: dual theme, warm/tactile, animated. All tokens live in **one** place:
 
-- `frontend/src/index.css` — raw palette variables per theme (`:root` = "Undyed" light, `html[data-theme="dark"]` = "Midnight Wool" dark) mapped to Tailwind tokens via the `@theme inline` block. `tailwind.config.js` was removed — never reintroduce a second token source.
+- `frontend/src/index.css` — raw palette variables per theme (`:root` = "Cloud" light, `html[data-theme="dark"]` = "Ink" dark) mapped to Tailwind tokens via the `@theme inline` block. `tailwind.config.js` was removed — never reintroduce a second token source.
 
 **Key tokens** (each flips per theme — always use the Tailwind class, never the hex):
-- `primary` — terracotta coral (`#C2410C` light / `#FF7A50` dark) — buttons, active states
-- `secondary` — sage; `tertiary` — periwinkle; `error` — warm red
-- `surface` + `surface-container-*` ladder — warm cream (light) / warm charcoal (dark)
+- `primary` — vivid violet (`#6C4CE8` light / `#A78BFF` dark) — buttons, active states
+- `secondary` — mint; `tertiary` — rose; `error` — warm red
+- `surface` + `surface-container-*` ladder — cool white (light) / violet-tinted charcoal (dark)
 - `yarn-coral/marigold/sage/periwinkle/rose` — theme-stable category accents
 
 **Typography:**

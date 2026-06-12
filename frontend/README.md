@@ -14,13 +14,14 @@ React 19 + Vite client for Loopsy.
 - Account page: usage bars, upgrade plan cards
 - Design system: Atelier — dual theme, yarn accents, Fraunces display font, motion animation system
 
-## Design System — "Atelier"
+## Design System — "Atelier · Ink & Violet"
 
 **Dual theme** (switched via `html[data-theme]`, persisted by `ThemeToggle`):
-- **Midnight Wool** (dark): deep warm charcoal `#16120E` surfaces, soft cream text
-- **Undyed** (light): warm oatmeal `#FAF5EC` surfaces, espresso text
-- Primary terracotta coral, secondary sage, tertiary periwinkle — each with light/dark variants
-- **Yarn accents** (theme-stable, used per category): coral `#FF6B5B`, marigold `#F5A623`, sage `#7FA37A`, periwinkle `#7B8CDE`, rose `#E8728C`
+- **Ink** (dark): violet-tinted charcoal `#0E0D15` surfaces, soft lavender-white text
+- **Cloud** (light): cool white `#F7F7FB` surfaces, ink text
+- Primary vivid violet, secondary mint, tertiary rose — each with light/dark variants
+- **Yarn accents** (theme-stable, used per category): coral `#FF6584`, marigold `#FFB02E`, sage/mint `#4ECBA0`, periwinkle/violet `#8B7CF6`, rose `#F472B6`
+- **Aurora wash** — faint violet/rose/mint radial glows behind every page (`--aurora-strength`)
 - Film-grain overlay (`body::before`) so surfaces feel like fabric
 
 **Fonts:** Fraunces (variable serif display, `font-display`) + Plus Jakarta Sans (body)

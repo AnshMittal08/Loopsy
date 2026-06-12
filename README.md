@@ -79,7 +79,7 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - Account page shows animated progress bars ("X of Y used this month") and upgrade cards (coming soon)
 
 ### Design System — "Atelier"
-- **Dual theme**: **Midnight Wool** (dark — deep warm charcoal `#16120E`, soft cream text) and **Undyed** (light — warm oatmeal `#FAF5EC`, espresso text), toggled via `ThemeToggle` (`html[data-theme]`)
+- **Dual theme**: **Ink** (dark — violet-tinted charcoal `#0E0D15`, lavender-white text) and **Cloud** (light — cool white `#F7F7FB`, ink text), toggled via `ThemeToggle` (`html[data-theme]`)
 - **Yarn accent palette** used semantically per category: coral, marigold, sage, periwinkle, rose
 - Subtle film-grain texture overlay so surfaces feel like fabric, not glass
 - **Fraunces** serif display font (variable axes) + **Plus Jakarta Sans** body text
