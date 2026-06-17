@@ -29,6 +29,15 @@ export async function POST(request) {
 
     if (!stream) {
       const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
+      // A fallback means every AI provider failed (e.g. no API key on the
+      // backend). Surface it as an outage — don't save a junk pattern and
+      // don't burn the user's quota on a failed generation.
+      if (pattern.isFallback) {
+        return NextResponse.json(
+          { error: "AI generation is temporarily unavailable. Please try again in a moment.", code: "AI_UNAVAILABLE" },
+          { status: 503 }
+        );
+      }
       pattern.userId = user.id;
       createPattern(pattern);
 
@@ -51,6 +60,11 @@ export async function POST(request) {
             if (e.type === "step") send("step", { row: e.row, instruction: e.instruction });
             else send("status", { stage: e.stage, message: e.message });
           });
+          // Fallback = every provider failed; treat as an outage, not a result.
+          if (pattern.isFallback) {
+            send("error", { error: "AI generation is temporarily unavailable. Please try again in a moment.", code: "AI_UNAVAILABLE" });
+            return;
+          }
           pattern.userId = user.id;
           createPattern(pattern);
 

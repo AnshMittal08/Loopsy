@@ -27,6 +27,13 @@ export async function POST(request) {
     const raw = difficulty || "beginner";
     const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
     const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
+    // Fallback = every provider failed; surface as an outage, don't save or charge.
+    if (pattern.isFallback) {
+      return NextResponse.json(
+        { error: "AI generation is temporarily unavailable. Please try again in a moment.", code: "AI_UNAVAILABLE" },
+        { status: 503 }
+      );
+    }
     pattern.userId = user.id;
     createPattern(pattern);
 
