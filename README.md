@@ -38,6 +38,13 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - Always returns a usable pattern — clearly labeled fallback if AI is unavailable
 - Prompt caching (`cache_control: ephemeral`) on all Claude calls — ~90% cost reduction on repeated system-prompt tokens
 
+### Vision Studio — photo → pattern (M3)
+- Snap or upload up to 3 photos of a finished crochet item; Claude vision (Sonnet) decomposes it into the **same Design Spec** the text path produces
+- Returns a **confidence-scored, plain-English readout** ("bee amigurumi · ~6 cm · worked in rounds") shown as **editable chips** — correct the size, parts, or colors *before* compiling, so the math comes out right
+- The approved spec compiles through the **exact M2 engine** (compile → validate → humanize) and earns the same "Verified math ✓" badge — vision adds zero new arithmetic
+- `POST /api/ai/analyze-image` (the metered vision call) → `POST /api/ai/generate-from-spec` (deterministic, streamed). Images are passed through to Claude, never stored
+- Trial gating: Free gets **1 lifetime vision trial**, Maker Pro spends a monthly generation, Creator is unlimited. AI output is labeled personal-use-only
+
 ### Pattern Compiler — "Verified math ✓" (M2)
 - Deterministic crochet geometry engine in `backend/lib/engine/` — stitch counts are **computed, never guessed**
 - **Gauge tables** by yarn weight (with tight amigurumi tension variants) drive every dimension→stitch conversion
