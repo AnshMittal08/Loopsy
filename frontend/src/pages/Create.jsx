@@ -348,6 +348,12 @@ export default function Create() {
         }
       }
 
+      // A fallback pattern means the AI was unavailable — never present it as a
+      // successful result (guards against an older backend returning it as 201).
+      if (data?.isFallback) {
+        throw new Error('AI generation is temporarily unavailable. Please try again in a moment.');
+      }
+
       const progressRes = await fetch('/api/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
