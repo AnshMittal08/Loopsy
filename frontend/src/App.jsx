@@ -5,6 +5,7 @@ import CursorDot from './components/motion/CursorDot';
 import ScrollThread from './components/motion/ScrollThread';
 import Home from './pages/Home';
 import Create from './pages/Create';
+import Design from './pages/Design';
 import Tracker from './pages/Tracker';
 import TemplateDetail from './pages/TemplateDetail';
 import Account from './pages/Account';
@@ -21,6 +22,7 @@ function App() {
             <Route path="/account" element={<Account />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/create/:templateId?" element={<Create />} />
+            <Route path="/design" element={<Design />} />
             <Route path="/tracker/:patternId?" element={<Tracker />} />
           </Routes>
         )}
