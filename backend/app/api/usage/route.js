@@ -10,7 +10,7 @@ export async function GET(request) {
   const plan = user.subscription?.plan || "free";
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
-  const generationLimit = limits.generations === Infinity ? null : limits.generations;
+  const generationLimit = limits.generation === Infinity ? null : limits.generation;
   const tutorLimit = limits.tutor === Infinity ? null : limits.tutor;
 
   return NextResponse.json({
