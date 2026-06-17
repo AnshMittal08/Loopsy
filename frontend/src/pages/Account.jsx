@@ -136,6 +136,18 @@ export default function Account() {
                   <div className="space-y-3">
                     <UsageBar label="AI Generations" used={usage.used.generations} limit={usage.limits.generations} />
                     <UsageBar label="AI Tutor" used={usage.used.tutor} limit={usage.limits.tutor} />
+                    {usage.vision?.mode === 'trial' ? (
+                      <UsageBar label="Vision Studio (photo → pattern)" used={usage.vision.trialUsed} limit={usage.vision.trialLimit} unit="free trial" />
+                    ) : (
+                      <div className="rounded-xl bg-surface-container-low p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-on-surface">Vision Studio (photo → pattern)</span>
+                          <span className="text-xs font-semibold text-secondary">
+                            {usage.vision?.mode === 'unlimited' ? 'Unlimited' : 'Uses a generation'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </Reveal>
@@ -269,7 +281,7 @@ export default function Account() {
   );
 }
 
-function UsageBar({ label, used, limit }) {
+function UsageBar({ label, used, limit, unit = 'used' }) {
   const reduceMotion = useReducedMotion();
   const isUnlimited = limit === null;
   const pct = isUnlimited ? 0 : Math.min(100, Math.round((used / limit) * 100));
@@ -283,7 +295,7 @@ function UsageBar({ label, used, limit }) {
           <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">Unlimited</span>
         ) : (
           <span className={`text-xs font-medium ${nearLimit ? 'text-tertiary font-semibold' : 'text-on-surface-variant'}`}>
-            {used} of {limit} used
+            {used} of {limit} {unit}
           </span>
         )}
       </div>

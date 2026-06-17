@@ -27,17 +27,31 @@ const DIM_LABEL = {
   sideCm: 'Side',
 };
 
-function fileToImage(file) {
+function blobToImage(blob, mediaType, name) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = String(reader.result);
       const data = result.split(',')[1]; // strip the data: URL prefix
-      resolve({ media_type: file.type, data, preview: result, name: file.name });
+      resolve({ media_type: mediaType, data, preview: result, name });
     };
     reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
+}
+
+// iPhones shoot HEIC/HEIF by default, which Claude vision can't read. Detect
+// it (the browser often reports an empty MIME type, so also check the name)
+// and convert to JPEG in the browser via a lazily-loaded encoder, so the
+// heavy WASM library never enters the initial bundle.
+const HEIC_RE = /\.(heic|heif)$/i;
+function isHeic(file) {
+  return /image\/(heic|heif)/i.test(file.type) || HEIC_RE.test(file.name || '');
+}
+async function convertHeic(file) {
+  const heic2any = (await import('heic2any')).default;
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+  return Array.isArray(out) ? out[0] : out;
 }
 
 /* ── Upload zone ───────────────────────────────────────────────── */
@@ -45,21 +59,36 @@ function UploadZone({ images, setImages, disabled }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState(null);
+  const [converting, setConverting] = useState(false);
 
   const addFiles = useCallback(async (files) => {
     setLocalError(null);
     const accepted = [];
     for (const file of files) {
-      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
-        setLocalError('Only JPEG, PNG, WebP, or GIF images are supported.');
-        continue;
+      try {
+        let blob = file;
+        let mediaType = file.type;
+        let name = file.name;
+        if (isHeic(file)) {
+          setConverting(true);
+          blob = await convertHeic(file);
+          mediaType = 'image/jpeg';
+          name = (file.name || 'photo').replace(HEIC_RE, '') + '.jpg';
+        }
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(mediaType)) {
+          setLocalError('Only JPEG, PNG, WebP, GIF, or HEIC images are supported.');
+          continue;
+        }
+        if (blob.size > MAX_BYTES) {
+          setLocalError('Each image must be under 5 MB.');
+          continue;
+        }
+        accepted.push(await blobToImage(blob, mediaType, name));
+      } catch {
+        setLocalError("Couldn't read that image. If it's a HEIC photo, try converting it to JPEG first.");
       }
-      if (file.size > MAX_BYTES) {
-        setLocalError('Each image must be under 5 MB.');
-        continue;
-      }
-      accepted.push(await fileToImage(file));
     }
+    setConverting(false);
     setImages((prev) => [...prev, ...accepted].slice(0, MAX_IMAGES));
   }, [setImages]);
 
@@ -91,7 +120,7 @@ function UploadZone({ images, setImages, disabled }) {
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
           multiple
           capture="environment"
           className="hidden"
@@ -99,6 +128,11 @@ function UploadZone({ images, setImages, disabled }) {
         />
       </div>
 
+      {converting && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <ThreadSpinner size={13} /> Converting HEIC photo…
+        </p>
+      )}
       {localError && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-error"><AlertCircle size={13} /> {localError}</p>
       )}
@@ -161,11 +195,11 @@ function AnalysisReview({ analysis, onChange, onCompile, onDiscard, disabled }) 
           </span>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${conf.cls}`}>{conf.label}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <Motion.div initial="hidden" animate="visible" variants={staggerChildren(0.05)} className="flex flex-wrap gap-2">
           {observed.map((o, i) => (
-            <span key={i} className="rounded-full bg-surface px-3 py-1.5 text-xs text-on-surface-variant">{o}</span>
+            <Motion.span key={i} variants={fadeRise} className="rounded-full bg-surface px-3 py-1.5 text-xs text-on-surface-variant">{o}</Motion.span>
           ))}
-        </div>
+        </Motion.div>
         <p className="mt-3 flex items-center gap-1.5 text-xs text-on-surface-variant">
           <Pencil size={12} className="text-primary" />
           Correct anything below before generating — fixing the size or colors now makes the pattern accurate.
@@ -258,6 +292,7 @@ function AnalysisReview({ analysis, onChange, onCompile, onDiscard, disabled }) 
 /* ── Vision Studio container ───────────────────────────────────── */
 export default function VisionStudio({ onCompile, disabled }) {
   const [images, setImages] = useState([]);
+  const [hint, setHint] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
@@ -273,6 +308,7 @@ export default function VisionStudio({ onCompile, disabled }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           images: images.map(({ media_type, data }) => ({ media_type, data })),
+          hint: hint.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -291,7 +327,7 @@ export default function VisionStudio({ onCompile, disabled }) {
     }
   };
 
-  const reset = () => { setImages([]); setAnalysis(null); setError(null); setTrialUsed(false); };
+  const reset = () => { setImages([]); setHint(''); setAnalysis(null); setError(null); setTrialUsed(false); };
 
   if (analyzing) {
     return (
@@ -324,6 +360,21 @@ export default function VisionStudio({ onCompile, disabled }) {
         {!analysis ? (
           <Motion.div key="upload" exit={{ opacity: 0 }}>
             <UploadZone images={images} setImages={setImages} disabled={disabled} />
+
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-on-surface mb-2">
+                Add a note <span className="font-normal text-on-surface-variant">(optional)</span>
+              </label>
+              <input
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                disabled={disabled}
+                maxLength={200}
+                placeholder="Anything the photo can't show — e.g. it's 10 cm tall, mustard yarn"
+                className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+              />
+            </div>
+
             <div className="mt-4 flex items-start gap-2 rounded-xl bg-tertiary-container/40 border border-tertiary/20 p-4">
               <Camera size={15} className="mt-0.5 shrink-0 text-tertiary" />
               <p className="text-xs text-on-surface-variant leading-relaxed">
