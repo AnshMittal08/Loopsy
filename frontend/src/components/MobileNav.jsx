@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, BookOpen, User, X } from 'lucide-react';
+import { Compass, Sparkles, BookOpen, User, X, Shapes } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 
 function NavItem({ to, icon, label, active }) {
@@ -72,6 +72,7 @@ function MobileNavContent({ onClose }) {
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           <NavItem to="/" icon={Compass} label="Explore" active={isActive('/')} />
           <NavItem to="/create" icon={Sparkles} label="Create" active={isActive('/create')} />
+          <NavItem to="/design" icon={Shapes} label="Design Canvas" active={isActive('/design')} />
           <NavItem to="/tracker" icon={BookOpen} label="In Progress" active={isActive('/tracker')} />
           <NavItem to="/account" icon={User} label="Account" active={isActive('/account')} />
         </nav>

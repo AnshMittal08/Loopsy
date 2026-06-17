@@ -1,0 +1,42 @@
+const db = require('../db');
+const { randomUUID } = require('crypto');
+
+// Design Canvas (M4): a saved canvas state. `spec` is the Design Spec JSON the
+// canvas assembles; `patternId` links to the compiled pattern once generated.
+
+const insertStmt = db.prepare(`
+  INSERT INTO designs (id, userId, name, spec, patternId, createdAt, updatedAt)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
+const getByIdStmt = db.prepare(`SELECT * FROM designs WHERE id = ?`);
+const getForUserStmt = db.prepare(`SELECT * FROM designs WHERE userId = ? ORDER BY updatedAt DESC`);
+const setPatternStmt = db.prepare(`UPDATE designs SET patternId = ?, updatedAt = ? WHERE id = ?`);
+
+function deserialize(row) {
+  if (!row) return null;
+  let spec = {};
+  try { spec = JSON.parse(row.spec); } catch { spec = {}; }
+  return { ...row, spec };
+}
+
+function createDesign({ userId = null, name, spec }) {
+  const now = new Date().toISOString();
+  const id = randomUUID();
+  insertStmt.run(id, userId, name || 'Untitled design', JSON.stringify(spec ?? {}), null, now, now);
+  return deserialize(getByIdStmt.get(id));
+}
+
+function getDesignById(id) {
+  return deserialize(getByIdStmt.get(id));
+}
+
+function getDesignsForUser(userId) {
+  return getForUserStmt.all(userId).map(deserialize);
+}
+
+function linkPattern(id, patternId) {
+  setPatternStmt.run(patternId, new Date().toISOString(), id);
+}
+
+module.exports = { createDesign, getDesignById, getDesignsForUser, linkPattern };

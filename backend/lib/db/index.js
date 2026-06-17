@@ -109,6 +109,16 @@ function initializeDatabase(db) {
       UNIQUE(userId, type, month)
     );
 
+    CREATE TABLE IF NOT EXISTS designs (
+      id TEXT PRIMARY KEY,
+      userId TEXT,
+      name TEXT NOT NULL,
+      spec TEXT NOT NULL,
+      patternId TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_progress_patternId ON progress(patternId);
     CREATE INDEX IF NOT EXISTS idx_patterns_userId ON patterns(userId);
     CREATE INDEX IF NOT EXISTS idx_progress_userId ON progress(userId);
@@ -117,6 +127,7 @@ function initializeDatabase(db) {
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_patterns_templateId ON patterns(templateId);
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_type_month ON ai_usage(userId, type, month);
+    CREATE INDEX IF NOT EXISTS idx_designs_userId ON designs(userId);
   `);
 
   const patternColumns = db.prepare(`PRAGMA table_info(patterns)`).all();
