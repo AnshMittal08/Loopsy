@@ -6,6 +6,7 @@ import ScrollThread from './components/motion/ScrollThread';
 import Home from './pages/Home';
 import Create from './pages/Create';
 import Design from './pages/Design';
+import DesignShare from './pages/DesignShare';
 import Tracker from './pages/Tracker';
 import TemplateDetail from './pages/TemplateDetail';
 import Account from './pages/Account';
@@ -23,6 +24,7 @@ function App() {
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/create/:templateId?" element={<Create />} />
             <Route path="/design" element={<Design />} />
+            <Route path="/d/:id" element={<DesignShare />} />
             <Route path="/tracker/:patternId?" element={<Tracker />} />
           </Routes>
         )}

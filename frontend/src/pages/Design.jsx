@@ -1,30 +1,18 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion as Motion, AnimatePresence } from 'motion/react';
-import { Menu, ArrowLeft, Lock, Sparkles, RotateCcw, Check } from 'lucide-react';
+import { motion as Motion } from 'motion/react';
+import { Menu, ArrowLeft, Lock, Sparkles, Check, Share2 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { Reveal } from '../components/motion/Reveal';
 import { ThreadSpinner } from '../components/motion/Thread';
 import Magnetic from '../components/motion/Magnetic';
+import CreaturePreview from '../components/CreaturePreview';
+import { PALETTE } from '../lib/yarnColors';
 import { SPRING } from '../lib/motionTokens';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
 import { useAuth } from '../components/AuthProvider';
-
-// Yarn palette — names map to swatches; the name is what the pattern records.
-const PALETTE = [
-  { name: 'coral', hex: '#FF6584' },
-  { name: 'marigold', hex: '#FFB02E' },
-  { name: 'mint', hex: '#4ECBA0' },
-  { name: 'violet', hex: '#8B7CF6' },
-  { name: 'rose', hex: '#F472B6' },
-  { name: 'cream', hex: '#EFE3C8' },
-  { name: 'chocolate', hex: '#8A5A3B' },
-  { name: 'charcoal', hex: '#3A3550' },
-  { name: 'white', hex: '#F4F4FA' },
-];
-const hexOf = (name) => (PALETTE.find((p) => p.name === name) || PALETTE[0]).hex;
 
 // Part catalogue — each maps to a compiler shape with base (medium) dimensions
 // in cm. `core` parts are always on; others toggle. The spec is computed from
@@ -40,83 +28,6 @@ const PARTS = {
 };
 
 const round1 = (n) => Math.round(n * 10) / 10;
-
-/* ── Live creature preview — parts positioned + sized by the config ── */
-function CreaturePreview({ enabled, colors, size, ratio, limb }) {
-  const headR = 30 * size * ratio;
-  const bodyRx = 26 * size;
-  const bodyRy = 34 * size;
-  const cx = 110;
-  const headCy = 70;
-  const bodyCy = headCy + headR + bodyRy - 6;
-  const limbH = 30 * size * limb;
-
-  const spring = { type: 'spring', stiffness: 200, damping: 18 };
-
-  return (
-    <svg viewBox="0 0 220 280" className="h-full w-full">
-      {/* soft ground shadow */}
-      <ellipse cx={cx} cy={262} rx={bodyRx * 1.1} ry={9} fill="rgba(0,0,0,0.18)" />
-
-      {/* tail */}
-      <AnimatePresence>
-        {enabled.tail && (
-          <Motion.circle
-            cx={cx + bodyRx - 4} cy={bodyCy + bodyRy - 14} r={9 * size}
-            fill={hexOf(colors.tail)} initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={spring}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* legs */}
-      <AnimatePresence>
-        {enabled.legs && (
-          <Motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={spring}>
-            <rect x={cx - bodyRx * 0.55 - 6} y={bodyCy + bodyRy - 8} width={12 * size} height={limbH} rx={6 * size} fill={hexOf(colors.legs)} />
-            <rect x={cx + bodyRx * 0.55 - 6} y={bodyCy + bodyRy - 8} width={12 * size} height={limbH} rx={6 * size} fill={hexOf(colors.legs)} />
-          </Motion.g>
-        )}
-      </AnimatePresence>
-
-      {/* arms */}
-      <AnimatePresence>
-        {enabled.arms && (
-          <Motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={spring}>
-            <rect x={cx - bodyRx - 8} y={bodyCy - 8} width={11 * size} height={limbH} rx={5.5 * size} fill={hexOf(colors.arms)} transform={`rotate(18 ${cx - bodyRx} ${bodyCy})`} />
-            <rect x={cx + bodyRx - 3} y={bodyCy - 8} width={11 * size} height={limbH} rx={5.5 * size} fill={hexOf(colors.arms)} transform={`rotate(-18 ${cx + bodyRx} ${bodyCy})`} />
-          </Motion.g>
-        )}
-      </AnimatePresence>
-
-      {/* body */}
-      <Motion.ellipse cx={cx} cy={bodyCy} rx={bodyRx} ry={bodyRy} fill={hexOf(colors.body)} animate={{ rx: bodyRx, ry: bodyRy, cy: bodyCy }} transition={spring} />
-
-      {/* ears */}
-      <AnimatePresence>
-        {enabled.ears && (
-          <Motion.g initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={spring}>
-            <circle cx={cx - headR * 0.6} cy={headCy - headR * 0.7} r={10 * size} fill={hexOf(colors.ears)} />
-            <circle cx={cx + headR * 0.6} cy={headCy - headR * 0.7} r={10 * size} fill={hexOf(colors.ears)} />
-          </Motion.g>
-        )}
-      </AnimatePresence>
-
-      {/* head */}
-      <Motion.circle cx={cx} cy={headCy} r={headR} fill={hexOf(colors.head)} animate={{ r: headR }} transition={spring} />
-
-      {/* eyes */}
-      <circle cx={cx - headR * 0.35} cy={headCy - 2} r={3.2} fill="#1A1726" />
-      <circle cx={cx + headR * 0.35} cy={headCy - 2} r={3.2} fill="#1A1726" />
-
-      {/* muzzle */}
-      <AnimatePresence>
-        {enabled.muzzle && (
-          <Motion.circle cx={cx} cy={headCy + headR * 0.35} r={11 * size} fill={hexOf(colors.muzzle)} initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={spring} />
-        )}
-      </AnimatePresence>
-    </svg>
-  );
-}
 
 export default function Design() {
   const { user, loading: authLoading } = useAuth();
@@ -137,6 +48,8 @@ export default function Design() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareMsg, setShareMsg] = useState(null);
 
   // Compute the Design Spec from the current canvas config.
   const spec = useMemo(() => {
@@ -154,6 +67,27 @@ export default function Design() {
     }
     return { name: name || 'Custom Creature', category: 'Amigurumi', yarnWeight: 'DK', parts, assembly: [], embellishments: [] };
   }, [enabled, colors, size, ratio, limb, name]);
+
+  // Save the design and copy its public share link to the clipboard.
+  const shareDesign = async () => {
+    setSharing(true); setError(null);
+    try {
+      const res = await fetch('/api/designs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: spec.name, spec }),
+      });
+      const design = await res.json();
+      if (!res.ok) throw new Error(design.error || 'Could not create share link');
+      const url = `${window.location.origin}/d/${design.id}`;
+      try { await navigator.clipboard.writeText(url); setShareMsg('Link copied!'); }
+      catch { setShareMsg('Link ready'); window.prompt('Share this design:', url); }
+      setTimeout(() => setShareMsg(null), 2500);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const generate = async () => {
     setBusy(true); setError(null); setStatus('Computing every stitch…');
@@ -239,11 +173,18 @@ export default function Design() {
             <Reveal className="lg:sticky lg:top-8 self-start rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
               <div className="relative aspect-[4/5] bg-gradient-to-b from-surface-container-low to-surface-container">
                 <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
-                <CreaturePreview enabled={enabled} colors={colors} size={size} ratio={ratio} limb={limb} />
+                <CreaturePreview spec={spec} />
               </div>
               <div className="flex items-center gap-2 border-t border-outline-variant/15 px-4 py-3">
                 <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
-                <span className="text-xs text-on-surface-variant">{spec.parts.length} parts</span>
+                <button
+                  onClick={shareDesign}
+                  disabled={sharing}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50"
+                >
+                  {shareMsg ? <Check size={13} className="text-secondary" /> : <Share2 size={13} />}
+                  {shareMsg || 'Share'}
+                </button>
               </div>
             </Reveal>
 
