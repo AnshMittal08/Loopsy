@@ -47,30 +47,53 @@ function getTemplateById(id) {
   return deserialize(db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
 }
 
+// Templates are canonical, code-defined content (not user-editable). Seeding
+// therefore reconciles the DB to the code: insert any missing template and
+// update any whose content has drifted (e.g. a corrected stitch count), so
+// fixes ship to existing databases without a manual migration. createdAt is
+// preserved on rows that already exist.
 function seedTemplates(templates) {
-  const count = db.prepare('SELECT COUNT(*) as c FROM templates').get().c;
-  if (count > 0) return;
-
-  const insert = db.prepare(`
-    INSERT OR IGNORE INTO templates
+  const upsert = db.prepare(`
+    INSERT INTO templates
       (id, name, description, difficulty, category, tags, imageUrl,
        hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPattern, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (@id, @name, @description, @difficulty, @category, @tags, @imageUrl,
+       @hookSize, @yarnWeight, @timeEstimate, @finishedSize, @materials, @notes, @defaultPattern, @createdAt)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      difficulty = excluded.difficulty,
+      category = excluded.category,
+      tags = excluded.tags,
+      imageUrl = excluded.imageUrl,
+      hookSize = excluded.hookSize,
+      yarnWeight = excluded.yarnWeight,
+      timeEstimate = excluded.timeEstimate,
+      finishedSize = excluded.finishedSize,
+      materials = excluded.materials,
+      notes = excluded.notes,
+      defaultPattern = excluded.defaultPattern
   `);
 
   const runSeed = db.transaction(() => {
     for (const t of templates) {
-      insert.run(
-        t.id, t.name, t.description, t.difficulty, t.category,
-        JSON.stringify(t.tags ?? []),
-        t.imageUrl ?? null,
-        t.hookSize ?? null, t.yarnWeight ?? null,
-        t.timeEstimate ?? null, t.finishedSize ?? null,
-        JSON.stringify(t.materials ?? []),
-        JSON.stringify(t.notes ?? []),
-        JSON.stringify(t.defaultPattern ?? []),
-        new Date().toISOString()
-      );
+      upsert.run({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        difficulty: t.difficulty,
+        category: t.category,
+        tags: JSON.stringify(t.tags ?? []),
+        imageUrl: t.imageUrl ?? null,
+        hookSize: t.hookSize ?? null,
+        yarnWeight: t.yarnWeight ?? null,
+        timeEstimate: t.timeEstimate ?? null,
+        finishedSize: t.finishedSize ?? null,
+        materials: JSON.stringify(t.materials ?? []),
+        notes: JSON.stringify(t.notes ?? []),
+        defaultPattern: JSON.stringify(t.defaultPattern ?? []),
+        createdAt: new Date().toISOString(),
+      });
     }
   });
   runSeed();
@@ -186,14 +209,13 @@ const TEMPLATE_SEED = [
     materials: ['1 skein worsted yarn', '5.0 mm hook', 'Stitch marker', 'Tapestry needle'],
     notes: ['Work loosely for a comfortable fit. Block lightly for best shape.'],
     defaultPattern: [
-      'Magic ring. Chain 3 (counts as first double crochet).',
-      'Round 1: 11 double crochet into ring. Slip stitch to top of chain 3 to join. (12 stitches)',
-      'Round 2: Chain 3, double crochet in same stitch. 2 double crochet in each stitch around. Slip stitch to join. (24 stitches)',
-      'Round 3: Chain 3, double crochet in same stitch. [Double crochet in next stitch, 2 double crochet in next stitch] repeat 11 times. Slip stitch to join. (36 stitches)',
-      'Round 4: Chain 3, double crochet in same stitch. [Double crochet in next 2 stitches, 2 double crochet in next stitch] repeat 11 times. Slip stitch to join. (48 stitches)',
-      'Rounds 5–12: Chain 3. Double crochet in each stitch around. Slip stitch to join. (48 stitches)',
+      'Magic ring. Chain 2 (does not count as a stitch). 12 double crochet into ring. Slip stitch to first double crochet to join. (12 stitches)',
+      'Round 2: Chain 2 (does not count as a stitch). 2 double crochet in each stitch around. Slip stitch to join. (24 stitches)',
+      'Round 3: Chain 2 (does not count as a stitch). [Double crochet in next stitch, 2 double crochet in next stitch] repeat 12 times. Slip stitch to join. (36 stitches)',
+      'Round 4: Chain 2 (does not count as a stitch). [Double crochet in next 2 stitches, 2 double crochet in next stitch] repeat 12 times. Slip stitch to join. (48 stitches)',
+      'Rounds 5–12: Chain 2 (does not count as a stitch). Double crochet in each stitch around. Slip stitch to join. (48 stitches)',
       'Brim — Round 13: Chain 1. Single crochet in back loops only around. Slip stitch to join. (48 stitches)',
-      'Rounds 14–15: Chain 1. Single crochet in each stitch around. Slip stitch to join.',
+      'Rounds 14–15: Chain 1. Single crochet in each stitch around. Slip stitch to join. (48 stitches)',
       'Finishing: Fasten off. Weave in ends.',
     ],
   },
@@ -353,10 +375,10 @@ const TEMPLATE_SEED = [
     notes: ['The mesh stretches to fit more when loaded. Cotton washes well.'],
     defaultPattern: [
       'Base — Chain 4. Slip stitch to form ring.',
-      'Round 1: Chain 3. 11 double crochet into ring. Slip stitch to top of chain 3. (12 stitches)',
-      'Round 2: Chain 3. Double crochet in same stitch. 2 double crochet in each stitch around. Slip stitch to join. (24 stitches)',
-      'Round 3: Chain 3. [Double crochet in next stitch, 2 double crochet in next stitch] repeat 11 times. Slip stitch to join. (36 stitches)',
-      'Round 4: Chain 3. [Double crochet in next 2 stitches, 2 double crochet in next stitch] repeat 11 times. Slip stitch to join. (48 stitches)',
+      'Round 1: Chain 2 (does not count as a stitch). 12 double crochet into ring. Slip stitch to first double crochet to join. (12 stitches)',
+      'Round 2: Chain 2 (does not count as a stitch). 2 double crochet in each stitch around. Slip stitch to join. (24 stitches)',
+      'Round 3: Chain 2 (does not count as a stitch). [Double crochet in next stitch, 2 double crochet in next stitch] repeat 12 times. Slip stitch to join. (36 stitches)',
+      'Round 4: Chain 2 (does not count as a stitch). [Double crochet in next 2 stitches, 2 double crochet in next stitch] repeat 12 times. Slip stitch to join. (48 stitches)',
       'Mesh Body — Round 5: Chain 5. Skip 2 stitches. [Double crochet in next stitch, chain 2, skip 2 stitches] repeat around. Slip stitch to join.',
       'Rounds 6–16: Chain 5. [Double crochet in next double crochet, chain 2] repeat around. Slip stitch to join.',
       'Top Edging: Chain 1. Single crochet in each stitch and 2 single crochet in each chain space around. Slip stitch to join.',
