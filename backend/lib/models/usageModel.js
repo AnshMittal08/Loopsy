@@ -26,4 +26,23 @@ function incrementUsage(userId, type) {
   upsertUsageStmt.run(randomUUID(), userId, type, currentMonth(), now, now);
 }
 
-module.exports = { getUsageCount, incrementUsage };
+// Lifetime (non-month-scoped) counters — for one-time entitlements like the
+// free Vision Studio trial. Stored in the same table with a sentinel month.
+const LIFETIME = 'lifetime';
+
+function getLifetimeUsageCount(userId, type) {
+  const row = getUsageCountStmt.get(userId, type, LIFETIME);
+  return row?.count ?? 0;
+}
+
+function incrementLifetimeUsage(userId, type) {
+  const now = new Date().toISOString();
+  upsertUsageStmt.run(randomUUID(), userId, type, LIFETIME, now, now);
+}
+
+module.exports = {
+  getUsageCount,
+  incrementUsage,
+  getLifetimeUsageCount,
+  incrementLifetimeUsage,
+};

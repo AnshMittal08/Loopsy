@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, ArrowRight, Menu, Lock, AlertCircle, X, Sparkles, CheckCircle2, Lightbulb, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Menu, Lock, AlertCircle, X, Sparkles, CheckCircle2, Lightbulb, RotateCcw, Camera, PenLine } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { SkeletonTemplatePreview } from '../components/Skeleton';
@@ -9,6 +9,7 @@ import { ThreadSpinner } from '../components/motion/Thread';
 import { Reveal } from '../components/motion/Reveal';
 import Magnetic from '../components/motion/Magnetic';
 import VerifiedBadge from '../components/VerifiedBadge';
+import VisionStudio from '../components/VisionStudio';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING, fadeRise, staggerChildren, popIn } from '../lib/motionTokens';
 import { fireConfetti } from '../lib/confetti';
@@ -205,6 +206,7 @@ export default function Create() {
 
   const [prompt, setPrompt] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
+  const [aiSubMode, setAiSubMode] = useState('describe'); // 'describe' | 'photo'
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamStatus, setStreamStatus] = useState(null);
@@ -344,6 +346,49 @@ export default function Create() {
           }
           throw new Error(data.error || 'Failed to generate pattern');
         }
+      }
+
+      const progressRes = await fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternId: data.id })
+      });
+      const progressData = await progressRes.json();
+      if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
+      setResult(data);
+      fireConfetti({ count: 90 });
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Vision Studio: compile a user-approved Design Spec through the same
+  // streaming theater the text path uses.
+  const handleCompileFromSpec = async (spec) => {
+    setIsGenerating(true);
+    setActionError(null);
+    setRateLimitHit(false);
+    setStreamStatus(null);
+    setStreamSteps([]);
+    try {
+      const res = await fetch('/api/ai/generate-from-spec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spec, difficulty, stream: true })
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data;
+      if (contentType.includes('text/event-stream')) {
+        data = await readGenerationStream(res, {
+          onStatus: (status) => setStreamStatus(status.message),
+          onStep: (step) => setStreamSteps((prev) => [...prev, step]),
+        });
+      } else {
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to compile the design');
       }
 
       const progressRes = await fetch('/api/progress', {
@@ -583,53 +628,91 @@ export default function Create() {
                   </div>
                 )}
 
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-on-surface mb-2">What do you want to make?</label>
-                    <textarea
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      rows={4}
-                      className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none"
-                      placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
-                    />
-                  </div>
+                {/* Describe ↔ From photo sub-toggle */}
+                <div className="flex gap-2 mb-6 p-1 rounded-full bg-surface-container-low w-fit">
+                  {[
+                    { id: 'describe', label: 'Describe' },
+                    { id: 'photo', label: 'From photo' },
+                  ].map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => setAiSubMode(id)}
+                      className={`relative px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                        aiSubMode === id ? 'text-on-primary' : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {aiSubMode === id && (
+                        <Motion.span
+                          layoutId="ai-submode-pill"
+                          className="absolute inset-0 rounded-full bg-primary shadow-warm"
+                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative flex items-center gap-1.5">
+                        {id === 'describe' ? <PenLine size={14} /> : <Camera size={14} />}
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-on-surface mb-3">Difficulty level</label>
-                    <div className="flex flex-wrap gap-3">
-                      {['beginner', 'intermediate', 'advanced'].map((level) => (
-                        <Motion.button
-                          key={level}
-                          onClick={() => setDifficulty(level)}
-                          whileTap={{ scale: 0.96 }}
-                          transition={SPRING.snappy}
-                          className={`rounded-xl px-5 py-2.5 border text-sm font-medium capitalize transition-all ${
-                            difficulty === level
-                              ? 'bg-primary/8 border-primary text-primary shadow-warm'
-                              : 'border-outline-variant/20 hover:bg-surface-container-low text-on-surface-variant'
-                          }`}
-                        >
-                          {level}
-                        </Motion.button>
-                      ))}
+                {/* Difficulty — shared across both sub-modes */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-on-surface mb-3">Difficulty level</label>
+                  <div className="flex flex-wrap gap-3">
+                    {['beginner', 'intermediate', 'advanced'].map((level) => (
+                      <Motion.button
+                        key={level}
+                        onClick={() => setDifficulty(level)}
+                        whileTap={{ scale: 0.96 }}
+                        transition={SPRING.snappy}
+                        className={`rounded-xl px-5 py-2.5 border text-sm font-medium capitalize transition-all ${
+                          difficulty === level
+                            ? 'bg-primary/8 border-primary text-primary shadow-warm'
+                            : 'border-outline-variant/20 hover:bg-surface-container-low text-on-surface-variant'
+                        }`}
+                      >
+                        {level}
+                      </Motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {aiSubMode === 'describe' ? (
+                  <>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-on-surface mb-2">What do you want to make?</label>
+                        <textarea
+                          value={prompt}
+                          onChange={(e) => setPrompt(e.target.value)}
+                          rows={4}
+                          className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none"
+                          placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
+                        />
+                      </div>
+
+                      <div className="rounded-xl bg-tertiary-container/50 border border-tertiary/20 p-4">
+                        <p className="text-sm font-semibold text-on-surface mb-1 flex items-center gap-1.5">
+                          <Lightbulb size={14} className="text-tertiary" />
+                          Prompt tips
+                        </p>
+                        <p className="text-sm text-on-surface-variant leading-relaxed">
+                          Include project type, size, colors, and recipient. Example: "A beginner-friendly sunflower tote bag in cream and moss green with sturdy handles."
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-xl bg-tertiary-container/50 border border-tertiary/20 p-4">
-                    <p className="text-sm font-semibold text-on-surface mb-1 flex items-center gap-1.5">
-                      <Lightbulb size={14} className="text-tertiary" />
-                      Prompt tips
-                    </p>
-                    <p className="text-sm text-on-surface-variant leading-relaxed">
-                      Include project type, size, colors, and recipient. Example: "A beginner-friendly sunflower tote bag in cream and moss green with sturdy handles."
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-8 flex justify-end">
-                  {generateButton(handleAIGenerate, isGenerating || !prompt, 'ai')}
-                </div>
+                    <div className="mt-8 flex justify-end">
+                      {generateButton(handleAIGenerate, isGenerating || !prompt, 'ai')}
+                    </div>
+                  </>
+                ) : (
+                  <VisionStudio
+                    onCompile={handleCompileFromSpec}
+                    disabled={isGenerating}
+                  />
+                )}
               </Reveal>
             )}
           </div>

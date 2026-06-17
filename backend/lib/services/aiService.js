@@ -122,6 +122,97 @@ Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.joi
   return toolUse.input;
 }
 
+// ---------------------------------------------------------------------------
+// Vision Studio (plan-v2 M3) — photo(s) → confidence-scored Design Spec.
+//
+// Claude vision (Sonnet) looks at up to 3 photos plus an optional text hint
+// and decomposes the pictured object into the SAME Design Spec the text path
+// produces — so a confirmed photo spec compiles through the exact M2 engine
+// and earns the verified badge. It also returns a human-readable "observed"
+// readout and a confidence score: the analysis is shown to the maker as
+// editable chips BEFORE compiling, so corrections (e.g. 6 cm → 10 cm) happen
+// before the math, not after.
+// ---------------------------------------------------------------------------
+const VISION_SPEC_TOOL = {
+  name: "submit_vision_analysis",
+  description: "Submit what you observe in the crochet photo(s) as a confidence-scored, structured Design Spec.",
+  input_schema: {
+    type: "object",
+    properties: {
+      confidence: {
+        type: "string",
+        enum: ["high", "medium", "low"],
+        description: "How confident you are that the spec faithfully reproduces the pictured item. low if the photo is unclear, the object is outside the supported shapes, or sizing is a pure guess.",
+      },
+      observed: {
+        type: "array",
+        items: { type: "string" },
+        description: "3–6 short, plain-English observations a maker would recognize, e.g. 'bee amigurumi', 'about 6 cm tall', 'worked in continuous rounds', 'yellow and black stripes'. This is shown back to the user.",
+      },
+      feasible: DESIGN_SPEC_TOOL.input_schema.properties.feasible,
+      name: DESIGN_SPEC_TOOL.input_schema.properties.name,
+      category: DESIGN_SPEC_TOOL.input_schema.properties.category,
+      yarnWeight: DESIGN_SPEC_TOOL.input_schema.properties.yarnWeight,
+      parts: DESIGN_SPEC_TOOL.input_schema.properties.parts,
+      assembly: DESIGN_SPEC_TOOL.input_schema.properties.assembly,
+      embellishments: DESIGN_SPEC_TOOL.input_schema.properties.embellishments,
+    },
+    required: ["confidence", "observed", "feasible", "name", "category", "yarnWeight", "parts"],
+  },
+};
+
+/**
+ * Analyze up to 3 crochet photos into a confidence-scored Design Spec.
+ * @param {Array<{ media_type: string, data: string }>} images base64 images
+ * @param {string} [hint] optional text the user added (size, colors, etc.)
+ * @returns {Promise<object>} the VISION_SPEC_TOOL payload
+ */
+async function analyzeImageToDesignSpec(images, hint = "") {
+  if (!Array.isArray(images) || images.length === 0) {
+    throw new Error("At least one image is required for analysis.");
+  }
+  const client = new Anthropic();
+
+  const imageBlocks = images.slice(0, 3).map((img) => ({
+    type: "image",
+    source: { type: "base64", media_type: img.media_type, data: img.data },
+  }));
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    system: [
+      {
+        type: "text",
+        text: `You are the vision analyst for a crochet pattern compiler. You look at photo(s) of a finished crochet item and decompose it into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
+
+Decompose the pictured object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Amigurumi are typically spheres (heads), ellipsoids (bodies), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). Estimate realistic finished dimensions in cm from visual cues; if the photo gives no scale, make a sensible guess and lower your confidence. Be honest with "feasible": garments with shaping, lace, and complex colorwork are NOT feasible. Always fill "observed" with what a maker would recognize, and set "confidence" truthfully.`,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: [
+          ...imageBlocks,
+          {
+            type: "text",
+            text: hint
+              ? `Analyze the crochet item in the photo(s). The maker adds: "${hint}". Use it to refine sizing, colors, or part names.`
+              : `Analyze the crochet item in the photo(s) and submit your structured analysis.`,
+          },
+        ],
+      },
+    ],
+    tools: [VISION_SPEC_TOOL],
+    tool_choice: { type: "tool", name: "submit_vision_analysis" },
+  });
+
+  const toolUse = message.content.find((b) => b.type === "tool_use" && b.name === "submit_vision_analysis");
+  if (!toolUse) throw new Error("Claude did not return a vision analysis");
+  return toolUse.input;
+}
+
 const PRESENTATION_TOOL = {
   name: "submit_pattern_presentation",
   description: "Submit the human-friendly presentation for a machine-compiled crochet pattern.",
@@ -175,13 +266,14 @@ async function humanizeCompiledPattern(prompt, difficulty, compiled) {
 }
 
 /**
- * Try the compiler pipeline. Returns a complete pattern object, or null when
- * the request is outside the compiler vocabulary (caller falls back).
- * Progress is reported through `emit` so the route can stream it live.
+ * Compile an already-formed Design Spec into a verified pattern: deterministic
+ * geometry → independent validation → humanized presentation. Returns a
+ * complete pattern object, or null when the spec is outside the compiler
+ * vocabulary. Shared by the text-prompt path and the Vision Studio path, so
+ * both produce identically-verified output. `sourcePrompt` is a short label
+ * stored as the prompt summary and fed to the humanizer/metadata inference.
  */
-async function generateWithCompiler(prompt, difficulty, emit) {
-  emit({ type: 'status', stage: 'parsing', message: 'Reading your idea…' });
-  const spec = await parseDesignIntent(prompt, difficulty);
+async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () => {} }) {
   if (!spec || spec.feasible === false) return null;
 
   emit({ type: 'status', stage: 'compiling', message: 'Computing every stitch…' });
@@ -207,7 +299,7 @@ async function generateWithCompiler(prompt, difficulty, emit) {
   emit({ type: 'status', stage: 'humanizing', message: 'Writing it up beautifully…' });
   let presentation = null;
   try {
-    presentation = await humanizeCompiledPattern(prompt, difficulty, compiled);
+    presentation = await humanizeCompiledPattern(sourcePrompt, difficulty, compiled);
   } catch (err) {
     console.warn("Humanizer failed, using inferred metadata:", err.message);
   }
@@ -222,7 +314,7 @@ async function generateWithCompiler(prompt, difficulty, emit) {
     title: presentation?.title || compiled.spec.name,
     difficulty: presentation?.difficulty || difficulty,
     category,
-    tags: presentation?.tags?.length ? presentation.tags : inferTags(prompt.toLowerCase(), category, difficulty),
+    tags: presentation?.tags?.length ? presentation.tags : inferTags((sourcePrompt || '').toLowerCase(), category, difficulty),
     materials: [...new Set(materials)],
     hookSize: compiled.hookSize,
     yarnWeight: compiled.yarnWeight,
@@ -232,9 +324,20 @@ async function generateWithCompiler(prompt, difficulty, emit) {
     steps: compiled.steps.map(({ row, instruction }) => ({ row, instruction })),
     verified: true,
     isExperimental: false,
-    promptSummary: prompt,
+    promptSummary: sourcePrompt,
     isAIGenerated: true,
   };
+}
+
+/**
+ * Try the compiler pipeline from a text prompt: parse intent → buildPatternFromSpec.
+ * Returns a complete pattern object, or null when the request is outside the
+ * compiler vocabulary (caller falls back). Progress streams through `emit`.
+ */
+async function generateWithCompiler(prompt, difficulty, emit) {
+  emit({ type: 'status', stage: 'parsing', message: 'Reading your idea…' });
+  const spec = await parseDesignIntent(prompt, difficulty);
+  return buildPatternFromSpec(spec, { difficulty, sourcePrompt: prompt, emit });
 }
 
 // ---------------------------------------------------------------------------
@@ -488,6 +591,40 @@ export async function generatePatternFromAI(prompt, difficulty, onEvent) {
     isFallback: false,
   };
 }
+
+/**
+ * Vision Studio: turn an approved (user-edited) Design Spec into a verified
+ * pattern. The spec has already been reviewed by the maker, so this never
+ * falls back to freeform — if the engine can't compile it, that's an error
+ * the caller surfaces. Progress streams through `onEvent`.
+ *
+ * @param {object} spec a normalized Design Spec (from vision, edited by user)
+ * @param {string} difficulty
+ * @param {object} [opts]
+ * @param {string} [opts.sourceLabel] short label stored as the prompt summary
+ * @param {Function} [opts.onEvent] streaming callback
+ * @returns {Promise<object>} a saved-shape pattern object
+ */
+export async function generatePatternFromSpec(spec, difficulty, { sourceLabel = "Photo design", onEvent } = {}) {
+  const emit = typeof onEvent === 'function' ? onEvent : () => {};
+
+  const pattern = await buildPatternFromSpec(spec, { difficulty, sourcePrompt: sourceLabel, emit });
+  if (!pattern) {
+    const err = new Error("This design is outside the verified geometry engine. Adjust the parts and try again.");
+    err.code = "SPEC_NOT_COMPILABLE";
+    throw err;
+  }
+
+  return {
+    id: generateId(),
+    ...pattern,
+    fromVision: true,
+    createdAt: new Date().toISOString(),
+    isFallback: false,
+  };
+}
+
+export { analyzeImageToDesignSpec };
 
 // ---------------------------------------------------------------------------
 // Metadata helpers
