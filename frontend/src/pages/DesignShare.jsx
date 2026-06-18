@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Sparkles, ArrowRight, BadgeCheck } from 'lucide-react';
-import CreaturePreview from '../components/CreaturePreview';
+import CanvasStage from '../components/CanvasStage';
 import { hexOf } from '../lib/yarnColors';
 import Magnetic from '../components/motion/Magnetic';
 import { ThreadSpinner } from '../components/motion/Thread';
@@ -67,6 +67,19 @@ export default function DesignShare() {
   const parts = design.spec?.parts || [];
   const palette = [...new Set(parts.map((p) => p.color).filter(Boolean))];
 
+  // Adapt the saved spec parts to the canvas renderer. Parts carry their
+  // layout; any without one (e.g. legacy/photo specs) get a simple stack.
+  const stageParts = parts.map((p, i) => ({
+    id: `s${i}`,
+    name: p.name,
+    shape: p.shape,
+    dims: p.dimensions || {},
+    color: p.color,
+    quantity: p.quantity,
+    x: p.layout?.x ?? 180,
+    y: p.layout?.y ?? 80 + i * 70,
+  }));
+
   return (
     <div className="min-h-screen bg-surface text-on-surface">
       {/* top bar */}
@@ -88,7 +101,7 @@ export default function DesignShare() {
             <div className="relative aspect-square bg-gradient-to-b from-surface-container-low to-surface-container">
               <div className="pointer-events-none absolute -top-12 -right-8 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
               <div className="pointer-events-none absolute -bottom-10 -left-8 h-44 w-44 rounded-full bg-yarn-rose/15 blur-3xl blob-drift-slow" />
-              <CreaturePreview spec={design.spec} />
+              <CanvasStage parts={stageParts} interactive={false} />
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-outline-variant/15 bg-surface-container-lowest px-5 py-3">
               <span className="text-sm font-semibold">Made with Loopsy</span>

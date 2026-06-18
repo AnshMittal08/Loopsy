@@ -1,5 +1,5 @@
 // Yarn palette + a forgiving color resolver shared by the Design Canvas, the
-// shared CreaturePreview, and share pages. Canvas designs use palette names
+// canvas stage, and share pages. Canvas designs use palette names
 // ('cream', 'violet'); photo-derived designs may use natural names ('yellow').
 
 export const PALETTE = [

@@ -1,9 +1,10 @@
 import { getDesignById } from "@/lib/models/designModel";
 
 // Auto-generated Open Graph image for a shared design (M4 share cards).
-// Rendered as SVG (no fonts/WASM needed) — a branded card with a simplified
-// creature built from the design's spec. Served from /api/designs/:id/og.
+// Rendered as SVG (no fonts/WASM) — a branded card with the design drawn from
+// its saved part layout, so it matches whatever the maker actually built.
 
+const CANVAS = { w: 360, h: 460, px: 7 };
 const PALETTE = {
   coral: '#FF6584', marigold: '#FFB02E', mint: '#4ECBA0', violet: '#8B7CF6',
   rose: '#F472B6', cream: '#EFE3C8', chocolate: '#8A5A3B', charcoal: '#3A3550',
@@ -18,74 +19,53 @@ const hexOf = (name) => {
 };
 const esc = (s) => String(s || '').replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
 
-function rolesFromSpec(spec) {
-  const roles = {};
-  for (const part of spec?.parts || []) {
-    const n = (part.name || '').toLowerCase();
-    let role = 'other';
-    if (/head/.test(n)) role = 'head';
-    else if (/body|torso/.test(n)) role = 'body';
-    else if (/ear/.test(n)) role = 'ears';
-    else if (/muzzle|nose|snout/.test(n)) role = 'muzzle';
-    else if (/tail/.test(n)) role = 'tail';
-    else if (part.shape === 'sphere' && !roles.head) role = 'head';
-    else if (part.shape === 'ellipsoid' && !roles.body) role = 'body';
-    if (!roles[role]) roles[role] = part;
+// One part → SVG string, positioned by its layout, sized by cm dims.
+function partSvg(part) {
+  const d = part.dimensions || {};
+  const px = CANVAS.px;
+  const x = part.layout?.x ?? CANVAS.w / 2;
+  const y = part.layout?.y ?? CANVAS.h / 2;
+  const fill = hexOf(part.color);
+  const s = `stroke="rgba(0,0,0,0.12)" stroke-width="1"`;
+  switch (part.shape) {
+    case 'sphere': return `<circle cx="${x}" cy="${y}" r="${(d.diameterCm || 6) / 2 * px}" fill="${fill}" ${s}/>`;
+    case 'ellipsoid': return `<ellipse cx="${x}" cy="${y}" rx="${(d.diameterCm || 6) / 2 * px}" ry="${(d.heightCm || 8) / 2 * px}" fill="${fill}" ${s}/>`;
+    case 'hemisphere': { const r = (d.diameterCm || 6) / 2 * px; return `<path d="M ${x - r},${y + r * 0.4} A ${r} ${r} 0 0 1 ${x + r},${y + r * 0.4} Z" fill="${fill}" ${s}/>`; }
+    case 'tube': { const w = (d.diameterCm || 3) * px, h = (d.heightCm || 6) * px; return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${w / 2}" fill="${fill}" ${s}/>`; }
+    case 'cone': { const w = (d.baseDiameterCm || 4) * px, h = (d.heightCm || 5) * px; return `<polygon points="${x},${y - h / 2} ${x + w / 2},${y + h / 2} ${x - w / 2},${y + h / 2}" fill="${fill}" ${s}/>`; }
+    case 'flatPanel': { const w = (d.widthCm || 4) * px, h = (d.heightCm || 5) * px; return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(w, h) * 0.18}" fill="${fill}" ${s}/>`; }
+    default: return '';
   }
-  return roles;
-}
-
-function creatureSvg(spec, cx) {
-  const r = rolesFromSpec(spec);
-  const col = (role, fb = 'cream') => hexOf(r[role]?.color || fb);
-  const headR = 90, bodyRx = 80, bodyRy = 105;
-  const headCy = 210, bodyCy = headCy + headR + bodyRy - 18;
-  let s = '';
-  s += `<ellipse cx="${cx}" cy="${bodyCy + bodyRy + 26}" rx="${bodyRx * 1.1}" ry="22" fill="rgba(0,0,0,0.22)"/>`;
-  if (r.tail) s += `<circle cx="${cx + bodyRx - 10}" cy="${bodyCy + bodyRy - 30}" r="26" fill="${col('tail')}"/>`;
-  if (r.body) s += `<ellipse cx="${cx}" cy="${bodyCy}" rx="${bodyRx}" ry="${bodyRy}" fill="${col('body')}"/>`;
-  if (r.ears) {
-    s += `<circle cx="${cx - headR * 0.6}" cy="${headCy - headR * 0.7}" r="30" fill="${col('ears')}"/>`;
-    s += `<circle cx="${cx + headR * 0.6}" cy="${headCy - headR * 0.7}" r="30" fill="${col('ears')}"/>`;
-  }
-  if (r.head) s += `<circle cx="${cx}" cy="${headCy}" r="${headR}" fill="${col('head')}"/>`;
-  if (r.head) {
-    s += `<circle cx="${cx - headR * 0.35}" cy="${headCy - 6}" r="9" fill="#1A1726"/>`;
-    s += `<circle cx="${cx + headR * 0.35}" cy="${headCy - 6}" r="9" fill="#1A1726"/>`;
-  }
-  if (r.muzzle) s += `<circle cx="${cx}" cy="${headCy + headR * 0.35}" r="32" fill="${col('muzzle', 'white')}"/>`;
-  return s;
 }
 
 export async function GET(_request, { params }) {
   const design = getDesignById(params.id);
-  if (!design) {
-    return new Response("Not found", { status: 404 });
-  }
+  if (!design) return new Response("Not found", { status: 404 });
 
   const name = esc(design.name);
-  const partCount = design.spec?.parts?.length || 0;
-  const swatches = [...new Set((design.spec?.parts || []).map((p) => p.color).filter(Boolean))].slice(0, 6);
-  const swatchSvg = swatches
-    .map((c, i) => `<circle cx="${720 + i * 46}" cy="430" r="18" fill="${hexOf(c)}" stroke="#0E0D15" stroke-width="3"/>`)
-    .join('');
+  const parts = design.spec?.parts || [];
+  const partCount = parts.length;
+  const swatches = [...new Set(parts.map((p) => p.color).filter(Boolean))].slice(0, 6);
+  const swatchSvg = swatches.map((c, i) => `<circle cx="${720 + i * 46}" cy="430" r="18" fill="${hexOf(c)}" stroke="#0E0D15" stroke-width="3"/>`).join('');
+
+  // Place the canonical 360×460 canvas into the card's left region, scaled.
+  const scale = 470 / CANVAS.h;
+  const offX = 70, offY = (630 - CANVAS.h * scale) / 2;
+  const design2d = `<g transform="translate(${offX} ${offY}) scale(${scale})">
+    <ellipse cx="${CANVAS.w / 2}" cy="${CANVAS.h - 18}" rx="${CANVAS.w * 0.34}" ry="12" fill="rgba(0,0,0,0.22)"/>
+    ${parts.map(partSvg).join('')}
+  </g>`;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#15131F"/>
-      <stop offset="1" stop-color="#0A0910"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.3" cy="0.4" r="0.6">
-      <stop offset="0" stop-color="#8B7CF6" stop-opacity="0.25"/>
-      <stop offset="1" stop-color="#8B7CF6" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#15131F"/><stop offset="1" stop-color="#0A0910"/></linearGradient>
+    <radialGradient id="glow" cx="0.25" cy="0.4" r="0.6"><stop offset="0" stop-color="#8B7CF6" stop-opacity="0.25"/><stop offset="1" stop-color="#8B7CF6" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
-  ${creatureSvg(design.spec, 340)}
+  ${design2d}
   <text x="700" y="220" font-family="Georgia, 'Times New Roman', serif" font-size="76" font-weight="700" fill="#ECE8F6">${name}</text>
-  <text x="702" y="280" font-family="Arial, sans-serif" font-size="30" fill="#A9A2C0">${partCount} parts · amigurumi</text>
+  <text x="702" y="280" font-family="Arial, sans-serif" font-size="30" fill="#A9A2C0">${partCount} part${partCount === 1 ? '' : 's'} · amigurumi</text>
   <text x="700" y="392" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#5FD4B2">✓ Verified math</text>
   ${swatchSvg}
   <text x="700" y="560" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#A78BFF">Made with Loopsy</text>
@@ -93,9 +73,6 @@ export async function GET(_request, { params }) {
 
   return new Response(svg, {
     status: 200,
-    headers: {
-      "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "public, max-age=3600",
-    },
+    headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=3600" },
   });
 }

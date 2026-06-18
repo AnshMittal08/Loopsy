@@ -1,33 +1,32 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Menu, ArrowLeft, Lock, Sparkles, Check, Share2 } from 'lucide-react';
+import { Menu, ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
 import { Reveal } from '../components/motion/Reveal';
 import { ThreadSpinner } from '../components/motion/Thread';
 import Magnetic from '../components/motion/Magnetic';
-import CreaturePreview from '../components/CreaturePreview';
+import CanvasStage from '../components/CanvasStage';
 import { PALETTE } from '../lib/yarnColors';
+import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
+import { CANVAS, deriveAssembly } from '../lib/assembly';
 import { SPRING } from '../lib/motionTokens';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
 import { useAuth } from '../components/AuthProvider';
 
-// Part catalogue — each maps to a compiler shape with base (medium) dimensions
-// in cm. `core` parts are always on; others toggle. The spec is computed from
-// these bases × the global sliders.
-const PARTS = {
-  head:   { label: 'Head',   shape: 'sphere',    core: true,  base: { diameterCm: 8 }, quantity: 1, defaultColor: 'cream' },
-  body:   { label: 'Body',   shape: 'ellipsoid', core: true,  base: { diameterCm: 7, heightCm: 9 }, quantity: 1, defaultColor: 'cream' },
-  muzzle: { label: 'Muzzle', shape: 'sphere',    core: false, base: { diameterCm: 3 }, quantity: 1, defaultColor: 'white' },
-  ears:   { label: 'Ears',   shape: 'cone',      core: false, base: { baseDiameterCm: 3, heightCm: 3 }, quantity: 2, defaultColor: 'cream' },
-  arms:   { label: 'Arms',   shape: 'tube',      core: false, base: { diameterCm: 2.6, heightCm: 6 }, quantity: 2, defaultColor: 'cream' },
-  legs:   { label: 'Legs',   shape: 'tube',      core: false, base: { diameterCm: 3, heightCm: 6 }, quantity: 2, defaultColor: 'cream' },
-  tail:   { label: 'Tail',   shape: 'sphere',    core: false, base: { diameterCm: 2.5 }, quantity: 1, defaultColor: 'cream' },
-};
-
+let uid = 0;
+const nextId = () => `p${Date.now()}_${uid++}`;
 const round1 = (n) => Math.round(n * 10) / 10;
+
+// A friendly starter so the canvas isn't empty: a simple two-ball creature.
+function starterParts() {
+  return [
+    { id: nextId(), name: 'Body', shape: 'ellipsoid', dims: { diameterCm: 7, heightCm: 9 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 270 },
+    { id: nextId(), name: 'Head', shape: 'sphere', dims: { diameterCm: 6.5 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 140 },
+  ];
+}
 
 export default function Design() {
   const { user, loading: authLoading } = useAuth();
@@ -35,14 +34,9 @@ export default function Design() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
 
-  const [name, setName] = useState('My Creature');
-  const [enabled, setEnabled] = useState({ head: true, body: true, muzzle: true, ears: true, arms: true, legs: true, tail: false });
-  const [colors, setColors] = useState(
-    Object.fromEntries(Object.entries(PARTS).map(([k, p]) => [k, p.defaultColor]))
-  );
-  const [size, setSize] = useState(1);
-  const [ratio, setRatio] = useState(1);   // head/body ratio
-  const [limb, setLimb] = useState(1);      // limb length
+  const [name, setName] = useState('My Design');
+  const [parts, setParts] = useState(starterParts);
+  const [selectedId, setSelectedId] = useState(null);
   const [difficulty, setDifficulty] = useState('beginner');
 
   const [busy, setBusy] = useState(false);
@@ -51,30 +45,65 @@ export default function Design() {
   const [sharing, setSharing] = useState(false);
   const [shareMsg, setShareMsg] = useState(null);
 
-  // Compute the Design Spec from the current canvas config.
-  const spec = useMemo(() => {
-    const parts = [];
-    for (const [key, def] of Object.entries(PARTS)) {
-      if (!enabled[key]) continue;
-      const dims = {};
-      for (const [dk, dv] of Object.entries(def.base)) {
-        let v = dv * size;
-        if (key === 'head') v *= ratio;
-        if ((key === 'arms' || key === 'legs') && dk === 'heightCm') v *= limb;
-        dims[dk] = round1(v);
-      }
-      parts.push({ name: def.label, shape: def.shape, dimensions: dims, color: colors[key], quantity: def.quantity });
-    }
-    return { name: name || 'Custom Creature', category: 'Amigurumi', yarnWeight: 'DK', parts, assembly: [], embellishments: [] };
-  }, [enabled, colors, size, ratio, limb, name]);
+  const selected = parts.find((p) => p.id === selectedId) || null;
 
-  // Save the design and copy its public share link to the clipboard.
+  const updatePart = (id, patch) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const updateDim = (id, key, value) =>
+    setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims: { ...p.dims, [key]: value } } : p)));
+  const movePart = useCallback((id, x, y) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, x, y } : p))), []);
+
+  const addShape = (def) => {
+    // Deterministic stagger so new shapes don't stack exactly on top.
+    const n = parts.length;
+    const p = {
+      id: nextId(), name: def.label, shape: def.shape, dims: { ...def.dims }, color: 'coral', quantity: 1,
+      x: CANVAS.w / 2 + ((n % 5) - 2) * 18, y: 90 + (n % 4) * 22,
+    };
+    setParts((ps) => [...ps, p]);
+    setSelectedId(p.id);
+  };
+  const duplicatePart = (id) => {
+    const src = parts.find((p) => p.id === id);
+    if (!src) return;
+    const p = { ...src, id: nextId(), x: Math.min(CANVAS.w - 12, src.x + 30), y: Math.min(CANVAS.h - 12, src.y + 24) };
+    setParts((ps) => [...ps, p]);
+    setSelectedId(p.id);
+  };
+  const deletePart = (id) => {
+    setParts((ps) => ps.filter((p) => p.id !== id));
+    setSelectedId(null);
+  };
+  const reorder = (id, dir) => setParts((ps) => {
+    const i = ps.findIndex((p) => p.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ps.length) return ps;
+    const next = [...ps];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+
+  // Build the Design Spec from the canvas: parts (with layout) + assembly
+  // derived from where they sit. The engine still computes every stitch.
+  const buildSpec = () => ({
+    name: name || 'Custom Design',
+    category: 'Amigurumi',
+    yarnWeight: 'DK',
+    parts: parts.map((p) => ({
+      name: p.name, shape: p.shape,
+      dimensions: Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)])),
+      color: p.color, quantity: p.quantity,
+      layout: { x: Math.round(p.x), y: Math.round(p.y) },
+    })),
+    assembly: deriveAssembly(parts),
+    embellishments: [],
+  });
+
   const shareDesign = async () => {
     setSharing(true); setError(null);
     try {
       const res = await fetch('/api/designs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: spec.name, spec }),
+        body: JSON.stringify({ name, spec: buildSpec() }),
       });
       const design = await res.json();
       if (!res.ok) throw new Error(design.error || 'Could not create share link');
@@ -82,16 +111,15 @@ export default function Design() {
       try { await navigator.clipboard.writeText(url); setShareMsg('Link copied!'); }
       catch { setShareMsg('Link ready'); window.prompt('Share this design:', url); }
       setTimeout(() => setShareMsg(null), 2500);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSharing(false);
-    }
+    } catch (e) { setError(e.message); }
+    finally { setSharing(false); }
   };
 
   const generate = async () => {
+    if (parts.length === 0) { setError('Add at least one shape to your design.'); return; }
     setBusy(true); setError(null); setStatus('Computing every stitch…');
     try {
+      const spec = buildSpec();
       const res = await fetch('/api/ai/generate-from-spec', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spec, difficulty, stream: true }),
@@ -104,30 +132,22 @@ export default function Design() {
         pattern = await res.json();
         if (!res.ok) throw new Error(pattern.error || 'Failed to compile the design');
       }
-
-      // Persist the design + link the pattern (best-effort, non-blocking).
       fetch('/api/designs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: spec.name, spec }),
+        body: JSON.stringify({ name, spec }),
       }).then((r) => r.ok && r.json()).then((d) => {
         if (d?.id) fetch(`/api/designs/${d.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patternId: pattern.id }) });
       }).catch(() => {});
-
       const progressRes = await fetch('/api/progress', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patternId: pattern.id }),
       });
       if (!progressRes.ok) throw new Error('Failed to start tracking');
       fireConfetti({ count: 90 });
       navigate(`/tracker/${pattern.id}`);
-    } catch (e) {
-      setError(e.message);
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); setBusy(false); }
   };
 
-  if (authLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
-  }
+  if (authLoading) return <div className="flex min-h-screen items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
   if (!user) {
     return (
       <div className="flex min-h-screen bg-surface text-on-surface">
@@ -144,8 +164,6 @@ export default function Design() {
     );
   }
 
-  const partKeys = Object.keys(PARTS);
-
   return (
     <div className="flex min-h-screen bg-surface text-on-surface">
       <SideNav />
@@ -157,112 +175,111 @@ export default function Design() {
           <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
-        <div className="px-6 py-10 md:px-12 md:py-14 lg:px-16">
-          <Reveal className="mb-8">
+        <div className="px-6 py-10 md:px-10 md:py-12 lg:px-14">
+          <Reveal className="mb-7">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Design Canvas</p>
-            <h1 className="font-display display-wonk text-[2.4rem] md:text-[3rem] font-bold leading-tight">Design your own creature.</h1>
-            <p className="mt-3 text-on-surface-variant max-w-xl">Assemble parts, tune the proportions, pick your yarn — the math compiles itself into a verified pattern.</p>
+            <h1 className="font-display display-wonk text-[2.2rem] md:text-[2.8rem] font-bold leading-tight">Build it from shapes.</h1>
+            <p className="mt-3 text-on-surface-variant max-w-2xl">Drop balls, eggs, tubes and cones, drag them where you want, size and colour each one. Every shape compiles to exact stitch counts — and we read your layout to write the assembly steps.</p>
           </Reveal>
 
-          {error && (
-            <div className="mb-6 max-w-3xl rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">{error}</div>
-          )}
+          {error && <div className="mb-5 max-w-3xl rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">{error}</div>}
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-            {/* Live preview */}
-            <Reveal className="lg:sticky lg:top-8 self-start rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
-              <div className="relative aspect-[4/5] bg-gradient-to-b from-surface-container-low to-surface-container">
-                <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
-                <CreaturePreview spec={spec} />
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            {/* Canvas */}
+            <Reveal className="lg:sticky lg:top-6 self-start">
+              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
+                <div className="relative aspect-[360/460] bg-gradient-to-b from-surface-container-low to-surface-container">
+                  <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} />
+                </div>
+                <div className="flex items-center gap-2 border-t border-outline-variant/15 px-4 py-3">
+                  <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
+                  <button onClick={shareDesign} disabled={sharing} className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
+                    {shareMsg ? <Check size={13} className="text-secondary" /> : <Share2 size={13} />}{shareMsg || 'Share'}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 border-t border-outline-variant/15 px-4 py-3">
-                <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
-                <button
-                  onClick={shareDesign}
-                  disabled={sharing}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50"
-                >
-                  {shareMsg ? <Check size={13} className="text-secondary" /> : <Share2 size={13} />}
-                  {shareMsg || 'Share'}
-                </button>
-              </div>
+              <p className="mt-2 px-1 text-xs text-on-surface-variant">Tip: drag any shape to reposition it. Tap to select and edit.</p>
             </Reveal>
 
             {/* Controls */}
-            <div className="space-y-6">
-              {/* Parts */}
+            <div className="space-y-5">
+              {/* Add shapes */}
               <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">Parts</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">Add a shape</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {partKeys.map((k) => {
-                    const def = PARTS[k];
-                    const on = enabled[k];
-                    return (
-                      <Motion.button
-                        key={k} whileTap={{ scale: 0.96 }} transition={SPRING.snappy}
-                        onClick={() => !def.core && setEnabled((e) => ({ ...e, [k]: !e[k] }))}
-                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                          on ? 'border-primary bg-primary/8 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'
-                        } ${def.core ? 'cursor-default' : ''}`}
-                      >
-                        <span>{def.label}{def.quantity > 1 ? ` ×${def.quantity}` : ''}</span>
-                        {on && <Check size={14} className="shrink-0" />}
-                      </Motion.button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-on-surface-variant">Head and body are always included.</p>
-              </div>
-
-              {/* Proportions */}
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5 space-y-4">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Proportions</h3>
-                {[
-                  { label: 'Overall size', value: size, set: setSize, min: 0.7, max: 1.5 },
-                  { label: 'Head / body ratio', value: ratio, set: setRatio, min: 0.7, max: 1.3 },
-                  { label: 'Limb length', value: limb, set: setLimb, min: 0.7, max: 1.4 },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-on-surface">{s.label}</span>
-                      <span className="text-on-surface-variant">{Math.round(s.value * 100)}%</span>
-                    </div>
-                    <input type="range" min={s.min} max={s.max} step="0.05" value={s.value}
-                      onChange={(e) => s.set(parseFloat(e.target.value))}
-                      className="w-full accent-primary" />
-                  </div>
-                ))}
-              </div>
-
-              {/* Colors */}
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">Yarn colors</h3>
-                <div className="space-y-2.5">
-                  {partKeys.filter((k) => enabled[k]).map((k) => (
-                    <div key={k} className="flex items-center justify-between gap-3">
-                      <span className="text-sm text-on-surface">{PARTS[k].label}</span>
-                      <div className="flex gap-1.5">
-                        {PALETTE.map((p) => (
-                          <button key={p.name} onClick={() => setColors((c) => ({ ...c, [k]: p.name }))}
-                            aria-label={p.name}
-                            className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${colors[k] === p.name ? 'border-on-surface' : 'border-transparent'}`}
-                            style={{ backgroundColor: p.hex }} />
-                        ))}
-                      </div>
-                    </div>
+                  {SHAPE_KIT.map((def) => (
+                    <Motion.button key={def.id} whileTap={{ scale: 0.96 }} transition={SPRING.snappy} onClick={() => addShape(def)}
+                      className="flex flex-col items-start gap-0.5 rounded-xl border border-outline-variant/20 px-3 py-2.5 text-left hover:border-primary/40 hover:bg-surface-container-low transition-colors">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold"><Plus size={13} className="text-primary" />{def.label}</span>
+                      <span className="text-[11px] text-on-surface-variant leading-tight">{def.hint}</span>
+                    </Motion.button>
                   ))}
                 </div>
               </div>
 
+              {/* Inspector */}
+              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5 min-h-[120px]">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">
+                  {selected ? `Editing: ${selected.name}` : 'Selected part'}
+                </h3>
+                {!selected ? (
+                  <p className="text-sm text-on-surface-variant">Select a shape on the canvas to rename, resize, recolor, or remove it. {parts.length} part{parts.length === 1 ? '' : 's'} so far.</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input value={selected.name} onChange={(e) => updatePart(selected.id, { name: e.target.value })}
+                        className="flex-1 rounded-lg bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30" />
+                      <span className="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-semibold text-on-secondary-container">{shapeDef(selected.shape)?.label || selected.shape}</span>
+                    </div>
+
+                    {(shapeDef(selected.shape)?.fields || Object.keys(selected.dims)).map((key) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="font-semibold">{DIM_LABEL[key] || key}</span>
+                          <span className="text-on-surface-variant">{round1(selected.dims[key])} cm</span>
+                        </div>
+                        <input type="range" min="2" max="30" step="0.5" value={selected.dims[key]}
+                          onChange={(e) => updateDim(selected.id, key, parseFloat(e.target.value))} className="w-full accent-primary" />
+                      </div>
+                    ))}
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold">Make</span>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 4].map((q) => (
+                          <button key={q} onClick={() => updatePart(selected.id, { quantity: q })}
+                            className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selected.quantity === q ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>×{q}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-semibold">Yarn color</span>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {PALETTE.map((p) => (
+                          <button key={p.name} onClick={() => updatePart(selected.id, { color: p.name })} aria-label={p.name}
+                            className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${selected.color === p.name ? 'border-on-surface' : 'border-transparent'}`} style={{ backgroundColor: p.hex }} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button onClick={() => duplicatePart(selected.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><Copy size={13} />Duplicate</button>
+                      <button onClick={() => reorder(selected.id, 1)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronUp size={13} />Forward</button>
+                      <button onClick={() => reorder(selected.id, -1)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronDown size={13} />Back</button>
+                      <button onClick={() => deletePart(selected.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={13} />Delete</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Difficulty + generate */}
               <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">Difficulty</h3>
-                <div className="flex flex-wrap gap-2 mb-5">
+                <div className="flex flex-wrap gap-2 mb-4">
                   {['beginner', 'intermediate', 'advanced'].map((d) => (
                     <button key={d} onClick={() => setDifficulty(d)}
-                      className={`rounded-xl px-4 py-2 border text-sm font-medium capitalize transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>
-                      {d}
-                    </button>
+                      className={`rounded-xl px-4 py-2 border text-sm font-medium capitalize transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{d}</button>
                   ))}
                 </div>
                 <Magnetic>
