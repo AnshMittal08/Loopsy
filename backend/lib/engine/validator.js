@@ -76,7 +76,8 @@ function computeExpectedCount(text, prev) {
 
   // Cluster/corner rounds (granny squares, shells) are not modelled — skip
   // rather than guess. The declared count is adopted as the running count.
-  if (/corner/.test(t) || (/\[/.test(t) && /into ring/.test(t))) return null;
+  // (Match both "into ring" and "in ring" phrasings.)
+  if (/corner/.test(t) || (/\[/.test(t) && /in(?:to)?\s+(?:the\s+)?ring/.test(t))) return null;
 
   // Joined double-crochet rounds where "chain 3 counts as a stitch" use a
   // convention with prelude stitches the parser cannot reliably model.

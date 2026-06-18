@@ -1,13 +1,14 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d } from 'lucide-react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d, BadgeCheck } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import CanvasStage from '../components/CanvasStage';
 import ChartStudio from './ChartStudio';
 
 const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import ColorPicker from '../components/ColorPicker';
+import OnboardingCard from '../components/OnboardingCard';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { BUILD_TEMPLATES } from '../lib/buildTemplates';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
@@ -48,6 +49,7 @@ export default function Design() {
   const [shareMsg, setShareMsg] = useState(null);
   const [recents, setRecents] = useState([]);
   const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
+  const [preview, setPreview] = useState(null); // live compile summary
 
   const selected = parts.find((p) => p.id === selectedId) || null;
 
@@ -55,6 +57,7 @@ export default function Design() {
   const updateDim = (id, key, value) =>
     setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims: { ...p.dims, [key]: value } } : p)));
   const movePart = useCallback((id, x, y) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, x, y } : p))), []);
+  const resizePart = useCallback((id, dims) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims } : p))), []);
 
   const addShape = (def) => {
     // Deterministic stagger so new shapes don't stack exactly on top.
@@ -101,7 +104,7 @@ export default function Design() {
 
   // Build the Design Spec from the canvas: parts (with layout) + assembly
   // derived from where they sit. The engine still computes every stitch.
-  const buildSpec = () => ({
+  const buildSpec = useCallback(() => ({
     name: name || 'Custom Design',
     category: 'Amigurumi',
     yarnWeight: 'DK',
@@ -118,7 +121,24 @@ export default function Design() {
     }),
     assembly: deriveAssembly(parts),
     embellishments: [],
-  });
+  }), [parts, name]);
+
+  // Live verified-math feedback: debounced compile of the current design so the
+  // canvas shows "≈ N stitches · verified ✓" while you work, not only after Generate.
+  useEffect(() => {
+    if (mode !== 'build') return undefined;
+    const id = setTimeout(async () => {
+      if (parts.length === 0) { setPreview(null); return; }
+      try {
+        const res = await fetch('/api/design/preview', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spec: buildSpec() }),
+        });
+        setPreview(await res.json());
+      } catch { setPreview(null); }
+    }, 350);
+    return () => clearTimeout(id);
+  }, [buildSpec, mode, parts.length]);
 
   const shareDesign = async () => {
     setSharing(true); setError(null);
@@ -255,6 +275,15 @@ export default function Design() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface">
+      <OnboardingCard
+        storageKey="loopsy_onboard_build"
+        title="Design it in 3 steps"
+        steps={[
+          { title: 'Start from a creature or add shapes', body: 'pick Teddy/Bunny/etc., or drop in balls, tubes and cones from the left.' },
+          { title: 'Shape it by hand', body: 'drag to move, grab the corner handle to resize. Watch the live “Verified math” count respond.' },
+          { title: 'Generate', body: 'turn your design into an exact, stitch-by-stitch pattern — the math is computed, never guessed.' },
+        ]}
+      />
       {/* Top bar */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2">
@@ -357,7 +386,7 @@ export default function Design() {
                     <Design3DPreview parts={parts} />
                   </Suspense>
                 ) : (
-                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} onResize={resizePart} />
                 )}
               </div>
             </div>
@@ -368,6 +397,23 @@ export default function Design() {
             <button onClick={() => setView('2d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '2d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Square size={13} />2D</button>
             <button onClick={() => setView('3d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '3d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Box size={13} />3D</button>
           </div>
+          {/* Live verified-math readout — surfaces the moat while designing */}
+          {parts.length > 0 && (
+            <div className="absolute top-16 left-1/2 z-10 -translate-x-1/2">
+              {preview?.ok ? (
+                <div className="flex items-center gap-2 rounded-full bg-surface-container-lowest/90 px-3.5 py-1.5 text-xs font-semibold shadow-warm backdrop-blur">
+                  <span className="inline-flex items-center gap-1 text-secondary"><BadgeCheck size={14} />Verified math</span>
+                  <span className="text-on-surface-variant">·</span>
+                  <span className="text-on-surface">≈ {preview.peakStitches} sts · {preview.finishedSize?.replace(/\s*\(.*/, '')}</span>
+                </div>
+              ) : preview && !preview.ok ? (
+                <div className="rounded-full bg-tertiary-container/80 px-3.5 py-1.5 text-xs font-medium text-on-tertiary-container shadow-warm backdrop-blur">
+                  Keep going — this shape isn't compilable yet
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {view === '3d' && (
             <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface-container-lowest/90 px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-warm backdrop-blur">
               <Rotate3d size={13} className="text-primary" />Drag to rotate · scroll to zoom

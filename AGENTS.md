@@ -15,11 +15,17 @@ Run commands from the relevant app directory:
 
 - `cd backend && npm install && npm run dev`
 - `cd backend && npm run build`
+- `cd backend && npm test` — engine test suite (`node:test`, no deps)
+- `cd backend && npm run backup` — online SQLite snapshot → `backend/backups/`
 - `cd frontend && npm install && npm run dev`
 - `cd frontend && npm run build`
 - `cd frontend && npm run lint`
 
 If PowerShell blocks `npm.ps1`, use `npm.cmd`.
+
+The deterministic geometry engine lives in `backend/lib/engine/` (gauge,
+distribute, shapes, revolve, chart, designSpec, compiler, validator,
+colorName). It owns every stitch count — an LLM must never compute them.
 
 ## Coding Style & Naming Conventions
 
@@ -49,7 +55,7 @@ The frontend uses the **Atelier** design language: dual theme, warm/tactile, ani
 - `motion` (Framer Motion successor) with shared tokens in `frontend/src/lib/motionTokens.js` (durations + spring presets)
 - Primitives in `frontend/src/components/motion/`: `Reveal`, `Thread`, `YarnBallProgress`, `CursorDot`, `ScrollThread`, `Marquee`; celebrations via `frontend/src/lib/confetti.js`
 - Every animation must respect `prefers-reduced-motion` (global kill-switch exists in `index.css`)
-- **3D:** exactly one three.js surface exists — the lazy-loaded `frontend/src/components/three/YarnBallHero.jsx` on Home. Keep it the only one, and keep it behind `React.lazy` so three.js never enters the initial bundle.
+- **3D:** two lazy-loaded three.js surfaces — `components/three/YarnBallHero.jsx` (Home hero) and `components/three/Design3DPreview.jsx` (the Design Canvas 3D model). Both must stay behind `React.lazy` so three.js never enters the initial bundle. Don't add more 3D surfaces without a reason.
 
 **Utility classes** (defined in `index.css`):
 - `shadow-warm`, `shadow-warm-md/lg/xl` — theme-aware drop shadows
@@ -61,20 +67,29 @@ Never use hard-coded hex values in JSX — always use Tailwind color tokens defi
 
 ## Testing & Verification
 
-There is no committed automated test suite. Validate changes by:
+**The engine has an automated test suite — keep it green.** `cd backend && npm test`
+runs `node:test` over `backend/test/`: distribution arithmetic (exhaustive),
+every shape/revolve/chart self-validating, the validator flagging wrong counts,
+and a regression lock that all 22 seed templates have **0 arithmetic errors**.
+**Add a test whenever you touch `lib/engine/`** — it is the product's moat.
+
+CI (`.github/workflows/ci.yml`) runs backend `npm test` + `npm run build` and
+frontend `npm run lint` + `npm run build` on every push and PR.
+
+The frontend has no automated tests yet. Validate UI changes by:
 
 - Exercising the affected `/api/*` routes locally
 - Walking the main flows in the frontend
-- Running `cd frontend && npm run build` — zero errors required before closing any milestone
+- `cd frontend && npm run build` + `npm run lint` clean before closing a milestone
 
-Current critical manual flows:
+Critical manual flows:
 
 - Sign up / sign in / sign out
-- Create a template-based pattern
-- Generate an AI pattern
-- Open tracker and toggle steps
+- Create a template-based, text-AI, and photo (Vision Studio) pattern
+- Design Canvas: build/sculpt a creature (live verified badge), draw a chart, generate
+- Open tracker, toggle steps, Crochet Mode
 - Refresh and confirm the same user still owns the project data
-- Hit `/tracker` without a patternId — should show My Projects list
+- `/tracker` without a patternId → My Projects list
 
 ## Commit & Pull Request Guidelines
 

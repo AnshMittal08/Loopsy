@@ -7,11 +7,14 @@ React 19 + Vite client for Loopsy.
 - Template discovery, browsing, and detail views
 - Account-aware navigation (SideNav, TopNav, MobileNav)
 - Sign up / sign in / sign out UI
-- Template customization and AI generation UI with 429 rate-limit handling
+- Template customization, AI text generation, and **Vision Studio** (photo → editable analysis → pattern) with 429 rate-limit handling
+- **Design Canvas** (`/design`): a full-screen editor — *Build* (assemble shapes + Sculpt tool + live 3D model + drag-resize + live "Verified math" badge) and *Draw* (paint a colourwork grid → flat panel or worked-in-the-round medallion)
+- Public design share pages at `/d/:id`
 - Row-by-row progress tracker with stitch tooltips, winding yarn-ball progress, Crochet Mode focus view
 - My Projects list at `/tracker` (no patternId)
 - AI Tutor floating chat panel
-- Account page: usage bars, upgrade plan cards
+- Account page: usage bars (incl. Vision trial), upgrade plan cards
+- First-run onboarding on the design editors
 - Design system: Atelier — dual theme, yarn accents, Fraunces display font, motion animation system
 
 ## Design System — "Atelier · Ink & Violet"
@@ -28,7 +31,7 @@ React 19 + Vite client for Loopsy.
 
 **Motion:** [`motion`](https://motion.dev) with shared tokens in `src/lib/motionTokens.js`; primitives in `src/components/motion/`; all animation respects `prefers-reduced-motion`. App-wide signatures: custom cursor follower (`CursorDot`), yarn-gradient scroll progress (`ScrollThread`), editorial marquee (`Marquee`).
 
-**3D:** exactly one three.js moment — the lazy-loaded yarn-ball hero on Home (`src/components/three/YarnBallHero.jsx`, React Three Fiber + drei). It code-splits into its own chunk and never touches the initial bundle. Do not add more 3D surfaces; the thread/SVG motif remains the brand's motion language.
+**3D:** two lazy-loaded three.js surfaces — the yarn-ball hero on Home (`src/components/three/YarnBallHero.jsx`) and the Design Canvas 3D model (`src/components/three/Design3DPreview.jsx`, which lathes sculpt profiles into real geometry). Both code-split into their own chunks and never touch the initial bundle. Don't add more 3D surfaces without reason.
 
 **Icons:** `lucide-react` (tree-shakeable SVG — no icon font)
 
@@ -48,21 +51,26 @@ React 19 + Vite client for Loopsy.
 | `src/components/motion/CursorDot.jsx` | Custom cursor follower (fine pointers only) |
 | `src/components/motion/ScrollThread.jsx` | Yarn-gradient scroll progress thread |
 | `src/components/motion/Marquee.jsx` | Editorial looping word strip |
-| `src/components/three/YarnBallHero.jsx` | Lazy-loaded 3D yarn ball (the only three.js surface) |
+| `src/components/three/YarnBallHero.jsx` | Lazy-loaded 3D yarn ball (Home hero) |
+| `src/components/three/Design3DPreview.jsx` | Lazy-loaded live 3D model of a Build design |
 | `src/lib/motionTokens.js` | Shared motion durations + spring presets |
 | `src/lib/confetti.js` | Yarn-confetti celebration bursts |
 | `src/components/AuthProvider.jsx` | `useAuth()` — user, signIn, signUp, signOut |
 | `src/components/SideNav.jsx` | Desktop sidebar with logo + nav items |
-| `src/components/TopNav.jsx` | Top bar for non-sidebar pages |
 | `src/components/MobileNav.jsx` | Portal-rendered slide-in drawer |
 | `src/components/AiTutor.jsx` | Floating step-specific Q&A panel |
+| `src/components/VisionStudio.jsx` | Photo upload → editable analysis (M3) |
+| `src/components/CanvasStage.jsx` | Build-mode SVG canvas: drag/resize/sculpt parts |
+| `src/components/CrochetMode.jsx` | Full-screen focus tracker view |
+| `src/components/ColorPicker.jsx` | Yarn swatches + unlimited custom colours |
+| `src/components/OnboardingCard.jsx` | Dismissible first-run editor guide |
 | `src/pages/Home.jsx` | Discovery + beginner path + recent patterns |
-| `src/pages/Account.jsx` | Auth form + usage bars + upgrade cards |
-| `src/pages/Create.jsx` | AI generation + template customization |
+| `src/pages/Create.jsx` | Template / text-AI / photo (Vision Studio) generation |
+| `src/pages/Design.jsx` | Design Canvas — Build mode + 2D/3D + live verified feedback |
+| `src/pages/ChartStudio.jsx` | Design Canvas — Draw mode (colourwork chart / medallion) |
+| `src/pages/DesignShare.jsx` | Public `/d/:id` share page |
 | `src/pages/Tracker.jsx` | Progress tracking + My Projects list |
-| `src/pages/TemplateDetail.jsx` | Full template detail with CTA |
-| `src/lib/patternThemes.js` | Category → gradient/icon design tokens |
-| `src/lib/crochetAbbreviations.js` | Stitch expander + YouTube tutorial links |
+| `src/lib/shapeKit.js`, `assembly.js`, `buildTemplates.js`, `chartPresets.js` | Design-canvas shape kit, layout-derived assembly, creature + chart templates |
 | `vercel.json` | Production API rewrite — proxies `/api/*` to Railway backend |
 
 ## Commands

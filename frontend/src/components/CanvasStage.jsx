@@ -63,11 +63,13 @@ function SculptHandles({ part, onSculptDown }) {
   );
 }
 
-function Part({ part, selected, ids, onPointerDown, onSculptDown }) {
+function Part({ part, selected, ids, onPointerDown, onSculptDown, onResizeDown }) {
   const g = partGeometry(part, CANVAS.px);
   const fill = hexOf(part.color);
   const handlers = onPointerDown ? { onPointerDown: (e) => onPointerDown(e, part), style: { cursor: 'grab' } } : {};
   const isSculpt = part.shape === 'revolve';
+  const bb = partBBox(part, CANVAS.px);
+  const pad = 6;
   return (
     <g>
       <g {...handlers}>
@@ -79,20 +81,24 @@ function Part({ part, selected, ids, onPointerDown, onSculptDown }) {
         </g>
         {part.face && <Face part={part} px={CANVAS.px} />}
       </g>
-      {selected && !isSculpt && (() => {
-        const bb = partBBox(part, CANVAS.px);
-        const pad = 6;
-        return (
+      {selected && !isSculpt && (
+        <g>
           <rect x={bb.x - pad} y={bb.y - pad} width={bb.w + pad * 2} height={bb.h + pad * 2} rx={8}
             fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeDasharray="5 4" />
-        );
-      })()}
+          {/* corner resize handle — drag to scale */}
+          {onResizeDown && (
+            <circle cx={bb.x + bb.w + pad} cy={bb.y + bb.h + pad} r="7"
+              fill="var(--primary)" stroke="#fff" strokeWidth="2"
+              style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onResizeDown(e, part)} />
+          )}
+        </g>
+      )}
       {selected && isSculpt && onSculptDown && <SculptHandles part={part} onSculptDown={onSculptDown} />}
     </g>
   );
 }
 
-export default function CanvasStage({ parts, selectedId, onSelect, onMove, onSculpt, interactive = true, className = '' }) {
+export default function CanvasStage({ parts, selectedId, onSelect, onMove, onSculpt, onResize, interactive = true, className = '' }) {
   const svgRef = useRef(null);
   const uid = useId().replace(/:/g, '');
   const ids = {
@@ -127,6 +133,31 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   }, [interactive, onSelect, onMove, toCanvas]);
+
+  // Drag the corner handle to scale a part — direct manipulation, so resizing
+  // feels like grabbing the object, not nudging a slider.
+  const handleResizeDown = useCallback((e, part) => {
+    if (!interactive) return;
+    e.stopPropagation();
+    const startDims = { ...part.dims };
+    const start = toCanvas(e.clientX, e.clientY);
+    const startDist = Math.max(8, Math.hypot(start.x - part.x, start.y - part.y));
+    const move = (ev) => {
+      const pt = toCanvas(ev.clientX, ev.clientY);
+      const scale = Math.max(0.3, Math.min(4, Math.hypot(pt.x - part.x, pt.y - part.y) / startDist));
+      const dims = {};
+      for (const [k, val] of Object.entries(startDims)) {
+        dims[k] = typeof val === 'number' ? Math.max(2, Math.min(30, Math.round(val * scale * 10) / 10)) : val;
+      }
+      onResize?.(part.id, dims);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }, [interactive, onResize, toCanvas]);
 
   // Drag a profile control point: horizontal → radius, vertical → height
   // position (endpoints stay pinned at top/bottom).
@@ -200,6 +231,7 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
           ids={ids}
           onPointerDown={interactive ? handleDown : null}
           onSculptDown={interactive ? handleSculptDown : null}
+          onResizeDown={interactive ? handleResizeDown : null}
         />
       ))}
     </svg>
