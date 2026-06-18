@@ -149,17 +149,25 @@ function initializeDatabase(db) {
     ['isExperimental', "ALTER TABLE patterns ADD COLUMN isExperimental INTEGER DEFAULT 0"]
   ];
 
-  for (const [columnName, statement] of requiredPatternColumns) {
-    if (!existingPatternColumns.has(columnName)) {
+  // Idempotent migration: the column guard can still lose a race when several
+  // Next build workers initialise the same DB file at once, so swallow the
+  // "duplicate column" error rather than crash the build.
+  const addColumnIfMissing = (existing, columnName, statement) => {
+    if (existing.has(columnName)) return;
+    try {
       db.exec(statement);
+    } catch (error) {
+      if (!/duplicate column name/i.test(error.message)) throw error;
     }
+  };
+
+  for (const [columnName, statement] of requiredPatternColumns) {
+    addColumnIfMissing(existingPatternColumns, columnName, statement);
   }
 
   const progressColumns = db.prepare(`PRAGMA table_info(progress)`).all();
   const existingProgressColumns = new Set(progressColumns.map((column) => column.name));
-  if (!existingProgressColumns.has('userId')) {
-    db.exec("ALTER TABLE progress ADD COLUMN userId TEXT");
-  }
+  addColumnIfMissing(existingProgressColumns, 'userId', "ALTER TABLE progress ADD COLUMN userId TEXT");
 
   const initAnalytics = db.prepare(`
     INSERT OR IGNORE INTO analytics (key, value) VALUES (?, ?)
