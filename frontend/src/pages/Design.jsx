@@ -7,8 +7,9 @@ import CanvasStage from '../components/CanvasStage';
 import ChartStudio from './ChartStudio';
 
 const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
-import { PALETTE } from '../lib/yarnColors';
+import ColorPicker from '../components/ColorPicker';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
+import { BUILD_TEMPLATES } from '../lib/buildTemplates';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
 import { SPRING } from '../lib/motionTokens';
 import { readGenerationStream } from '../lib/generationStream';
@@ -45,6 +46,8 @@ export default function Design() {
   const [error, setError] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [shareMsg, setShareMsg] = useState(null);
+  const [recents, setRecents] = useState([]);
+  const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
 
   const selected = parts.find((p) => p.id === selectedId) || null;
 
@@ -62,6 +65,12 @@ export default function Design() {
     };
     setParts((ps) => [...ps, p]);
     setSelectedId(p.id);
+  };
+
+  const applyTemplate = (t) => {
+    setParts(t.parts().map((p) => ({ ...p, id: nextId(), dims: JSON.parse(JSON.stringify(p.dims)) })));
+    setSelectedId(null);
+    setName(t.label);
   };
 
   // Reshape a sculpt part's silhouette point (drag handle on the canvas).
@@ -214,12 +223,7 @@ export default function Design() {
 
       <div>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn color</p>
-        <div className="flex flex-wrap gap-1.5">
-          {PALETTE.map((p) => (
-            <button key={p.name} onClick={() => updatePart(selected.id, { color: p.name })} aria-label={p.name}
-              className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${selected.color === p.name ? 'border-on-surface' : 'border-transparent'}`} style={{ backgroundColor: p.hex }} />
-          ))}
-        </div>
+        <ColorPicker value={selected.color} onChange={(c) => updatePart(selected.id, { color: c })} recents={recents} onAddRecent={addRecent} size={28} />
       </div>
 
       <div className="flex items-center justify-between gap-3">
@@ -295,14 +299,30 @@ export default function Design() {
           </div>
           <div className="flex-1 overflow-y-auto p-3 md:max-h-none max-h-56">
             {tab === 'elements' ? (
-              <div className="grid grid-cols-2 gap-2">
-                {SHAPE_KIT.map((def) => (
-                  <Motion.button key={def.id} whileTap={{ scale: 0.95 }} transition={SPRING.snappy} onClick={() => addShape(def)}
-                    className="flex flex-col items-start gap-0.5 rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-3 text-left hover:border-primary/40 hover:bg-surface-container-low transition-colors">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold"><Plus size={13} className="text-primary" />{def.label}</span>
-                    <span className="text-[11px] text-on-surface-variant leading-tight">{def.hint}</span>
-                  </Motion.button>
-                ))}
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Start from a creature</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {BUILD_TEMPLATES.map((t) => (
+                      <button key={t.id} onClick={() => applyTemplate(t)}
+                        className="rounded-lg border border-outline-variant/20 px-2 py-2 text-xs font-semibold text-on-surface-variant hover:border-primary/40 hover:bg-surface-container-low hover:text-on-surface transition-colors">
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-outline-variant/15 pt-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Add a shape</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SHAPE_KIT.map((def) => (
+                      <Motion.button key={def.id} whileTap={{ scale: 0.95 }} transition={SPRING.snappy} onClick={() => addShape(def)}
+                        className="flex flex-col items-start gap-0.5 rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-3 text-left hover:border-primary/40 hover:bg-surface-container-low transition-colors">
+                        <span className="flex items-center gap-1.5 text-sm font-semibold"><Plus size={13} className="text-primary" />{def.label}</span>
+                        <span className="text-[11px] text-on-surface-variant leading-tight">{def.hint}</span>
+                      </Motion.button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

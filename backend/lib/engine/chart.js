@@ -12,16 +12,18 @@
 
 const { resolveGauge, rowHeightCm } = require('./gauge');
 const { increaseRow } = require('./distribute');
+const { colorName } = require('./colorName');
 
-// Run-length encode a row of colour names → "4 cream, 2 red, 4 cream".
+// Run-length encode a row of colours → "4 cream, 2 red, 4 cream". Colours may
+// be palette names or arbitrary hex; both are named for the written pattern.
 function encodeRow(cells) {
   const runs = [];
   let cur = cells[0], n = 1;
   for (let i = 1; i < cells.length; i++) {
     if (cells[i] === cur) n++;
-    else { runs.push(`${n} ${cur}`); cur = cells[i]; n = 1; }
+    else { runs.push(`${n} ${colorName(cur)}`); cur = cells[i]; n = 1; }
   }
-  runs.push(`${n} ${cur}`);
+  runs.push(`${n} ${colorName(cur)}`);
   return runs.join(', ');
 }
 
@@ -83,7 +85,7 @@ function compileChart(spec) {
   const heightCm = Math.round((rows / gauge.rowsPerCm) * 10) / 10;
 
   const materials = [
-    ...colors.map((c) => `${yarnWeight} yarn in ${c}`),
+    ...[...new Set(colors.map(colorName))].map((c) => `${yarnWeight} yarn in ${c}`),
     `${gauge.hook} hook`,
     'Tapestry needle',
     'Scissors',
@@ -150,7 +152,7 @@ function compileMedallion(spec) {
   const numbered = steps.map((s, i) => ({ row: i + 1, ...s }));
   const diameterCm = Math.round(((2 * K) * rowHeightCm(gauge, 'sc')) * 10) / 10;
   const colors = [...new Set(grid.flat())];
-  const materials = [...colors.map((c) => `${yarnWeight} yarn in ${c}`), `${gauge.hook} hook`, 'Stitch marker', 'Tapestry needle'];
+  const materials = [...[...new Set(colors.map(colorName))].map((c) => `${yarnWeight} yarn in ${c}`), `${gauge.hook} hook`, 'Stitch marker', 'Tapestry needle'];
 
   return {
     ok: true,

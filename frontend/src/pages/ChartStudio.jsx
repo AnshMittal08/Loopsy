@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3, Square } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
-import { PALETTE, hexOf } from '../lib/yarnColors';
+import { hexOf } from '../lib/yarnColors';
+import ColorPicker from '../components/ColorPicker';
 import { PRESETS } from '../lib/chartPresets';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
@@ -68,6 +69,8 @@ export default function ChartStudio({ onMode }) {
   const [size, setSize] = useState(16);
   const [grid, setGrid] = useState(() => makeGrid(16, 16));
   const [color, setColor] = useState('coral');
+  const [recents, setRecents] = useState([]);
+  const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
   const [tool, setTool] = useState('paint'); // paint | erase | fill | pick
   const [mirror, setMirror] = useState(false);
   const [difficulty, setDifficulty] = useState('intermediate');
@@ -167,13 +170,11 @@ export default function ChartStudio({ onMode }) {
           </div>
 
           <div className="my-3 border-t border-outline-variant/15" />
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn colors</p>
-          <div className="grid grid-cols-5 gap-1.5 md:grid-cols-4">
-            {PALETTE.map((p) => (
-              <button key={p.name} onClick={() => { setColor(p.name); setTool('paint'); }} aria-label={p.name}
-                className={`aspect-square rounded-lg border-2 transition-transform hover:scale-105 ${color === p.name ? 'border-on-surface' : 'border-transparent'}`} style={{ backgroundColor: p.hex }} />
-            ))}
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn colors</p>
+            <span className="h-4 w-4 rounded-full border border-outline-variant/40" style={{ backgroundColor: hexOf(color) }} title="Current colour" />
           </div>
+          <ColorPicker value={color} onChange={(c) => { setColor(c); setTool('paint'); }} recents={recents} onAddRecent={addRecent} size={30} columns={5} />
 
           <p className="mb-2 mt-4 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Tools</p>
           <div className="grid grid-cols-2 gap-1.5">
