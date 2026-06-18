@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3, Square } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
+import OnboardingCard from '../components/OnboardingCard';
 import { hexOf } from '../lib/yarnColors';
 import ColorPicker from '../components/ColorPicker';
 import { PRESETS } from '../lib/chartPresets';
@@ -132,6 +133,15 @@ export default function ChartStudio({ onMode }) {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface"
       onPointerUp={() => { painting.current = false; }} onPointerLeave={() => { painting.current = false; }}>
+      <OnboardingCard
+        storageKey="loopsy_onboard_draw"
+        title="Draw a pattern in 3 steps"
+        steps={[
+          { title: 'Pick a template or paint', body: 'try the Cap shield, or paint any picture on the grid with the colour tools.' },
+          { title: 'Flat or Round 3D', body: 'a flat blanket/appliqué, or worked in the round into a real disc like a shield.' },
+          { title: 'Generate', body: 'get an exact colourwork pattern — every square is one stitch, counts verified.' },
+        ]}
+      />
       {/* Top bar */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2">

@@ -8,6 +8,7 @@ import ChartStudio from './ChartStudio';
 
 const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import ColorPicker from '../components/ColorPicker';
+import OnboardingCard from '../components/OnboardingCard';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { BUILD_TEMPLATES } from '../lib/buildTemplates';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
@@ -274,6 +275,15 @@ export default function Design() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface">
+      <OnboardingCard
+        storageKey="loopsy_onboard_build"
+        title="Design it in 3 steps"
+        steps={[
+          { title: 'Start from a creature or add shapes', body: 'pick Teddy/Bunny/etc., or drop in balls, tubes and cones from the left.' },
+          { title: 'Shape it by hand', body: 'drag to move, grab the corner handle to resize. Watch the live “Verified math” count respond.' },
+          { title: 'Generate', body: 'turn your design into an exact, stitch-by-stitch pattern — the math is computed, never guessed.' },
+        ]}
+      />
       {/* Top bar */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
         <div className="flex min-w-0 items-center gap-2">
