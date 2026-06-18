@@ -52,12 +52,19 @@ export default function Design() {
     // Deterministic stagger so new shapes don't stack exactly on top.
     const n = parts.length;
     const p = {
-      id: nextId(), name: def.label, shape: def.shape, dims: { ...def.dims }, color: 'coral', quantity: 1,
-      x: CANVAS.w / 2 + ((n % 5) - 2) * 18, y: 90 + (n % 4) * 22,
+      id: nextId(), name: def.label, shape: def.shape, dims: JSON.parse(JSON.stringify(def.dims)), color: 'coral', quantity: 1,
+      x: CANVAS.w / 2 + ((n % 5) - 2) * 18, y: def.shape === 'revolve' ? CANVAS.h / 2 : 90 + (n % 4) * 22,
     };
     setParts((ps) => [...ps, p]);
     setSelectedId(p.id);
   };
+
+  // Reshape a sculpt part's silhouette point (drag handle on the canvas).
+  const updateSculpt = useCallback((id, index, patch) => setParts((ps) => ps.map((p) => {
+    if (p.id !== id) return p;
+    const profile = [...(p.dims.profile || [])].sort((a, b) => a.t - b.t).map((pt, i) => (i === index ? { ...pt, ...patch } : pt));
+    return { ...p, dims: { ...p.dims, profile } };
+  })), []);
   const duplicatePart = (id) => {
     const src = parts.find((p) => p.id === id);
     if (!src) return;
@@ -84,13 +91,17 @@ export default function Design() {
     name: name || 'Custom Design',
     category: 'Amigurumi',
     yarnWeight: 'DK',
-    parts: parts.map((p) => ({
-      name: p.name, shape: p.shape,
-      dimensions: Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)])),
-      color: p.color, quantity: p.quantity,
-      layout: { x: Math.round(p.x), y: Math.round(p.y) },
-      ...(p.face ? { face: true } : {}),
-    })),
+    parts: parts.map((p) => {
+      const dimensions = p.shape === 'revolve'
+        ? { heightCm: round1(p.dims.heightCm), profile: (p.dims.profile || []).map((pt) => ({ t: Math.round(pt.t * 100) / 100, r: round1(pt.r) })) }
+        : Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)]));
+      return {
+        name: p.name, shape: p.shape, dimensions,
+        color: p.color, quantity: p.quantity,
+        layout: { x: Math.round(p.x), y: Math.round(p.y) },
+        ...(p.face ? { face: true } : {}),
+      };
+    }),
     assembly: deriveAssembly(parts),
     embellishments: [],
   });
@@ -175,6 +186,11 @@ export default function Design() {
         </div>
       </div>
 
+      {selected.shape === 'revolve' && (
+        <div className="rounded-lg bg-tertiary-container/40 border border-tertiary/20 px-3 py-2.5 text-xs text-on-surface-variant leading-relaxed">
+          <span className="font-semibold text-on-surface">Sculpt mode:</span> drag the dots on the canvas to shape your silhouette. We compute exact stitch counts for whatever you draw.
+        </div>
+      )}
       <div className="space-y-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Size</p>
         {(shapeDef(selected.shape)?.fields || Object.keys(selected.dims)).map((key) => (
@@ -304,7 +320,7 @@ export default function Design() {
             <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-warm-xl ring-1 ring-outline-variant/10">
               <div className="relative aspect-[360/460] h-[min(72vh,560px)] bg-gradient-to-b from-surface-container-low to-surface-container">
                 <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
-                <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} />
+                <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
               </div>
             </div>
           </Motion.div>
