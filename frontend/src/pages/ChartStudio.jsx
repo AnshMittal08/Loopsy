@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3, Square } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import { PALETTE, hexOf } from '../lib/yarnColors';
+import { PRESETS } from '../lib/chartPresets';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
 
@@ -81,6 +82,12 @@ export default function ChartStudio({ onMode }) {
 
   const resize = (n) => { setSize(n); setGrid(makeGrid(n, n)); };
 
+  const applyPreset = (p) => {
+    setGrid(p.build(cols, rows));
+    if (p.construction) setConstruction(p.construction);
+    setName(p.label === 'Cap shield' ? 'Captain America Shield' : p.label);
+  };
+
   const paintCell = useCallback((r, c) => {
     setGrid((g) => {
       if (tool === 'pick') { setColor(g[r][c]); return g; }
@@ -149,6 +156,17 @@ export default function ChartStudio({ onMode }) {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* Left: colors + tools */}
         <aside className="shrink-0 overflow-y-auto border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface-container-lowest p-3 md:w-56">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Start from a template</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PRESETS.map((p) => (
+              <button key={p.id} onClick={() => applyPreset(p)}
+                className="rounded-lg border border-outline-variant/20 px-2 py-2 text-xs font-semibold text-on-surface-variant hover:border-primary/40 hover:bg-surface-container-low hover:text-on-surface transition-colors">
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="my-3 border-t border-outline-variant/15" />
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn colors</p>
           <div className="grid grid-cols-5 gap-1.5 md:grid-cols-4">
             {PALETTE.map((p) => (
@@ -183,8 +201,15 @@ export default function ChartStudio({ onMode }) {
         {/* Center: the pixel grid */}
         <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
+
+          {/* Flat / Round construction toggle — floating */}
+          <div className="absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-surface-container-lowest/90 p-0.5 shadow-warm backdrop-blur">
+            <button onClick={() => setConstruction('flat')} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${construction === 'flat' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Square size={13} />Flat panel</button>
+            <button onClick={() => setConstruction('round')} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${construction === 'round' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Circle size={13} />Round 3D</button>
+          </div>
+
           <div className="relative rounded-2xl bg-surface-container-lowest p-3 shadow-warm-xl ring-1 ring-outline-variant/10">
-            <div className="relative" style={{ width: 'min(72vh, 540px)', height: 'min(72vh, 540px)' }}>
+            <div className="relative" style={{ width: 'min(70vh, 520px)', height: 'min(70vh, 520px)' }}>
               <div className="grid h-full w-full touch-none select-none gap-px overflow-hidden rounded-lg bg-outline-variant/20"
                 style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                 {grid.map((row, r) => row.map((cell, c) => (
@@ -201,16 +226,21 @@ export default function ChartStudio({ onMode }) {
               )}
             </div>
           </div>
+
+          {/* live info badge */}
+          <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-surface-container-lowest/90 px-4 py-1.5 text-xs font-medium text-on-surface-variant shadow-warm backdrop-blur">
+            {cols}×{rows} · {cols * rows} stitches · {usedColors.length} colour{usedColors.length === 1 ? '' : 's'}
+            {construction === 'round' && ' · worked in the round'}
+          </div>
         </div>
 
         {/* Right: chart settings */}
         <aside className="shrink-0 overflow-y-auto border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest p-4 md:w-64">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Make it</p>
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-            <button onClick={() => setConstruction('flat')} className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${construction === 'flat' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>Flat panel<span className="block text-[10px] font-normal opacity-70">blanket, appliqué</span></button>
-            <button onClick={() => setConstruction('round')} className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${construction === 'round' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>Round 3D<span className="block text-[10px] font-normal opacity-70">shield, medallion</span></button>
+          <div className="mb-4 rounded-xl bg-tertiary-container/40 border border-tertiary/20 p-3 text-xs leading-relaxed text-on-surface-variant">
+            {construction === 'round'
+              ? 'Round 3D: your drawing is sampled ring by ring and worked in the round into a disc or dome — like a real shield. Keep the design inside the circle.'
+              : 'Flat panel: worked in rows, one stitch per square — for blankets, appliqués, and wall art.'}
           </div>
-          <p className="mb-3 text-xs text-on-surface-variant">{construction === 'round' ? 'Worked in the round into a disc/dome — keep the design inside the circle.' : 'Worked flat in rows.'}</p>
 
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Grid size</p>
           <div className="flex flex-wrap gap-1.5">
@@ -218,17 +248,12 @@ export default function ChartStudio({ onMode }) {
               <button key={n} onClick={() => resize(n)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${size === n ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{n}×{n}</button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-on-surface-variant">{cols * rows} stitches · {usedColors.length} colour{usedColors.length === 1 ? '' : 's'}</p>
 
           <p className="mb-2 mt-5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Difficulty</p>
           <div className="flex flex-col gap-1.5">
             {['beginner', 'intermediate', 'advanced'].map((d) => (
               <button key={d} onClick={() => setDifficulty(d)} className={`rounded-lg px-3 py-2 border text-sm font-medium capitalize text-left transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{d}</button>
             ))}
-          </div>
-
-          <div className="mt-5 rounded-xl bg-tertiary-container/40 border border-tertiary/20 p-3 text-xs leading-relaxed text-on-surface-variant">
-            Paint any picture — a shield, a logo, letters, a character. Every square becomes one single crochet, worked flat from a colour chart. Counts are exact and verified.
           </div>
         </aside>
       </div>
