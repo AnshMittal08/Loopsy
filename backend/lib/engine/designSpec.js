@@ -50,14 +50,25 @@ function normalizeDesignSpec(raw = {}) {
     name: String(raw.name || 'Custom Design').slice(0, 120),
     category: String(raw.category || 'Custom'),
     yarnWeight: String(raw.yarnWeight || 'Worsted'),
-    parts: parts.map((part, index) => ({
-      name: String(part.name || `Part ${index + 1}`).slice(0, 60),
-      shape: String(part.shape || ''),
-      dimensions: part.dimensions && typeof part.dimensions === 'object' ? part.dimensions : {},
-      color: part.color ? String(part.color) : null,
-      stitch: SUPPORTED_STITCHES.includes(part.stitch) ? part.stitch : null,
-      quantity: Math.max(1, Math.min(12, Number(part.quantity) || 1)),
-    })),
+    parts: parts.map((part, index) => {
+      const normalized = {
+        name: String(part.name || `Part ${index + 1}`).slice(0, 60),
+        shape: String(part.shape || ''),
+        dimensions: part.dimensions && typeof part.dimensions === 'object' ? part.dimensions : {},
+        color: part.color ? String(part.color) : null,
+        stitch: SUPPORTED_STITCHES.includes(part.stitch) ? part.stitch : null,
+        quantity: Math.max(1, Math.min(12, Number(part.quantity) || 1)),
+      };
+      // Preserve canvas layout (x, y) when present — the compiler ignores it,
+      // but designs persist it so the preview and share card place parts where
+      // the maker put them.
+      const l = part.layout;
+      if (l && Number.isFinite(Number(l.x)) && Number.isFinite(Number(l.y))) {
+        normalized.layout = { x: Number(l.x), y: Number(l.y) };
+      }
+      if (part.face === true) normalized.face = true;
+      return normalized;
+    }),
     assembly: Array.isArray(raw.assembly) ? raw.assembly.map(String) : [],
     embellishments: Array.isArray(raw.embellishments) ? raw.embellishments.map(String) : [],
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : [],
