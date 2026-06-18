@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3 } from 'lucide-react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import CanvasStage from '../components/CanvasStage';
 import ChartStudio from './ChartStudio';
+
+const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import { PALETTE } from '../lib/yarnColors';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
@@ -36,6 +38,7 @@ export default function Design() {
   const [tab, setTab] = useState('elements'); // 'elements' | 'setup'
   const [zoom, setZoom] = useState(1);
   const [mode, setMode] = useState('build'); // 'build' (3D shapes) | 'draw' (chart)
+  const [view, setView] = useState('2d'); // '2d' canvas | '3d' model
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -323,23 +326,42 @@ export default function Design() {
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
           <Motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            style={{ transform: `scale(${zoom})` }}
+            style={{ transform: `scale(${view === '3d' ? 1 : zoom})` }}
             className="relative origin-center transition-transform"
           >
             <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-warm-xl ring-1 ring-outline-variant/10">
               <div className="relative aspect-[360/460] h-[min(72vh,560px)] bg-gradient-to-b from-surface-container-low to-surface-container">
                 <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
-                <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
+                {view === '3d' ? (
+                  <Suspense fallback={<div className="grid h-full place-items-center"><ThreadSpinner size={56} /></div>}>
+                    <Design3DPreview parts={parts} />
+                  </Suspense>
+                ) : (
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
+                )}
               </div>
             </div>
           </Motion.div>
 
-          {/* Zoom control */}
-          <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-surface-container-lowest/90 px-2 py-1 shadow-warm backdrop-blur">
-            <button onClick={() => setZoom((z) => Math.max(0.6, round1(z - 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom out"><Minus size={14} /></button>
-            <button onClick={() => setZoom(1)} className="min-w-[44px] text-center text-xs font-semibold tabular-nums">{Math.round(zoom * 100)}%</button>
-            <button onClick={() => setZoom((z) => Math.min(1.5, round1(z + 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom in"><Plus size={14} /></button>
+          {/* 2D / 3D view switch */}
+          <div className="absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-surface-container-lowest/90 p-0.5 shadow-warm backdrop-blur">
+            <button onClick={() => setView('2d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '2d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Square size={13} />2D</button>
+            <button onClick={() => setView('3d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '3d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Box size={13} />3D</button>
           </div>
+          {view === '3d' && (
+            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface-container-lowest/90 px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-warm backdrop-blur">
+              <Rotate3d size={13} className="text-primary" />Drag to rotate · scroll to zoom
+            </div>
+          )}
+
+          {/* Zoom control (2D only) */}
+          {view === '2d' && (
+            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-surface-container-lowest/90 px-2 py-1 shadow-warm backdrop-blur">
+              <button onClick={() => setZoom((z) => Math.max(0.6, round1(z - 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom out"><Minus size={14} /></button>
+              <button onClick={() => setZoom(1)} className="min-w-[44px] text-center text-xs font-semibold tabular-nums">{Math.round(zoom * 100)}%</button>
+              <button onClick={() => setZoom((z) => Math.min(1.5, round1(z + 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom in"><Plus size={14} /></button>
+            </div>
+          )}
         </div>
 
         {/* Right inspector */}
