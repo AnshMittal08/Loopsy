@@ -66,6 +66,7 @@ function normalizeDesignSpec(raw = {}) {
       if (l && Number.isFinite(Number(l.x)) && Number.isFinite(Number(l.y))) {
         normalized.layout = { x: Number(l.x), y: Number(l.y) };
       }
+      if (part.face === true) normalized.face = true;
       return normalized;
     }),
     assembly: Array.isArray(raw.assembly) ? raw.assembly.map(String) : [],

@@ -1,35 +1,77 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useId } from 'react';
 import { hexOf } from '../lib/yarnColors';
-import { partGeometry } from '../lib/shapeKit';
+import { partGeometry, partBBox } from '../lib/shapeKit';
 import { CANVAS } from '../lib/assembly';
 
 // Interactive (or read-only) SVG stage where parts are placed and dragged.
 // Coordinates live in a canonical canvas space (CANVAS.w × CANVAS.h, px/cm),
 // so the editor and the share page render designs identically.
+//
+// Each part is drawn to look like plush yarn: a base color, a crochet stitch
+// texture, a soft top-left sheen and a bottom-right shade for roundness, and a
+// drop shadow so stacked parts read as attached.
 
-function Shape({ part, selected, onPointerDown }) {
+// One geometry, any fill — lets us stack base/texture/sheen/shade copies.
+function geom(g, key, extra) {
+  if (g.type === 'circle') return <circle key={key} cx={g.cx} cy={g.cy} r={g.r} {...extra} />;
+  if (g.type === 'ellipse') return <ellipse key={key} cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...extra} />;
+  if (g.type === 'rect') return <rect key={key} x={g.x} y={g.y} width={g.width} height={g.height} rx={g.rx} {...extra} />;
+  if (g.type === 'polygon') return <polygon key={key} points={g.points} {...extra} />;
+  if (g.type === 'path') return <path key={key} d={g.d} {...extra} />;
+  return null;
+}
+
+function Face({ part, px }) {
+  const bb = partBBox(part, px);
+  const cx = bb.x + bb.w / 2;
+  const cy = bb.y + bb.h * 0.42;
+  const r = Math.min(bb.w, bb.h);
+  const eye = Math.max(2.2, r * 0.05);
+  const dx = r * 0.18;
+  return (
+    <g>
+      <circle cx={cx - dx} cy={cy} r={eye} fill="#1A1726" />
+      <circle cx={cx + dx} cy={cy} r={eye} fill="#1A1726" />
+      <circle cx={cx - dx + eye * 0.3} cy={cy - eye * 0.3} r={eye * 0.32} fill="#fff" />
+      <circle cx={cx + dx + eye * 0.3} cy={cy - eye * 0.3} r={eye * 0.32} fill="#fff" />
+      <circle cx={cx - dx * 2.1} cy={cy + eye * 1.4} r={eye * 0.7} fill="#FF6584" opacity="0.45" />
+      <circle cx={cx + dx * 2.1} cy={cy + eye * 1.4} r={eye * 0.7} fill="#FF6584" opacity="0.45" />
+    </g>
+  );
+}
+
+function Part({ part, selected, ids, onPointerDown }) {
   const g = partGeometry(part, CANVAS.px);
   const fill = hexOf(part.color);
-  const stroke = selected ? 'var(--primary)' : 'rgba(0,0,0,0.12)';
-  const sw = selected ? 2.5 : 1;
-  const common = {
-    fill,
-    stroke,
-    strokeWidth: sw,
-    style: { cursor: onPointerDown ? 'grab' : 'default' },
-    onPointerDown: onPointerDown ? (e) => onPointerDown(e, part) : undefined,
-  };
-  let el;
-  if (g.type === 'circle') el = <circle cx={g.cx} cy={g.cy} r={g.r} {...common} />;
-  else if (g.type === 'ellipse') el = <ellipse cx={g.cx} cy={g.cy} rx={g.rx} ry={g.ry} {...common} />;
-  else if (g.type === 'rect') el = <rect x={g.x} y={g.y} width={g.width} height={g.height} rx={g.rx} {...common} />;
-  else if (g.type === 'polygon') el = <polygon points={g.points} {...common} />;
-  else if (g.type === 'path') el = <path d={g.d} {...common} />;
-  return el;
+  const handlers = onPointerDown ? { onPointerDown: (e) => onPointerDown(e, part), style: { cursor: 'grab' } } : {};
+  return (
+    <g {...handlers}>
+      <g filter={`url(#${ids.shadow})`}>
+        {geom(g, 'base', { fill })}
+        {geom(g, 'tex', { fill: `url(#${ids.stitch})` })}
+        {geom(g, 'sheen', { fill: `url(#${ids.sheen})` })}
+        {geom(g, 'shade', { fill: `url(#${ids.shade})` })}
+      </g>
+      {part.face && <Face part={part} px={CANVAS.px} />}
+      {selected && (() => {
+        const bb = partBBox(part, CANVAS.px);
+        const pad = 6;
+        return (
+          <rect x={bb.x - pad} y={bb.y - pad} width={bb.w + pad * 2} height={bb.h + pad * 2} rx={8}
+            fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeDasharray="5 4" />
+        );
+      })()}
+    </g>
+  );
 }
 
 export default function CanvasStage({ parts, selectedId, onSelect, onMove, interactive = true, className = '' }) {
   const svgRef = useRef(null);
+  const uid = useId().replace(/:/g, '');
+  const ids = {
+    grid: `grid-${uid}`, stitch: `stitch-${uid}`, sheen: `sheen-${uid}`,
+    shade: `shade-${uid}`, shadow: `shadow-${uid}`,
+  };
 
   const toCanvas = useCallback((clientX, clientY) => {
     const svg = svgRef.current;
@@ -38,8 +80,6 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, inter
     return pt.matrixTransform(svg.getScreenCTM().inverse());
   }, []);
 
-  // Self-contained drag: pointer listeners live for the duration of one drag,
-  // so there are no shared refs to read during render.
   const handleDown = useCallback((e, part) => {
     if (!interactive) return;
     e.stopPropagation();
@@ -65,14 +105,47 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, inter
     <svg
       ref={svgRef}
       viewBox={`0 0 ${CANVAS.w} ${CANVAS.h}`}
-      className={`h-full w-full touch-none ${className}`}
+      className={`h-full w-full touch-none text-on-surface-variant ${className}`}
       onPointerDown={interactive ? () => onSelect?.(null) : undefined}
       role="img"
       aria-label="Design canvas"
     >
-      <ellipse cx={CANVAS.w / 2} cy={CANVAS.h - 18} rx={CANVAS.w * 0.34} ry={12} fill="rgba(0,0,0,0.14)" />
+      <defs>
+        <pattern id={ids.grid} width="22" height="22" patternUnits="userSpaceOnUse">
+          <circle cx="1.5" cy="1.5" r="1.4" fill="currentColor" opacity="0.16" />
+        </pattern>
+        <pattern id={ids.stitch} width="10" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">
+          <path d="M0,2.5 L5,6.5 L10,2.5" fill="none" stroke="rgba(0,0,0,0.13)" strokeWidth="1.1" />
+          <path d="M-5,7 L0,11 L5,7" fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="1.1" />
+        </pattern>
+        <radialGradient id={ids.sheen} cx="0.34" cy="0.26" r="0.75">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.5" />
+          <stop offset="0.5" stopColor="#fff" stopOpacity="0.08" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={ids.shade} cx="0.68" cy="0.78" r="0.8">
+          <stop offset="0.4" stopColor="#000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.2" />
+        </radialGradient>
+        <filter id={ids.shadow} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.22" />
+        </filter>
+      </defs>
+
+      {/* design grid */}
+      <rect width={CANVAS.w} height={CANVAS.h} fill={`url(#${ids.grid})`} />
+
+      {/* ground shadow */}
+      <ellipse cx={CANVAS.w / 2} cy={CANVAS.h - 16} rx={CANVAS.w * 0.3} ry={11} fill="#000" opacity="0.12" />
+
       {parts.map((part) => (
-        <Shape key={part.id} part={part} selected={interactive && selectedId === part.id} onPointerDown={interactive ? handleDown : null} />
+        <Part
+          key={part.id}
+          part={part}
+          selected={interactive && selectedId === part.id}
+          ids={ids}
+          onPointerDown={interactive ? handleDown : null}
+        />
       ))}
     </svg>
   );

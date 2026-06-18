@@ -23,8 +23,8 @@ const round1 = (n) => Math.round(n * 10) / 10;
 // A friendly starter so the canvas isn't empty: a simple two-ball creature.
 function starterParts() {
   return [
-    { id: nextId(), name: 'Body', shape: 'ellipsoid', dims: { diameterCm: 7, heightCm: 9 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 270 },
-    { id: nextId(), name: 'Head', shape: 'sphere', dims: { diameterCm: 6.5 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 140 },
+    { id: nextId(), name: 'Body', shape: 'ellipsoid', dims: { diameterCm: 7, heightCm: 9 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 280 },
+    { id: nextId(), name: 'Head', shape: 'sphere', dims: { diameterCm: 6.5 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 150, face: true },
   ];
 }
 
@@ -93,6 +93,7 @@ export default function Design() {
       dimensions: Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)])),
       color: p.color, quantity: p.quantity,
       layout: { x: Math.round(p.x), y: Math.round(p.y) },
+      ...(p.face ? { face: true } : {}),
     })),
     assembly: deriveAssembly(parts),
     embellishments: [],
@@ -253,6 +254,14 @@ export default function Design() {
                         ))}
                       </div>
                     </div>
+
+                    <button onClick={() => updatePart(selected.id, { face: !selected.face })}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg bg-surface-container-low px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-container">
+                      <span>Add a face (eyes)</span>
+                      <span className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${selected.face ? 'bg-primary' : 'bg-outline-variant/40'}`}>
+                        <span className={`h-4 w-4 rounded-full bg-white transition-transform ${selected.face ? 'translate-x-4' : ''}`} />
+                      </span>
+                    </button>
 
                     <div>
                       <span className="text-xs font-semibold">Yarn color</span>

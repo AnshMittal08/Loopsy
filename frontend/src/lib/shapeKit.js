@@ -50,3 +50,18 @@ export function partGeometry(part, px) {
       return { type: 'circle', cx: x, cy: y, r: 18 };
   }
 }
+
+// Axis-aligned bounding box for a part (for selection outline + eye placement).
+export function partBBox(part, px) {
+  const d = part.dims || part.dimensions || {};
+  const { x, y } = part;
+  switch (part.shape) {
+    case 'sphere': { const r = (d.diameterCm || 6) / 2 * px; return { x: x - r, y: y - r, w: 2 * r, h: 2 * r }; }
+    case 'hemisphere': { const r = (d.diameterCm || 6) / 2 * px; return { x: x - r, y: y - r * 0.6, w: 2 * r, h: r * 1.4 }; }
+    case 'ellipsoid': { const rx = (d.diameterCm || 6) / 2 * px, ry = (d.heightCm || 8) / 2 * px; return { x: x - rx, y: y - ry, w: 2 * rx, h: 2 * ry }; }
+    case 'tube': { const w = (d.diameterCm || 3) * px, h = (d.heightCm || 6) * px; return { x: x - w / 2, y: y - h / 2, w, h }; }
+    case 'cone': { const w = (d.baseDiameterCm || 4) * px, h = (d.heightCm || 5) * px; return { x: x - w / 2, y: y - h / 2, w, h }; }
+    case 'flatPanel': { const w = (d.widthCm || 4) * px, h = (d.heightCm || 5) * px; return { x: x - w / 2, y: y - h / 2, w, h }; }
+    default: return { x: x - 18, y: y - 18, w: 36, h: 36 };
+  }
+}
