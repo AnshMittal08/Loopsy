@@ -56,6 +56,7 @@ export default function Design() {
   const updateDim = (id, key, value) =>
     setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims: { ...p.dims, [key]: value } } : p)));
   const movePart = useCallback((id, x, y) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, x, y } : p))), []);
+  const resizePart = useCallback((id, dims) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims } : p))), []);
 
   const addShape = (def) => {
     // Deterministic stagger so new shapes don't stack exactly on top.
@@ -375,7 +376,7 @@ export default function Design() {
                     <Design3DPreview parts={parts} />
                   </Suspense>
                 ) : (
-                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} onResize={resizePart} />
                 )}
               </div>
             </div>
