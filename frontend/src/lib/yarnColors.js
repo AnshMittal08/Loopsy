@@ -25,6 +25,8 @@ const CREAM = '#EFE3C8';
 
 export function hexOf(name) {
   if (!name) return CREAM;
+  // Arbitrary hex colours pass straight through (unlimited custom colours).
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(name).trim())) return name;
   const key = String(name).toLowerCase().trim();
   const pal = PALETTE.find((p) => p.name === key);
   if (pal) return pal.hex;

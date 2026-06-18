@@ -8,6 +8,7 @@
 const { resolveGauge } = require('./gauge');
 const { SHAPE_GENERATORS } = require('./shapes');
 const { normalizeDesignSpec, validateDesignSpec } = require('./designSpec');
+const { colorName } = require('./colorName');
 
 /**
  * Compile a Design Spec into pattern steps.
@@ -40,7 +41,7 @@ function compileDesignSpec(rawSpec) {
     const generated = generate(part.dimensions, gauge, part.stitch || defaultStitch);
 
     const qty = part.quantity > 1 ? ` (make ${part.quantity})` : '';
-    const color = part.color ? ` — in ${part.color} yarn` : '';
+    const color = part.color ? ` — in ${colorName(part.color)} yarn` : '';
     const partLabel = `${part.name}${qty}`;
 
     steps.push({
@@ -99,7 +100,7 @@ function describeFinishedSize(spec) {
 }
 
 function suggestMaterials(spec, gauge) {
-  const colors = [...new Set(spec.parts.map((p) => p.color).filter(Boolean))];
+  const colors = [...new Set(spec.parts.map((p) => p.color).filter(Boolean).map(colorName))];
   const yarnLine = colors.length
     ? `${spec.yarnWeight} yarn in ${colors.join(', ')}`
     : `${spec.yarnWeight} yarn`;

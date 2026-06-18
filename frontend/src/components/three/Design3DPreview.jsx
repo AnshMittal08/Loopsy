@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, Center } from '@react-three/drei';
+import { OrbitControls, ContactShadows, Bounds } from '@react-three/drei';
 import * as THREE from 'three';
 import { hexOf } from '../../lib/yarnColors';
 import { CANVAS } from '../../lib/assembly';
@@ -88,13 +88,13 @@ export default function Design3DPreview({ parts }) {
       <ambientLight intensity={0.7} />
       <directionalLight position={[10, 18, 12]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
       <pointLight position={[-12, -6, -8]} intensity={30} color="#8B7CF6" />
-      <Center>
+      <Bounds fit clip observe margin={1.25}>
         <group>
           {parts.map((part) => <PartMesh key={part.id} part={part} />)}
         </group>
-      </Center>
-      <ContactShadows position={[0, -11, 0]} opacity={0.35} scale={50} blur={2.4} far={20} color="#1A1030" />
-      <OrbitControls enablePan={false} enableZoom enableDamping dampingFactor={0.08} minDistance={14} maxDistance={60} />
+      </Bounds>
+      <ContactShadows position={[0, -16, 0]} opacity={0.3} scale={60} blur={2.4} far={26} color="#1A1030" />
+      <OrbitControls makeDefault enablePan={false} enableZoom enableDamping dampingFactor={0.08} />
     </Canvas>
   );
 }
