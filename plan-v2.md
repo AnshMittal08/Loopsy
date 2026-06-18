@@ -2,6 +2,8 @@
 
 *Supersedes the roadmap in `plan.md` (kept for history). Written June 2026, after Phases 1 → 2E shipped.*
 
+> **Status (updated):** M1–M4 shipped. M1 (Atelier design language), M2 (the verified-math Compiler), M3 (Vision Studio — photo → pattern), and M4 (Design Canvas — Build/Sculpt/3D + Draw colourwork/medallion, unlimited colours, live verified feedback, share pages) are merged to `main`. A hardening pass added an engine test suite + CI, structured logging, DB backups, and onboarding. **M5 (Stripe/PDF/PWA)** and **M6 (growth)** are not started — plan upgrades are still manual DB edits, and Vision needs a live API key to validate end-to-end. See the root `README.md` for current details.
+
 ---
 
 ## 1. The honest diagnosis

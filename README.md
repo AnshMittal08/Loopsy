@@ -45,14 +45,31 @@ backend/    Next.js 14 API routes + SQLite (better-sqlite3)
 - `POST /api/ai/analyze-image` (the metered vision call) → `POST /api/ai/generate-from-spec` (deterministic, streamed). Images are passed through to Claude, never stored
 - Trial gating: Free gets **1 lifetime vision trial**, Maker Pro spends a monthly generation, Creator is unlimited. AI output is labeled personal-use-only
 
+### Design Canvas — design anything, get verified stitches (M4)
+A dedicated full-screen editor at `/design` with two construction systems:
+
+- **Build (3D amigurumi)** — assemble primitive shapes (Ball, Egg, Tube, Cone, Dome, Panel) on a canvas; **drag to move, grab a corner handle to resize**. A **Sculpt** tool lets you draw *any* silhouette by dragging control points — it revolves into a real 3D form. A **2D/3D toggle** shows a live, rotatable three.js model (sculpt profiles lathe into actual geometry). Start from creature templates (Teddy, Bunny, Cat, Snowman, Chick).
+- **Draw (2D / round colourwork)** — paint any picture on a pixel grid; each square is one stitch. Make it a **flat panel** (worked in rows — blankets, appliqués) or a **Round 3D medallion** (worked in the round into a disc/dome — shields, badges, mandalas; the drawing is sampled ring-by-ring). Templates include a validated **Captain America shield**.
+- **Live "Verified math ✓" feedback** while you design (debounced `POST /api/design/preview`) — the stitch count updates as you move/resize.
+- **Unlimited colours** — yarn swatches plus a custom colour picker; any hex is named for the written pattern (e.g. "3 burnt orange, 2 teal").
+- **Layout-derived assembly** — the engine reads where parts sit and writes "Sew the Head to the top of the Body, about 8 cm from its center."
+- Designs persist (`designs` table) and **share** via a public `/d/:id` page with an auto-generated Open Graph image.
+
 ### Pattern Compiler — "Verified math ✓" (M2)
 - Deterministic crochet geometry engine in `backend/lib/engine/` — stitch counts are **computed, never guessed**
 - **Gauge tables** by yarn weight (with tight amigurumi tension variants) drive every dimension→stitch conversion
 - **Shape generators**: `sphere`, `ellipsoid`, `hemisphere`, `tube`, `cone`, `flatPanel`, `hatCrown` (head-size tables), `grannySquare` — each emits textbook increase/decrease distributions (a 6 cm amigurumi sphere always produces the 6-12-18-24-30… sequence)
-- **Design Spec** — the JSON contract shared by every front door (text prompt today; photos and the design canvas in M3/M4)
+- **`distribute.js`** — even increase/decrease distribution for *any* delta across a round (exhaustively tested), so **`revolve.js`** can turn an arbitrary profile curve into exact rounds (the Sculpt engine)
+- **`chart.js`** — colourwork: each grid square is one stitch, worked flat (`compileChart`) or in the round (`compileMedallion`)
+- **Design Spec** — the one JSON contract every front door produces (text prompt, photo, and the design canvas)
 - **Validator** re-derives running stitch counts from any pattern's text and flags drift; it skips conventions it can't model rather than guessing
 - The **"Verified math ✓" badge** is earned, not given: shown only when every checkable count agrees
 - Audit the seed templates anytime: `cd backend && node scripts/validate-templates.js`
+
+### Quality — tests, CI, observability
+- **Engine test suite** (`cd backend && npm test`, `node:test`, zero deps): exhaustive distribution arithmetic, every shape/revolve/chart self-validating, the validator catching wrong counts, and a regression lock that all 22 templates have 0 arithmetic errors
+- **CI** (`.github/workflows/ci.yml`) runs backend tests + build and frontend lint + build on every push and PR
+- Structured logger (`backend/lib/logger.js`); online DB backup (`npm run backup`)
 
 ### Template Customization
 - Pick any template, set yarn colour and size (small / medium / large)
@@ -179,50 +196,50 @@ Loopsy/
 │   │   │   └── logout/          POST — sign out, clear cookie
 │   │   ├── me/                  GET — current session user
 │   │   ├── ai/
-│   │   │   ├── generate-pattern/  POST — AI pattern generation
-│   │   │   ├── regenerate/        POST — AI pattern regeneration
+│   │   │   ├── generate-pattern/  POST — text → verified pattern (streaming)
+│   │   │   ├── regenerate/        POST — regenerate a pattern
+│   │   │   ├── analyze-image/     POST — Vision Studio: photo → Design Spec (M3)
+│   │   │   ├── generate-from-spec/ POST — compile an approved/canvas spec (streaming)
+│   │   │   ├── generate-chart/    POST — colourwork grid → flat or medallion (M4)
 │   │   │   └── tutor/             POST — step-specific AI Q&A (Claude)
-│   │   ├── usage/               GET — current user's AI usage + plan limits
-│   │   ├── patterns/            GET all (user-scoped), POST create
-│   │   ├── patterns/[id]/       GET single, DELETE
-│   │   ├── progress/            POST init (idempotent)
-│   │   ├── progress/[id]/       PATCH toggle step (atomic)
-│   │   ├── progress/pattern/[id]/  GET by patternId
-│   │   ├── templates/           GET all (filterable), GET [id]
-│   │   └── analytics/           GET usage stats
+│   │   ├── design/preview/      POST — live, no-save compile summary for the canvas
+│   │   ├── designs/             GET/POST designs; [id] GET/PATCH; [id]/og GET (OG image)
+│   │   ├── usage/               GET — AI usage + plan limits + vision trial
+│   │   ├── patterns/, progress/, templates/, analytics/   (as before)
 │   ├── lib/
-│   │   ├── auth/
-│   │   │   └── session.js       hashPassword, verifyPassword, createUserSession, setSessionCookie
-│   │   ├── db/index.js          SQLite singleton, schema init, migrations
-│   │   ├── engine/              Pattern Compiler — deterministic crochet geometry (M2)
-│   │   │   ├── gauge.js         Gauge tables by yarn weight + stitch height factors
+│   │   ├── auth/session.js      password hashing, cookie sessions
+│   │   ├── db/index.js          SQLite singleton, schema init, idempotent migrations
+│   │   ├── logger.js            structured logger (JSON in prod)
+│   │   ├── engine/              deterministic crochet geometry — computes every stitch
+│   │   │   ├── gauge.js         gauge tables by yarn weight
+│   │   │   ├── distribute.js    even inc/dec distribution for any delta (exhaustively tested)
 │   │   │   ├── shapes.js        sphere/ellipsoid/hemisphere/tube/cone/flatPanel/hatCrown/grannySquare
+│   │   │   ├── revolve.js       profile curve → amigurumi in rounds (Sculpt engine)
+│   │   │   ├── chart.js         colourwork: compileChart (flat) + compileMedallion (round)
+│   │   │   ├── colorName.js     any hex → readable yarn name
 │   │   │   ├── designSpec.js    Design Spec schema — normalize + validate
 │   │   │   ├── compiler.js      Spec → ordered steps with computed counts
-│   │   │   └── validator.js     Re-derives counts from pattern text, flags drift
-│   │   ├── models/
-│   │   │   ├── userModel.js     createUser, getUserByEmail, getUserWithSubscriptionById
-│   │   │   ├── sessionModel.js  createSession, getSessionByToken, deleteSessionByToken
-│   │   │   ├── templateModel.js SQLite queries + 22-template seed data
-│   │   │   ├── patternModel.js  CRUD for user-created patterns
-│   │   │   ├── progressModel.js CRUD + toggleStepAtomic()
-│   │   │   └── usageModel.js    getUsageCount, incrementUsage (monthly upsert)
-│   │   ├── services/
-│   │   │   ├── aiService.js     Claude / Ollama / fallback logic (prompt caching)
-│   │   │   └── patternService.js  Template → structured pattern generation
-│   │   └── utils/
-│   │       ├── helpers.js
-│   │       └── planLimits.js    PLAN_LIMITS, checkRateLimit, recordUsage
+│   │   │   └── validator.js     re-derives counts, earns the Verified-math badge
+│   │   ├── models/             user, session, template (22 seed), pattern, progress, design, usage
+│   │   ├── services/           aiService (compiler-first + vision), patternService
+│   │   └── utils/planLimits.js  PLAN_LIMITS, checkRateLimit, checkVisionAccess
+│   ├── scripts/                validate-templates.js, backup-db.js
+│   ├── test/                   node:test engine suite (npm test)
 │   └── data.db                  SQLite database (auto-created, gitignored)
+│
+├── .github/workflows/ci.yml    backend tests+build, frontend lint+build
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── Home.jsx         Template discovery + beginner path + recent patterns
-│   │   │   ├── Account.jsx      Sign up / sign in / sign out + usage bars + upgrade cards
-│   │   │   ├── TemplateDetail.jsx  Full template view with CTA
-│   │   │   ├── Create.jsx       AI generation + template customization + 429 handling
-│   │   │   └── Tracker.jsx      Row-by-row progress tracker + My Projects list
+│   │   │   ├── Home.jsx         discovery + beginner path + recent patterns
+│   │   │   ├── Account.jsx      auth + usage bars (incl. vision trial) + upgrade cards
+│   │   │   ├── TemplateDetail.jsx  full template view with CTA
+│   │   │   ├── Create.jsx       template / text-AI / photo (Vision Studio) generation
+│   │   │   ├── Design.jsx       Design Canvas — Build mode + 2D/3D + live verified feedback
+│   │   │   ├── ChartStudio.jsx  Design Canvas — Draw mode (chart / medallion)
+│   │   │   ├── DesignShare.jsx  public /d/:id share page
+│   │   │   └── Tracker.jsx      row-by-row progress tracker + My Projects list
 │   │   ├── components/
 │   │   │   ├── AuthProvider.jsx useAuth() hook — user, signIn, signUp, signOut
 │   │   │   ├── AiTutor.jsx      Floating chat panel — step-specific Claude Q&A
@@ -373,12 +390,16 @@ See [plan-v2.md](./plan-v2.md) for the active roadmap ([plan.md](./plan.md) is k
 - **M1 — "Glow-Up"** — Atelier design language: dual theme (Midnight Wool / Undyed), yarn accent palette, `motion` animation system, thread motif, winding yarn-ball tracker, Crochet Mode, lucide icons, three.js/dead-code removal
 - **M2 — "The Compiler"** — deterministic crochet geometry engine (`backend/lib/engine/`): gauge tables, shape generators, Design Spec schema, pattern compiler, validator + "Verified math ✓" badge; AI generation rewired to intent→compile→humanize with streaming SSE responses; plus an app-wide animation/interactivity polish pass (route transitions, magnetic CTAs, 3D-tilt cards, theatrical generation view) and the home redesign: lazy-loaded three.js yarn-ball hero (the one 3D moment plan-v2 reserves), custom cursor follower, scroll-progress thread, editorial marquee + footer
 
+- **M3 — "Vision Studio"** — photo → confidence-scored editable analysis → verified pattern; lifetime trial gating; honest AI-outage handling
+- **M4 — "Design Canvas"** — free-form designer at `/design`: Build (shapes + Sculpt + live 3D + drag-resize), Draw (colourwork chart + worked-in-the-round medallion), unlimited colours, layout-derived assembly, live verified-math feedback, public share pages + OG images
+- **Hardening** — engine test suite + CI (the verified-math moat), structured logging, DB backups, first-run onboarding, component decomposition
+
 Next milestones (plan-v2):
 
-1. **M3 — "Vision Studio"** — photo → editable analysis → verified pattern
-2. **M4 — "Design Canvas"** — interactive amigurumi designer with shareable cards
-3. **M5 — "Get Paid"** — Stripe billing, PDF export, PWA
-4. **M6 — "The Flywheel"** — public share pages, creator seeding, Learn page, Crochet-Alongs
+1. **M5 — "Get Paid"** — Stripe billing, PDF export, PWA (plans are still manual DB edits until then)
+2. **M6 — "The Flywheel"** — public share pages, creator seeding, Learn page, Crochet-Alongs
+
+Known gaps (honest): Vision Studio needs a live `ANTHROPIC_API_KEY` to validate end-to-end; OG link-preview meta is client-injected (needs SSR for non-JS crawlers); the editors are desktop-first; tailored garments are out of scope (no accurate auto-grading).
 
 ## Deployment
 
