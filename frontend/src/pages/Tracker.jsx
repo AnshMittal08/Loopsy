@@ -294,7 +294,7 @@ export default function Tracker() {
 
     loadTracker();
     return () => { cancelled = true; };
-  }, [patternId, user]);
+  }, [patternId, user, showToast]);
 
   // Keep the active row in view as rows are completed — but not on first
   // load, where the studio header should be what greets you.
