@@ -477,6 +477,8 @@ function grannySquare({ sideCm, rounds: roundsWanted }, gauge) {
   };
 }
 
+const { revolve } = require('./revolve');
+
 const SHAPE_GENERATORS = {
   sphere,
   ellipsoid,
@@ -486,6 +488,7 @@ const SHAPE_GENERATORS = {
   flatPanel,
   hatCrown,
   grannySquare,
+  revolve,
 };
 
 module.exports = {
@@ -499,4 +502,5 @@ module.exports = {
   flatPanel,
   hatCrown,
   grannySquare,
+  revolve,
 };

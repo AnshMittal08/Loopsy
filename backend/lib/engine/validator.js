@@ -18,6 +18,55 @@ function declaredCount(text) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+// Parse one increase segment ("[sc in next 3, 2 sc in next] repeat 5 times",
+// "2 sc in each of the next 4 stitches", "sc in next 50, 2 sc in the next
+// stitch", "2 sc in the next stitch") → stitches consumed and produced.
+function parseIncSeg(seg) {
+  const reM = seg.match(/repeat\s+(\d+)\s+times/);
+  let m = seg.match(new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+of\\s+the\\s+next\\s+(\\d+)\\s+stitches`));
+  if (m) { const units = parseInt(m[1], 10); return { consumed: units, produced: 2 * units }; }
+  if (new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+stitch`).test(seg)) {
+    const km = seg.match(new RegExp(`${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+(\\d+)\\s+stitch`));
+    const plain = km ? parseInt(km[1], 10)
+      : (new RegExp(`${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+stitch\\s*,`).test(seg) ? 1 : 0);
+    const units = reM ? parseInt(reM[1], 10) : 1;
+    return { consumed: units * (plain + 1), produced: units * (plain + 2) };
+  }
+  return null;
+}
+
+// Parse one decrease segment → consumed / produced.
+function parseDecSeg(seg) {
+  if (!/2\s+together|2tog|decrease/.test(seg)) return null;
+  const reM = seg.match(/repeat\s+(\d+)\s+times/);
+  const km = seg.match(new RegExp(`${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+(\\d+)\\s+stitch`));
+  const plain = km ? parseInt(km[1], 10)
+    : (new RegExp(`${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+stitch\\s*,`).test(seg) ? 1 : 0);
+  const units = reM ? parseInt(reM[1], 10) : 1;
+  return { consumed: units * (plain + 2), produced: units * (plain + 1) };
+}
+
+// General shaping round: sum every increase/decrease segment (joined by
+// ", then "). Returns the new count, or null if it can't fully account for the
+// round (so it's skipped, never mis-flagged).
+function evalShaping(t, prev) {
+  if (prev == null) return null;
+  const isDec = /2\s+together|2tog|decrease/.test(t);
+  const isInc = !isDec && new RegExp(`2\\s+${STITCH_WORDS}\\s+in`).test(t);
+  if (!isInc && !isDec) return null;
+  if (isInc && new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+stitch\\s+around`).test(t)) return prev * 2;
+
+  const segments = t.split(/,\s*then\s+/);
+  let consumed = 0, produced = 0;
+  for (const seg of segments) {
+    const r = isInc ? parseIncSeg(seg) : parseDecSeg(seg);
+    if (!r) return null; // a segment we can't model → don't guess
+    consumed += r.consumed;
+    produced += r.produced;
+  }
+  return consumed === prev ? produced : null;
+}
+
 /**
  * Given the instruction text and the previous running count, compute the
  * expected count. Returns null when the operation isn't recognized.
@@ -39,38 +88,9 @@ function computeExpectedCount(text, prev) {
   m = t.match(new RegExp(`(\\d+)\\s+${STITCH_WORDS}\\s+(?:into|in)(?:\\s+the)?\\s+(?:magic\\s+)?ring`));
   if (m) return parseInt(m[1], 10);
 
-  // "2 single crochet in each stitch around" → double
-  if (new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+stitch\\s+around`).test(t)) {
-    return prev != null ? prev * 2 : null;
-  }
-
-  // "[Single crochet in next N stitch(es), 2 single crochet in next stitch] repeat M times"
-  m = t.match(
-    new RegExp(
-      `\\[${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next(?:\\s+(\\d+))?\\s+stitch(?:es)?,\\s*2\\s+${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+stitch\\]\\s*repeat\\s+(\\d+)\\s+times`
-    )
-  );
-  if (m) {
-    const plain = m[1] ? parseInt(m[1], 10) : 1;
-    const reps = parseInt(m[2], 10);
-    return reps * (plain + 2);
-  }
-
-  // "[Single crochet in next N stitch(es), single crochet 2 together] repeat M times"
-  m = t.match(
-    new RegExp(
-      `\\[${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next(?:\\s+(\\d+))?\\s+stitch(?:es)?,\\s*(?:${STITCH_WORDS}\\s+)?(?:2\\s+together|decrease)\\]\\s*repeat\\s+(\\d+)\\s+times`
-    )
-  );
-  if (m) {
-    const plain = m[1] ? parseInt(m[1], 10) : 1;
-    const reps = parseInt(m[2], 10);
-    return reps * (plain + 1);
-  }
-
-  // "[Single crochet 2 together] repeat M times"
-  m = t.match(new RegExp(`\\[(?:${STITCH_WORDS}\\s+)?(?:2\\s+together|decrease)\\]\\s*repeat\\s+(\\d+)\\s+times`));
-  if (m) return parseInt(m[1], 10);
+  // General shaping round — increases and/or decreases, single or multi-segment.
+  const shaped = evalShaping(t, prev);
+  if (shaped != null) return shaped;
 
   // Even round/row: "single crochet in each stitch around/across",
   // "single crochet across", "repeat the same row"

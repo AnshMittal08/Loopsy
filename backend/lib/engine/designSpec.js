@@ -25,6 +25,7 @@ const SUPPORTED_SHAPES = [
   'flatPanel',
   'hatCrown',
   'grannySquare',
+  'revolve',
 ];
 
 const SUPPORTED_STITCHES = ['sc', 'hdc', 'dc'];
@@ -38,6 +39,7 @@ const REQUIRED_DIMENSIONS = {
   flatPanel: ['widthCm', 'heightCm'],
   hatCrown: [], // size keyword, defaulted
   grannySquare: [], // sideCm or rounds, defaulted
+  revolve: ['heightCm'], // plus a profile array (validated specially)
 };
 
 /**

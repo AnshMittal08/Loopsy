@@ -1,13 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion as Motion } from 'motion/react';
-import { Menu, ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
-import SideNav from '../components/SideNav';
-import MobileNav from '../components/MobileNav';
-import { Reveal } from '../components/motion/Reveal';
+import { motion as Motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
-import Magnetic from '../components/motion/Magnetic';
 import CanvasStage from '../components/CanvasStage';
+import ChartStudio from './ChartStudio';
+
+const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import { PALETTE } from '../lib/yarnColors';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
@@ -31,13 +30,15 @@ function starterParts() {
 export default function Design() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const closeMobileNav = useCallback(() => setMobileOpen(false), []);
 
   const [name, setName] = useState('My Design');
   const [parts, setParts] = useState(starterParts);
   const [selectedId, setSelectedId] = useState(null);
   const [difficulty, setDifficulty] = useState('beginner');
+  const [tab, setTab] = useState('elements'); // 'elements' | 'setup'
+  const [zoom, setZoom] = useState(1);
+  const [mode, setMode] = useState('build'); // 'build' (3D shapes) | 'draw' (chart)
+  const [view, setView] = useState('2d'); // '2d' canvas | '3d' model
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -56,12 +57,19 @@ export default function Design() {
     // Deterministic stagger so new shapes don't stack exactly on top.
     const n = parts.length;
     const p = {
-      id: nextId(), name: def.label, shape: def.shape, dims: { ...def.dims }, color: 'coral', quantity: 1,
-      x: CANVAS.w / 2 + ((n % 5) - 2) * 18, y: 90 + (n % 4) * 22,
+      id: nextId(), name: def.label, shape: def.shape, dims: JSON.parse(JSON.stringify(def.dims)), color: 'coral', quantity: 1,
+      x: CANVAS.w / 2 + ((n % 5) - 2) * 18, y: def.shape === 'revolve' ? CANVAS.h / 2 : 90 + (n % 4) * 22,
     };
     setParts((ps) => [...ps, p]);
     setSelectedId(p.id);
   };
+
+  // Reshape a sculpt part's silhouette point (drag handle on the canvas).
+  const updateSculpt = useCallback((id, index, patch) => setParts((ps) => ps.map((p) => {
+    if (p.id !== id) return p;
+    const profile = [...(p.dims.profile || [])].sort((a, b) => a.t - b.t).map((pt, i) => (i === index ? { ...pt, ...patch } : pt));
+    return { ...p, dims: { ...p.dims, profile } };
+  })), []);
   const duplicatePart = (id) => {
     const src = parts.find((p) => p.id === id);
     if (!src) return;
@@ -88,13 +96,17 @@ export default function Design() {
     name: name || 'Custom Design',
     category: 'Amigurumi',
     yarnWeight: 'DK',
-    parts: parts.map((p) => ({
-      name: p.name, shape: p.shape,
-      dimensions: Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)])),
-      color: p.color, quantity: p.quantity,
-      layout: { x: Math.round(p.x), y: Math.round(p.y) },
-      ...(p.face ? { face: true } : {}),
-    })),
+    parts: parts.map((p) => {
+      const dimensions = p.shape === 'revolve'
+        ? { heightCm: round1(p.dims.heightCm), profile: (p.dims.profile || []).map((pt) => ({ t: Math.round(pt.t * 100) / 100, r: round1(pt.r) })) }
+        : Object.fromEntries(Object.entries(p.dims).map(([k, v]) => [k, round1(v)]));
+      return {
+        name: p.name, shape: p.shape, dimensions,
+        color: p.color, quantity: p.quantity,
+        layout: { x: Math.round(p.x), y: Math.round(p.y) },
+        ...(p.face ? { face: true } : {}),
+      };
+    }),
     assembly: deriveAssembly(parts),
     embellishments: [],
   });
@@ -151,158 +163,219 @@ export default function Design() {
   if (authLoading) return <div className="flex min-h-screen items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
   if (!user) {
     return (
-      <div className="flex min-h-screen bg-surface text-on-surface">
-        <SideNav />
-        <main className="flex-1 flex items-center justify-center px-6 py-16">
-          <Reveal className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 text-center">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10"><Lock size={24} className="text-primary" /></div>
-            <h1 className="font-display text-2xl font-bold mb-2">Sign in to design</h1>
-            <p className="text-sm text-on-surface-variant mb-8">Designs and their patterns are saved to your account.</p>
-            <Link to="/account" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors">Go to account</Link>
-          </Reveal>
-        </main>
+      <div className="flex min-h-screen items-center justify-center bg-surface px-6 text-on-surface">
+        <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10"><Lock size={24} className="text-primary" /></div>
+          <h1 className="font-display text-2xl font-bold mb-2">Sign in to design</h1>
+          <p className="text-sm text-on-surface-variant mb-8">Designs and their patterns are saved to your account.</p>
+          <Link to="/account" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors">Go to account</Link>
+        </div>
       </div>
     );
   }
 
+  if (mode === 'draw') return <ChartStudio onMode={setMode} />;
+
+  const inspector = !selected ? (
+    <div className="flex h-full flex-col items-center justify-center px-5 text-center">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low"><SlidersHorizontal size={20} className="text-on-surface-variant" /></div>
+      <p className="text-sm font-semibold">Nothing selected</p>
+      <p className="mt-1 text-xs text-on-surface-variant">Tap a shape on the canvas to edit its size, colour, and details.</p>
+    </div>
+  ) : (
+    <div className="space-y-5 p-4">
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Part name</p>
+        <div className="flex items-center gap-2">
+          <input value={selected.name} onChange={(e) => updatePart(selected.id, { name: e.target.value })}
+            className="flex-1 rounded-lg bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30" />
+          <span className="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-semibold text-on-secondary-container">{shapeDef(selected.shape)?.label || selected.shape}</span>
+        </div>
+      </div>
+
+      {selected.shape === 'revolve' && (
+        <div className="rounded-lg bg-tertiary-container/40 border border-tertiary/20 px-3 py-2.5 text-xs text-on-surface-variant leading-relaxed">
+          <span className="font-semibold text-on-surface">Sculpt mode:</span> drag the dots on the canvas to shape your silhouette. We compute exact stitch counts for whatever you draw.
+        </div>
+      )}
+      <div className="space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Size</p>
+        {(shapeDef(selected.shape)?.fields || Object.keys(selected.dims)).map((key) => (
+          <div key={key}>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="font-semibold">{DIM_LABEL[key] || key}</span>
+              <span className="text-on-surface-variant">{round1(selected.dims[key])} cm</span>
+            </div>
+            <input type="range" min="2" max="30" step="0.5" value={selected.dims[key]}
+              onChange={(e) => updateDim(selected.id, key, parseFloat(e.target.value))} className="w-full accent-primary" />
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn color</p>
+        <div className="flex flex-wrap gap-1.5">
+          {PALETTE.map((p) => (
+            <button key={p.name} onClick={() => updatePart(selected.id, { color: p.name })} aria-label={p.name}
+              className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${selected.color === p.name ? 'border-on-surface' : 'border-transparent'}`} style={{ backgroundColor: p.hex }} />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold">Make</span>
+        <div className="flex items-center gap-2">
+          {[1, 2, 4].map((q) => (
+            <button key={q} onClick={() => updatePart(selected.id, { quantity: q })}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selected.quantity === q ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>×{q}</button>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={() => updatePart(selected.id, { face: !selected.face })}
+        className="flex w-full items-center justify-between gap-3 rounded-lg bg-surface-container-low px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-container">
+        <span className="flex items-center gap-1.5"><Smile size={14} className="text-primary" />Add a face (eyes)</span>
+        <span className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${selected.face ? 'bg-primary' : 'bg-outline-variant/40'}`}>
+          <span className={`h-4 w-4 rounded-full bg-white transition-transform ${selected.face ? 'translate-x-4' : ''}`} />
+        </span>
+      </button>
+
+      <div className="grid grid-cols-2 gap-2 border-t border-outline-variant/15 pt-3">
+        <button onClick={() => duplicatePart(selected.id)} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors"><Copy size={13} />Duplicate</button>
+        <button onClick={() => deletePart(selected.id)} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-error/30 px-3 py-2 text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={13} />Delete</button>
+        <button onClick={() => reorder(selected.id, 1)} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronUp size={13} />Forward</button>
+        <button onClick={() => reorder(selected.id, -1)} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronDown size={13} />Back</button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen bg-surface text-on-surface">
-      <SideNav />
-      <main className="flex-1 overflow-y-auto">
-        <header className="md:hidden sticky top-0 z-10 flex items-center justify-between px-5 py-4 glass-panel border-b border-outline-variant/15">
-          <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant"><ArrowLeft size={19} /><span className="text-sm font-medium">Explore</span></Link>
-          <span className="font-display text-lg font-bold">Loopsy</span>
-          <button onClick={() => setMobileOpen(true)} aria-label="Open menu"><Menu size={24} /></button>
-          <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
-        </header>
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface">
+      {/* Top bar */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" aria-label="Exit editor"><ArrowLeft size={18} /></Link>
+          <span className="font-display text-base font-bold hidden sm:block">Loopsy</span>
+          <span className="text-outline-variant hidden sm:block">/</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Design name"
+            className="w-32 sm:w-56 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Build / Draw mode toggle */}
+          <div className="hidden sm:flex rounded-full bg-surface-container-low p-0.5">
+            <button className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary"><Shapes size={13} />Build 3D</button>
+            <button onClick={() => setMode('draw')} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"><Grid3x3 size={13} />Draw</button>
+          </div>
+          <button onClick={shareDesign} disabled={sharing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
+            {shareMsg ? <Check size={14} className="text-secondary" /> : <Share2 size={14} />}<span className="hidden sm:inline">{shareMsg || 'Share'}</span>
+          </button>
+          <button onClick={generate} disabled={busy}
+            className="shine-sweep inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs sm:text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50">
+            {busy ? <ThreadSpinner size={15} className="text-on-primary" /> : <Sparkles size={15} />}
+            <span className="hidden sm:inline">{busy ? (status || 'Compiling…') : 'Generate pattern'}</span>
+            <span className="sm:hidden">{busy ? '…' : 'Make'}</span>
+          </button>
+        </div>
+      </header>
 
-        <div className="px-6 py-10 md:px-10 md:py-12 lg:px-14">
-          <Reveal className="mb-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Design Canvas</p>
-            <h1 className="font-display display-wonk text-[2.2rem] md:text-[2.8rem] font-bold leading-tight">Build it from shapes.</h1>
-            <p className="mt-3 text-on-surface-variant max-w-2xl">Drop balls, eggs, tubes and cones, drag them where you want, size and colour each one. Every shape compiles to exact stitch counts — and we read your layout to write the assembly steps.</p>
-          </Reveal>
+      {error && <div className="shrink-0 bg-error-container px-4 py-2 text-center text-sm text-on-error-container">{error}</div>}
 
-          {error && <div className="mb-5 max-w-3xl rounded-xl bg-error-container px-4 py-3 text-sm text-on-error-container">{error}</div>}
-
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            {/* Canvas */}
-            <Reveal className="lg:sticky lg:top-6 self-start">
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden">
-                <div className="relative aspect-[360/460] bg-gradient-to-b from-surface-container-low to-surface-container">
-                  <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
-                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} />
-                </div>
-                <div className="flex items-center gap-2 border-t border-outline-variant/15 px-4 py-3">
-                  <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
-                  <button onClick={shareDesign} disabled={sharing} className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
-                    {shareMsg ? <Check size={13} className="text-secondary" /> : <Share2 size={13} />}{shareMsg || 'Share'}
-                  </button>
-                </div>
+      {/* Body: left panel · artboard · right inspector */}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {/* Left panel — elements / setup */}
+        <aside className="flex shrink-0 flex-col border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface-container-lowest md:w-64">
+          <div className="flex gap-1 p-2">
+            {[{ id: 'elements', label: 'Elements' }, { id: 'setup', label: 'Setup' }].map(({ id, label }) => (
+              <button key={id} onClick={() => setTab(id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${tab === id ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}>
+                {id === 'elements' ? <Shapes size={14} /> : <SlidersHorizontal size={14} />}{label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 md:max-h-none max-h-56">
+            {tab === 'elements' ? (
+              <div className="grid grid-cols-2 gap-2">
+                {SHAPE_KIT.map((def) => (
+                  <Motion.button key={def.id} whileTap={{ scale: 0.95 }} transition={SPRING.snappy} onClick={() => addShape(def)}
+                    className="flex flex-col items-start gap-0.5 rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-3 text-left hover:border-primary/40 hover:bg-surface-container-low transition-colors">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold"><Plus size={13} className="text-primary" />{def.label}</span>
+                    <span className="text-[11px] text-on-surface-variant leading-tight">{def.hint}</span>
+                  </Motion.button>
+                ))}
               </div>
-              <p className="mt-2 px-1 text-xs text-on-surface-variant">Tip: drag any shape to reposition it. Tap to select and edit.</p>
-            </Reveal>
-
-            {/* Controls */}
-            <div className="space-y-5">
-              {/* Add shapes */}
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">Add a shape</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {SHAPE_KIT.map((def) => (
-                    <Motion.button key={def.id} whileTap={{ scale: 0.96 }} transition={SPRING.snappy} onClick={() => addShape(def)}
-                      className="flex flex-col items-start gap-0.5 rounded-xl border border-outline-variant/20 px-3 py-2.5 text-left hover:border-primary/40 hover:bg-surface-container-low transition-colors">
-                      <span className="flex items-center gap-1.5 text-sm font-semibold"><Plus size={13} className="text-primary" />{def.label}</span>
-                      <span className="text-[11px] text-on-surface-variant leading-tight">{def.hint}</span>
-                    </Motion.button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Inspector */}
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5 min-h-[120px]">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary mb-3">
-                  {selected ? `Editing: ${selected.name}` : 'Selected part'}
-                </h3>
-                {!selected ? (
-                  <p className="text-sm text-on-surface-variant">Select a shape on the canvas to rename, resize, recolor, or remove it. {parts.length} part{parts.length === 1 ? '' : 's'} so far.</p>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <input value={selected.name} onChange={(e) => updatePart(selected.id, { name: e.target.value })}
-                        className="flex-1 rounded-lg bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30" />
-                      <span className="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-semibold text-on-secondary-container">{shapeDef(selected.shape)?.label || selected.shape}</span>
-                    </div>
-
-                    {(shapeDef(selected.shape)?.fields || Object.keys(selected.dims)).map((key) => (
-                      <div key={key}>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-semibold">{DIM_LABEL[key] || key}</span>
-                          <span className="text-on-surface-variant">{round1(selected.dims[key])} cm</span>
-                        </div>
-                        <input type="range" min="2" max="30" step="0.5" value={selected.dims[key]}
-                          onChange={(e) => updateDim(selected.id, key, parseFloat(e.target.value))} className="w-full accent-primary" />
-                      </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Difficulty</p>
+                  <div className="flex flex-col gap-1.5">
+                    {['beginner', 'intermediate', 'advanced'].map((d) => (
+                      <button key={d} onClick={() => setDifficulty(d)}
+                        className={`rounded-lg px-3 py-2 border text-sm font-medium capitalize text-left transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{d}</button>
                     ))}
-
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold">Make</span>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 4].map((q) => (
-                          <button key={q} onClick={() => updatePart(selected.id, { quantity: q })}
-                            className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selected.quantity === q ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>×{q}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button onClick={() => updatePart(selected.id, { face: !selected.face })}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg bg-surface-container-low px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-container">
-                      <span>Add a face (eyes)</span>
-                      <span className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${selected.face ? 'bg-primary' : 'bg-outline-variant/40'}`}>
-                        <span className={`h-4 w-4 rounded-full bg-white transition-transform ${selected.face ? 'translate-x-4' : ''}`} />
-                      </span>
-                    </button>
-
-                    <div>
-                      <span className="text-xs font-semibold">Yarn color</span>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {PALETTE.map((p) => (
-                          <button key={p.name} onClick={() => updatePart(selected.id, { color: p.name })} aria-label={p.name}
-                            className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${selected.color === p.name ? 'border-on-surface' : 'border-transparent'}`} style={{ backgroundColor: p.hex }} />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button onClick={() => duplicatePart(selected.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><Copy size={13} />Duplicate</button>
-                      <button onClick={() => reorder(selected.id, 1)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronUp size={13} />Forward</button>
-                      <button onClick={() => reorder(selected.id, -1)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/30 px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-low transition-colors"><ChevronDown size={13} />Back</button>
-                      <button onClick={() => deletePart(selected.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={13} />Delete</button>
-                    </div>
                   </div>
+                </div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">Every shape compiles to exact, verified stitch counts. We read your layout to write the assembly steps automatically.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Center desk + artboard */}
+        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8">
+          <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
+          <Motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transform: `scale(${view === '3d' ? 1 : zoom})` }}
+            className="relative origin-center transition-transform"
+          >
+            <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-warm-xl ring-1 ring-outline-variant/10">
+              <div className="relative aspect-[360/460] h-[min(72vh,560px)] bg-gradient-to-b from-surface-container-low to-surface-container">
+                <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
+                {view === '3d' ? (
+                  <Suspense fallback={<div className="grid h-full place-items-center"><ThreadSpinner size={56} /></div>}>
+                    <Design3DPreview parts={parts} />
+                  </Suspense>
+                ) : (
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} />
                 )}
               </div>
-
-              {/* Difficulty + generate */}
-              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {['beginner', 'intermediate', 'advanced'].map((d) => (
-                    <button key={d} onClick={() => setDifficulty(d)}
-                      className={`rounded-xl px-4 py-2 border text-sm font-medium capitalize transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{d}</button>
-                  ))}
-                </div>
-                <Magnetic>
-                  <button onClick={generate} disabled={busy}
-                    className="shine-sweep flex w-full items-center justify-center gap-2 rounded-full bg-primary px-7 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md disabled:opacity-50">
-                    {busy ? <ThreadSpinner size={18} className="text-on-primary" /> : <Sparkles size={17} />}
-                    {busy ? (status || 'Compiling…') : 'Generate verified pattern'}
-                  </button>
-                </Magnetic>
-              </div>
             </div>
+          </Motion.div>
+
+          {/* 2D / 3D view switch */}
+          <div className="absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-surface-container-lowest/90 p-0.5 shadow-warm backdrop-blur">
+            <button onClick={() => setView('2d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '2d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Square size={13} />2D</button>
+            <button onClick={() => setView('3d')} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${view === '3d' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}><Box size={13} />3D</button>
           </div>
+          {view === '3d' && (
+            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface-container-lowest/90 px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-warm backdrop-blur">
+              <Rotate3d size={13} className="text-primary" />Drag to rotate · scroll to zoom
+            </div>
+          )}
+
+          {/* Zoom control (2D only) */}
+          {view === '2d' && (
+            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-surface-container-lowest/90 px-2 py-1 shadow-warm backdrop-blur">
+              <button onClick={() => setZoom((z) => Math.max(0.6, round1(z - 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom out"><Minus size={14} /></button>
+              <button onClick={() => setZoom(1)} className="min-w-[44px] text-center text-xs font-semibold tabular-nums">{Math.round(zoom * 100)}%</button>
+              <button onClick={() => setZoom((z) => Math.min(1.5, round1(z + 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom in"><Plus size={14} /></button>
+            </div>
+          )}
         </div>
-      </main>
+
+        {/* Right inspector */}
+        <aside className="shrink-0 overflow-y-auto border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest md:w-72">
+          <div className="border-b border-outline-variant/15 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">{selected ? 'Properties' : `${parts.length} part${parts.length === 1 ? '' : 's'}`}</p>
+          </div>
+          <AnimatePresence mode="wait">
+            <Motion.div key={selected?.id || 'none'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="md:h-[calc(100%-49px)]">
+              {inspector}
+            </Motion.div>
+          </AnimatePresence>
+        </aside>
+      </div>
     </div>
   );
 }

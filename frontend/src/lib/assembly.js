@@ -24,6 +24,7 @@ function radiusPx(p) {
     case 'tube': return (Math.max(d.diameterCm || 3, d.heightCm || 5) / 2) * px;
     case 'cone': return (Math.max(d.baseDiameterCm || 4, d.heightCm || 5) / 2) * px;
     case 'flatPanel': return (Math.max(d.widthCm || 4, d.heightCm || 5) / 2) * px;
+    case 'revolve': return (Math.max(d.heightCm || 8, ...((d.profile || []).map((p) => p.r * 2))) / 2) * px;
     default: return 4 * px;
   }
 }

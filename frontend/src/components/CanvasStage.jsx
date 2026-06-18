@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useId } from 'react';
 import { hexOf } from '../lib/yarnColors';
-import { partGeometry, partBBox } from '../lib/shapeKit';
+import { partGeometry, partBBox, profileY } from '../lib/shapeKit';
 import { CANVAS } from '../lib/assembly';
 
 // Interactive (or read-only) SVG stage where parts are placed and dragged.
@@ -40,20 +40,46 @@ function Face({ part, px }) {
   );
 }
 
-function Part({ part, selected, ids, onPointerDown }) {
+function SculptHandles({ part, onSculptDown }) {
+  const d = part.dims || {};
+  const prof = [...(d.profile || [])].sort((a, b) => a.t - b.t);
+  const H = (d.heightCm || 8) * CANVAS.px;
+  return (
+    <g>
+      {/* centerline */}
+      <line x1={part.x} y1={part.y - H / 2} x2={part.x} y2={part.y + H / 2} stroke="var(--primary)" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
+      {prof.map((p, i) => {
+        const hx = part.x + p.r * CANVAS.px;
+        const hy = profileY(p.t, part.y, H);
+        return (
+          <g key={i}>
+            <line x1={part.x} y1={hy} x2={hx} y2={hy} stroke="var(--primary)" strokeWidth="1" opacity="0.4" />
+            <circle cx={hx} cy={hy} r="6" fill="var(--primary)" stroke="#fff" strokeWidth="2"
+              style={{ cursor: 'ew-resize' }} onPointerDown={(e) => onSculptDown(e, part, i)} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function Part({ part, selected, ids, onPointerDown, onSculptDown }) {
   const g = partGeometry(part, CANVAS.px);
   const fill = hexOf(part.color);
   const handlers = onPointerDown ? { onPointerDown: (e) => onPointerDown(e, part), style: { cursor: 'grab' } } : {};
+  const isSculpt = part.shape === 'revolve';
   return (
-    <g {...handlers}>
-      <g filter={`url(#${ids.shadow})`}>
-        {geom(g, 'base', { fill })}
-        {geom(g, 'tex', { fill: `url(#${ids.stitch})` })}
-        {geom(g, 'sheen', { fill: `url(#${ids.sheen})` })}
-        {geom(g, 'shade', { fill: `url(#${ids.shade})` })}
+    <g>
+      <g {...handlers}>
+        <g filter={`url(#${ids.shadow})`}>
+          {geom(g, 'base', { fill })}
+          {geom(g, 'tex', { fill: `url(#${ids.stitch})` })}
+          {geom(g, 'sheen', { fill: `url(#${ids.sheen})` })}
+          {geom(g, 'shade', { fill: `url(#${ids.shade})` })}
+        </g>
+        {part.face && <Face part={part} px={CANVAS.px} />}
       </g>
-      {part.face && <Face part={part} px={CANVAS.px} />}
-      {selected && (() => {
+      {selected && !isSculpt && (() => {
         const bb = partBBox(part, CANVAS.px);
         const pad = 6;
         return (
@@ -61,11 +87,12 @@ function Part({ part, selected, ids, onPointerDown }) {
             fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeDasharray="5 4" />
         );
       })()}
+      {selected && isSculpt && onSculptDown && <SculptHandles part={part} onSculptDown={onSculptDown} />}
     </g>
   );
 }
 
-export default function CanvasStage({ parts, selectedId, onSelect, onMove, interactive = true, className = '' }) {
+export default function CanvasStage({ parts, selectedId, onSelect, onMove, onSculpt, interactive = true, className = '' }) {
   const svgRef = useRef(null);
   const uid = useId().replace(/:/g, '');
   const ids = {
@@ -100,6 +127,33 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, inter
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   }, [interactive, onSelect, onMove, toCanvas]);
+
+  // Drag a profile control point: horizontal → radius, vertical → height
+  // position (endpoints stay pinned at top/bottom).
+  const handleSculptDown = useCallback((e, part, index) => {
+    if (!interactive) return;
+    e.stopPropagation();
+    const prof = [...(part.dims?.profile || [])].sort((a, b) => a.t - b.t);
+    const H = (part.dims?.heightCm || 8) * CANVAS.px;
+    const isEnd = index === 0 || index === prof.length - 1;
+    const move = (ev) => {
+      const pt = toCanvas(ev.clientX, ev.clientY);
+      const r = Math.max(0.2, Math.min(12, Math.round(((pt.x - part.x) / CANVAS.px) * 10) / 10));
+      let t = prof[index].t;
+      if (!isEnd) {
+        t = (part.y + H / 2 - pt.y) / H;
+        const lo = prof[index - 1].t + 0.02, hi = prof[index + 1].t - 0.02;
+        t = Math.max(lo, Math.min(hi, Math.round(t * 100) / 100));
+      }
+      onSculpt?.(part.id, index, { r, t });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }, [interactive, onSculpt, toCanvas]);
 
   return (
     <svg
@@ -145,6 +199,7 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, inter
           selected={interactive && selectedId === part.id}
           ids={ids}
           onPointerDown={interactive ? handleDown : null}
+          onSculptDown={interactive ? handleSculptDown : null}
         />
       ))}
     </svg>
