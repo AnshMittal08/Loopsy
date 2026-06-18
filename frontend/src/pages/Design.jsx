@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile } from 'lucide-react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3 } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import CanvasStage from '../components/CanvasStage';
+import ChartStudio from './ChartStudio';
 import { PALETTE } from '../lib/yarnColors';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
@@ -34,6 +35,7 @@ export default function Design() {
   const [difficulty, setDifficulty] = useState('beginner');
   const [tab, setTab] = useState('elements'); // 'elements' | 'setup'
   const [zoom, setZoom] = useState(1);
+  const [mode, setMode] = useState('build'); // 'build' (3D shapes) | 'draw' (chart)
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
@@ -169,6 +171,8 @@ export default function Design() {
     );
   }
 
+  if (mode === 'draw') return <ChartStudio onMode={setMode} />;
+
   const inspector = !selected ? (
     <div className="flex h-full flex-col items-center justify-center px-5 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-low"><SlidersHorizontal size={20} className="text-on-surface-variant" /></div>
@@ -254,6 +258,11 @@ export default function Design() {
             className="w-32 sm:w-56 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
         </div>
         <div className="flex items-center gap-2">
+          {/* Build / Draw mode toggle */}
+          <div className="hidden sm:flex rounded-full bg-surface-container-low p-0.5">
+            <button className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary"><Shapes size={13} />Build 3D</button>
+            <button onClick={() => setMode('draw')} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"><Grid3x3 size={13} />Draw</button>
+          </div>
           <button onClick={shareDesign} disabled={sharing}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
             {shareMsg ? <Check size={14} className="text-secondary" /> : <Share2 size={14} />}<span className="hidden sm:inline">{shareMsg || 'Share'}</span>
