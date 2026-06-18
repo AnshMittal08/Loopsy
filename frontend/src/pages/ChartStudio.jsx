@@ -70,6 +70,7 @@ export default function ChartStudio({ onMode }) {
   const [tool, setTool] = useState('paint'); // paint | erase | fill | pick
   const [mirror, setMirror] = useState(false);
   const [difficulty, setDifficulty] = useState('intermediate');
+  const [construction, setConstruction] = useState('flat'); // 'flat' | 'round'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -97,7 +98,7 @@ export default function ChartStudio({ onMode }) {
     try {
       const res = await fetch('/api/ai/generate-chart', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, yarnWeight: 'Worsted', cols, rows, grid, difficulty, stream: true }),
+        body: JSON.stringify({ name, yarnWeight: 'Worsted', cols, rows, grid, difficulty, construction, stream: true }),
       });
       const ct = res.headers.get('content-type') || '';
       let pattern;
@@ -183,20 +184,34 @@ export default function ChartStudio({ onMode }) {
         <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="relative rounded-2xl bg-surface-container-lowest p-3 shadow-warm-xl ring-1 ring-outline-variant/10">
-            <div className="grid touch-none select-none gap-px overflow-hidden rounded-lg bg-outline-variant/20"
-              style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, width: 'min(72vh, 540px)', height: 'min(72vh, 540px)' }}>
-              {grid.map((row, r) => row.map((cell, c) => (
-                <button key={`${r}-${c}`} aria-label={`cell ${r},${c}`}
-                  onPointerDown={() => { painting.current = true; paintCell(r, c); }}
-                  onPointerEnter={() => { if (painting.current) paintCell(r, c); }}
-                  style={{ backgroundColor: hexOf(cell) }} />
-              )))}
+            <div className="relative" style={{ width: 'min(72vh, 540px)', height: 'min(72vh, 540px)' }}>
+              <div className="grid h-full w-full touch-none select-none gap-px overflow-hidden rounded-lg bg-outline-variant/20"
+                style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {grid.map((row, r) => row.map((cell, c) => (
+                  <button key={`${r}-${c}`} aria-label={`cell ${r},${c}`}
+                    onPointerDown={() => { painting.current = true; paintCell(r, c); }}
+                    onPointerEnter={() => { if (painting.current) paintCell(r, c); }}
+                    style={{ backgroundColor: hexOf(cell) }} />
+                )))}
+              </div>
+              {construction === 'round' && (
+                <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <circle cx="50" cy="50" r="49" fill="none" stroke="var(--primary)" strokeWidth="0.6" strokeDasharray="2 1.5" opacity="0.8" />
+                </svg>
+              )}
             </div>
           </div>
         </div>
 
         {/* Right: chart settings */}
         <aside className="shrink-0 overflow-y-auto border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest p-4 md:w-64">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Make it</p>
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <button onClick={() => setConstruction('flat')} className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${construction === 'flat' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>Flat panel<span className="block text-[10px] font-normal opacity-70">blanket, appliqué</span></button>
+            <button onClick={() => setConstruction('round')} className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${construction === 'round' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>Round 3D<span className="block text-[10px] font-normal opacity-70">shield, medallion</span></button>
+          </div>
+          <p className="mb-3 text-xs text-on-surface-variant">{construction === 'round' ? 'Worked in the round into a disc/dome — keep the design inside the circle.' : 'Worked flat in rows.'}</p>
+
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Grid size</p>
           <div className="flex flex-wrap gap-1.5">
             {SIZES.map((n) => (

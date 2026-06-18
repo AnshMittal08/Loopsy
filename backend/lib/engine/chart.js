@@ -10,7 +10,8 @@
 //   run-lengths are emitted in working order so the written text "just works".
 // ---------------------------------------------------------------------------
 
-const { resolveGauge } = require('./gauge');
+const { resolveGauge, rowHeightCm } = require('./gauge');
+const { increaseRow } = require('./distribute');
 
 // Run-length encode a row of colour names → "4 cream, 2 red, 4 cream".
 function encodeRow(cells) {
@@ -100,4 +101,67 @@ function compileChart(spec) {
   };
 }
 
-module.exports = { compileChart, encodeRow };
+// ---------------------------------------------------------------------------
+// Medallion engine — turn a circular drawing into a piece worked in the round
+// (a real 3D disc/dome, not a flat blanket). The flat-circle increase math
+// gives an exact stitch count per round; we then assign every stitch a colour
+// by sampling the drawing in polar coordinates, so the picture is crocheted
+// right into the fabric. This makes a "3D shield", badge, medallion, mandala,
+// or round face.
+// ---------------------------------------------------------------------------
+function compileMedallion(spec) {
+  const yarnWeight = spec.yarnWeight || 'Worsted';
+  const grid = spec.grid;
+  const W = Math.min(spec.cols, spec.rows);
+  if (!Array.isArray(grid) || !W) return { ok: false, errors: ['A square chart is required.'] };
+
+  const gauge = resolveGauge(yarnWeight);
+  const cx = (spec.cols - 1) / 2, cy = (spec.rows - 1) / 2;
+  const maxR = W / 2 - 0.5;
+  const K = Math.max(3, Math.round(W / 2)); // number of rounds
+
+  // Sample the drawing at polar (ρ∈[0,1], angle θ from the top, clockwise).
+  const sample = (rho, theta) => {
+    const gx = cx + rho * maxR * Math.sin(theta);
+    const gy = cy - rho * maxR * Math.cos(theta);
+    const r = Math.max(0, Math.min(spec.rows - 1, Math.round(gy)));
+    const c = Math.max(0, Math.min(spec.cols - 1, Math.round(gx)));
+    return grid[r][c];
+  };
+  const roundColors = (k, stitches) => {
+    const seq = [];
+    for (let j = 0; j < stitches; j++) seq.push(sample(k / K, (2 * Math.PI * j) / stitches));
+    return encodeRow(seq);
+  };
+
+  const steps = [];
+  let count = 6;
+  steps.push({ instruction: `Round 1: Magic ring, 6 single crochet into the ring, in these colours: ${roundColors(1, 6)}. (6 stitches)`, stitchCount: 6 });
+  for (let k = 2; k <= K; k++) {
+    const target = 6 * k;
+    const inc = increaseRow(count, target - count, 'sc');
+    const body = inc.instruction.replace(/\.\s*\(\d+ stitches\)\s*$/, '');
+    steps.push({ instruction: `Round ${k}: ${body}, working these colours around: ${roundColors(k, target)}. (${target} stitches)`, stitchCount: target });
+    count = target;
+  }
+  steps.push({ instruction: 'For a flat shield, fasten off here. For a domed shield, work 2 more rounds with no increases (single crochet in each stitch around) to cup the edge, then fasten off.' });
+  steps.push({ instruction: 'Finishing: Fasten off and weave in all ends, keeping colour joins on the back.' });
+
+  const numbered = steps.map((s, i) => ({ row: i + 1, ...s }));
+  const diameterCm = Math.round(((2 * K) * rowHeightCm(gauge, 'sc')) * 10) / 10;
+  const colors = [...new Set(grid.flat())];
+  const materials = [...colors.map((c) => `${yarnWeight} yarn in ${c}`), `${gauge.hook} hook`, 'Stitch marker', 'Tapestry needle'];
+
+  return {
+    ok: true,
+    steps: numbered,
+    materials,
+    hookSize: gauge.hook,
+    yarnWeight,
+    finishedSize: `${diameterCm} cm diameter (${K} rounds, worked in the round)`,
+    colors,
+    stitchTotal: 3 * K * (K + 1),
+  };
+}
+
+module.exports = { compileChart, compileMedallion, encodeRow };
