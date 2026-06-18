@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "backup": "node scripts/backup-db.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

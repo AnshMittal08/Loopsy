@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { generateId } from "../utils/helpers.js";
+import logger from "../logger.js";
 import {
   compileDesignSpec,
   validatePattern,
@@ -279,7 +280,7 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
   emit({ type: 'status', stage: 'compiling', message: 'Computing every stitch…' });
   const compiled = compileDesignSpec(spec);
   if (!compiled.ok) {
-    console.warn("Design spec failed compilation:", compiled.errors);
+    logger.warn('ai.spec_compile_failed', { errors: compiled.errors });
     return null;
   }
 
@@ -287,7 +288,7 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
   const validation = validatePattern(compiled.steps);
   if (validation.issues.length > 0) {
     // Engine and validator disagree — never ship unverified math silently.
-    console.error("Compiler/validator disagreement:", validation.issues);
+    logger.error('ai.compiler_validator_disagreement', { issues: validation.issues });
     return null;
   }
 
@@ -301,7 +302,7 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
   try {
     presentation = await humanizeCompiledPattern(sourcePrompt, difficulty, compiled);
   } catch (err) {
-    console.warn("Humanizer failed, using inferred metadata:", err.message);
+    logger.warn('ai.humanizer_failed', { err: err.message });
   }
 
   const category = compiled.spec.category;
@@ -476,7 +477,7 @@ Format: { "title": "...", "difficulty": "...", "steps": [{ "row": 1, "instructio
       if (validateOllamaPattern(parsed)) return parsed;
       throw new Error('Invalid pattern structure from Ollama');
     } catch (err) {
-      console.warn(`Ollama attempt ${attempt + 1} failed: ${err.message}`);
+      logger.warn('ai.ollama_attempt_failed', { attempt: attempt + 1, err: err.message });
       if (attempt === retryCount) return null;
     }
   }
@@ -519,7 +520,7 @@ export async function generatePatternFromAI(prompt, difficulty, onEvent) {
     try {
       patternData = await generateWithCompiler(prompt, difficulty, emit);
     } catch (err) {
-      console.warn('Compiler pipeline failed, falling back to freeform:', err.message);
+      logger.warn('ai.compiler_pipeline_failed', { err: err.message });
     }
 
     // 2. Freeform fallback for shapes outside the compiler vocabulary.
@@ -545,7 +546,7 @@ export async function generatePatternFromAI(prompt, difficulty, onEvent) {
         };
         usedClaude = true;
       } catch (err) {
-        console.warn('Claude generation failed, trying Ollama:', err.message);
+        logger.warn('ai.claude_failed', { err: err.message });
       }
     }
   }
@@ -567,7 +568,7 @@ export async function generatePatternFromAI(prompt, difficulty, onEvent) {
   }
 
   if (!patternData) {
-    console.error('All AI providers failed — returning fallback pattern.');
+    logger.error('ai.all_providers_failed', {});
     return {
       id: generateId(),
       ...enrichPatternMetadata(DEFAULT_PATTERN, prompt, difficulty),
