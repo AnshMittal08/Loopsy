@@ -314,7 +314,7 @@ flowchart TD
 | UX-1 | No global search across templates/patterns | High | Discovery ceiling; retention | Catalog-only Home filter (`Home.jsx`) | Add `/search` + server search (and later vector search). |
 | UX-2 | God-component pages (`Create` 729, `Tracker` 682) | Med | Maintainability, perf | Organic growth | Decompose into feature modules (Tracker already split once). |
 | UX-3 | No client cache; every page re-fetches | Med | Latency, redundant calls | Raw `fetch`+`useState` | Adopt React Query (SWR) for `/templates`, `/patterns`, `/usage`. |
-| UX-4 | A11y gaps: no skip-link, no focus trap in drawers/modals, heading order not enforced | Med | WCAG 2.2 AA risk | No a11y pass | Add skip-link, focus-trap (MobileNav/Onboarding/CrochetMode), audit headings, contrast tokens. |
+| UX-4 | A11y gaps | Med→Low | WCAG 2.2 AA risk | No a11y pass | ✅ skip-to-content link + focus-trap & `role=dialog` on MobileNav/Onboarding/CrochetMode (`lib/useFocusTrap.js`). Remaining: full heading-order + contrast-token audit. |
 | UX-5 | Form errors via toast, not `aria-describedby` | Low | SR users miss inline errors | Toast-first pattern (`Account.jsx`) | Inline field errors + live region. |
 | UX-6 | No empty/error states for some fetch failures | Low | Confusion | Happy-path coding | Standard empty/error components. |
 | UX-7 | Cognitive load on Design editor (many panels) | Med | New-user drop-off | Power surface | Progressive disclosure; the mobile single-scroll already helps. |

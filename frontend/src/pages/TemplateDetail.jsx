@@ -78,7 +78,7 @@ export default function TemplateDetail() {
     <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
-      <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+      <main id="main-content" tabIndex={-1} ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto outline-none">
         {/* Mobile header */}
         <header className="md:hidden flex justify-between items-center px-5 py-4 border-b border-outline-variant/15">
           <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors" aria-label="Back to explore">

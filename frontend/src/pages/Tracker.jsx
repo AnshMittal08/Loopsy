@@ -219,7 +219,7 @@ export default function Tracker() {
     return (
       <div className="flex min-h-dvh bg-surface">
         <SideNav />
-        <main className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
           <div className="max-w-3xl mx-auto">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">In Progress</p>
             <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface mb-8">My Projects</h1>
@@ -306,7 +306,7 @@ export default function Tracker() {
     <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
-      <main className="flex-1 flex flex-col h-full overflow-y-auto">
+      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col h-full overflow-y-auto outline-none">
         {/* Mobile header */}
         <header className="md:hidden flex justify-between items-center px-5 py-4 border-b border-outline-variant/15">
           <span className="font-display text-lg font-bold text-on-surface">Loopsy</span>
