@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Compass, Sparkles, BookOpen, User, X, Shapes } from 'lucide-react';
 import { useAuth } from './AuthProvider';
+import { useFocusTrap } from '../lib/useFocusTrap';
 
 function NavItem({ to, icon, label, active }) {
   const Icon = icon;
@@ -34,6 +35,7 @@ function MobileNavContent({ onClose }) {
   const location = useLocation();
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const prevPathname = useRef(location.pathname);
+  const trapRef = useFocusTrap(true);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -61,7 +63,14 @@ function MobileNavContent({ onClose }) {
         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
         onClick={onClose}
       />
-      <div className="absolute right-0 top-0 h-full w-72 bg-surface-container-lowest shadow-warm-xl flex flex-col animate-[slideIn_0.25s_ease-out]">
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
+        tabIndex={-1}
+        className="absolute right-0 top-0 h-full w-72 bg-surface-container-lowest shadow-warm-xl flex flex-col animate-[slideIn_0.25s_ease-out] outline-none"
+      >
         <div className="flex items-center justify-between px-5 py-5 border-b border-outline-variant/20">
           <Link to="/" className="font-display text-xl font-bold text-on-surface">Loopsy</Link>
           <button onClick={onClose} aria-label="Close menu" className="text-on-surface-variant hover:text-on-surface transition-colors">

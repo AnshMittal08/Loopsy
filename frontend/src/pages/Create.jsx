@@ -437,7 +437,7 @@ export default function Create() {
     <div className="flex min-h-dvh bg-surface text-on-surface">
       <SideNav />
 
-      <main className="flex-1 overflow-y-auto">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto outline-none">
         {/* Mobile header */}
         <header className="md:hidden sticky top-0 z-10 flex items-center justify-between px-5 py-4 glass-panel border-b border-outline-variant/15">
           <Link to="/" className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">

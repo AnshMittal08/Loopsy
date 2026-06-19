@@ -32,6 +32,9 @@ const getSubscriptionByUserIdStmt = db.prepare(`
   WHERE userId = ?
 `);
 
+const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHERE id = ?`);
+const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
+
 function createUser(user) {
   insertUserStmt.run(
     user.id,
@@ -76,8 +79,18 @@ function getUserWithSubscriptionById(id) {
   };
 }
 
+function markEmailVerified(userId) {
+  setEmailVerifiedStmt.run(userId);
+}
+
+function setUserPassword(userId, passwordHash) {
+  setPasswordStmt.run(passwordHash, userId);
+}
+
 module.exports = {
   createUser,
   getUserByEmail,
-  getUserWithSubscriptionById
+  getUserWithSubscriptionById,
+  markEmailVerified,
+  setUserPassword
 };

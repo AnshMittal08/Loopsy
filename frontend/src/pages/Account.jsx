@@ -69,7 +69,7 @@ export default function Account() {
     <div className="flex min-h-dvh bg-surface">
       <SideNav />
 
-      <main className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16">
+      <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
         <div className="mx-auto max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Account</p>
           <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
@@ -244,6 +244,31 @@ export default function Account() {
                     />
                     {fieldErrors.password && <p className="mt-1 text-xs text-error">{fieldErrors.password}</p>}
                   </div>
+
+                  {mode === 'signin' && (
+                    <div className="flex justify-end -mt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const email = form.email.trim().toLowerCase();
+                          if (!email) { showToast('Enter your email above first.', 'info'); return; }
+                          try {
+                            await fetch('/api/auth/forgot-password', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email }),
+                            });
+                            showToast('If that email has an account, a reset link is on its way.', 'success');
+                          } catch {
+                            showToast('Could not send a reset email. Please try again.', 'error');
+                          }
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
 
                   <Motion.button
                     disabled={submitting}

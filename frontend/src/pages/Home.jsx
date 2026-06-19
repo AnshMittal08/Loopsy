@@ -209,7 +209,7 @@ export default function Home() {
   return (
     <>
       <TopNav />
-      <main className="w-full max-w-[1440px] mx-auto px-5 pb-28 pt-24 sm:px-6 md:px-12 md:pb-24">
+      <main id="main-content" tabIndex={-1} className="w-full max-w-[1440px] mx-auto px-5 pb-28 pt-24 sm:px-6 md:px-12 md:pb-24 outline-none">
 
         {/* ── Hero ── */}
         <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-lg px-6 py-10 sm:px-8 sm:py-12 md:px-14 md:py-16">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPatternById, deletePattern } from "@/lib/models/patternModel";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { clientIp } from "@/lib/auth/request";
 
 /**
  * GET /api/patterns/:id
@@ -47,7 +48,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    deletePattern(params.id, user.id);
+    deletePattern(params.id, user.id, { ip: clientIp(request) });
     return NextResponse.json({ deleted: true, id: params.id }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

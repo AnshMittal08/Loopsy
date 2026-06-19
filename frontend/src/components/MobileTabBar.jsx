@@ -16,7 +16,12 @@ const TABS = [
 // viewport, so the bar steps out of the way there.
 export default function MobileTabBar() {
   const { pathname } = useLocation();
-  if (pathname === '/design' || pathname.startsWith('/d/')) return null;
+  if (
+    pathname === '/design' ||
+    pathname.startsWith('/d/') ||
+    pathname === '/verify-email' ||
+    pathname === '/reset-password'
+  ) return null;
 
   const isActive = (to) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
 

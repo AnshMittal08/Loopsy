@@ -5,6 +5,7 @@ import { X, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import StitchStep from './StitchTooltip';
 import { SPRING } from '../lib/motionTokens';
 import { stitchCountOf } from '../lib/stitchCount';
+import { useFocusTrap } from '../lib/useFocusTrap';
 
 /* Crochet Mode — full-screen focus view: huge type, dimmed chrome, tap/space to
    advance, screen wake-lock so the screen stays on while your hands are busy. */
@@ -17,6 +18,7 @@ export default function CrochetMode({ pattern, progress, onToggleStep, onClose }
 
   const isDone = progress?.steps?.[idx]?.completed ?? false;
   const pct = progress?.progressPercentage ?? 0;
+  const trapRef = useFocusTrap(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +57,12 @@ export default function CrochetMode({ pattern, progress, onToggleStep, onClose }
 
   return createPortal(
     <Motion.div
-      className="fixed inset-0 z-[9500] bg-surface flex flex-col"
+      ref={trapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Crochet Mode — ${pattern.title}`}
+      tabIndex={-1}
+      className="fixed inset-0 z-[9500] bg-surface flex flex-col outline-none"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/15 shrink-0">
