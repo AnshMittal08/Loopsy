@@ -23,7 +23,7 @@ export default function OnboardingCard({ storageKey, title, steps }) {
           <Motion.div
             initial={{ opacity: 0, scale: 0.94, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="relative w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-xl p-7"
+            className="relative w-full max-w-sm sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-xl p-6 sm:p-7"
           >
             <button onClick={close} aria-label="Dismiss" className="absolute right-4 top-4 text-on-surface-variant hover:text-on-surface transition-colors"><X size={18} /></button>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary mb-1.5">Welcome</p>

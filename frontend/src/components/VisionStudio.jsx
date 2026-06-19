@@ -138,7 +138,7 @@ function UploadZone({ images, setImages, disabled }) {
       )}
 
       {images.length > 0 && (
-        <Motion.div variants={staggerChildren(0.05)} initial="hidden" animate="visible" className="mt-4 grid grid-cols-3 gap-3">
+        <Motion.div variants={staggerChildren(0.05)} initial="hidden" animate="visible" className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {images.map((img, i) => (
             <Motion.div key={i} variants={fadeRise} className="group relative aspect-square overflow-hidden rounded-xl border border-outline-variant/20">
               <img src={img.preview} alt={`upload ${i + 1}`} className="h-full w-full object-cover" />

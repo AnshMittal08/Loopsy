@@ -131,7 +131,7 @@ export default function ChartStudio({ onMode }) {
   const toolIcon = (id) => (id === 'paint' ? <Paintbrush size={14} /> : id === 'fill' ? <PaintBucket size={14} /> : id === 'erase' ? <Eraser size={14} /> : <Pipette size={14} />);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface"
+    <div className="flex h-dvh flex-col overflow-hidden bg-surface-dim text-on-surface"
       onPointerUp={() => { painting.current = false; }} onPointerLeave={() => { painting.current = false; }}>
       <OnboardingCard
         storageKey="loopsy_onboard_draw"
@@ -220,7 +220,7 @@ export default function ChartStudio({ onMode }) {
           </div>
 
           <div className="relative rounded-2xl bg-surface-container-lowest p-3 shadow-warm-xl ring-1 ring-outline-variant/10">
-            <div className="relative" style={{ width: 'min(70vh, 520px)', height: 'min(70vh, 520px)' }}>
+            <div className="relative" style={{ width: 'min(70vh, 86vw, 520px)', height: 'min(70vh, 86vw, 520px)' }}>
               <div className="grid h-full w-full touch-none select-none gap-px overflow-hidden rounded-lg bg-outline-variant/20"
                 style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                 {grid.map((row, r) => row.map((cell, c) => (

@@ -54,7 +54,7 @@ export default function TemplateDetail() {
 
   if (loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+      <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
         <SideNav />
         <main className="flex-1 overflow-y-auto p-6 md:p-10 max-w-5xl mx-auto w-full">
           <SkeletonTemplatePreview />
@@ -65,7 +65,7 @@ export default function TemplateDetail() {
 
   if (error || !template) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface text-on-surface">
+      <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-surface text-on-surface">
         <p className="text-on-surface-variant">{error || 'Template not found.'}</p>
         <Link to="/" className="text-primary underline text-sm">Back to Explore</Link>
       </div>
@@ -75,7 +75,7 @@ export default function TemplateDetail() {
   const steps = template.defaultPattern || [];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+    <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
       <main ref={mainRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
@@ -132,7 +132,7 @@ export default function TemplateDetail() {
           </Motion.div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 md:px-10 py-8 space-y-7">
+        <div className="max-w-5xl mx-auto px-5 sm:px-6 md:px-10 py-8 pb-28 md:pb-8 space-y-7">
           {/* Description */}
           <Reveal>
             <p className="text-base text-on-surface-variant leading-relaxed max-w-2xl">{template.description}</p>
@@ -257,7 +257,7 @@ export default function TemplateDetail() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 72, opacity: 0 }}
               transition={SPRING.snappy}
-              className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-6"
+              className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-40 flex justify-center px-6 md:bottom-5"
             >
               <div className="pointer-events-auto flex items-center gap-4 rounded-full glass-panel border border-outline-variant/30 shadow-warm-xl py-2 pl-5 pr-2">
                 <span className="hidden max-w-[220px] truncate text-sm font-semibold text-on-surface sm:block">

@@ -189,10 +189,10 @@ export default function Design() {
     } catch (e) { setError(e.message); setBusy(false); }
   };
 
-  if (authLoading) return <div className="flex min-h-screen items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
+  if (authLoading) return <div className="flex min-h-dvh items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface px-6 text-on-surface">
+      <div className="flex min-h-dvh items-center justify-center bg-surface px-6 text-on-surface">
         <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10"><Lock size={24} className="text-primary" /></div>
           <h1 className="font-display text-2xl font-bold mb-2">Sign in to design</h1>
@@ -274,7 +274,7 @@ export default function Design() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-dim text-on-surface">
+    <div className="flex h-dvh flex-col overflow-hidden bg-surface-dim text-on-surface">
       <OnboardingCard
         storageKey="loopsy_onboard_build"
         title="Design it in 3 steps"
@@ -379,7 +379,7 @@ export default function Design() {
             className="relative origin-center transition-transform"
           >
             <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-warm-xl ring-1 ring-outline-variant/10">
-              <div className="relative aspect-[360/460] h-[min(72vh,560px)] bg-gradient-to-b from-surface-container-low to-surface-container">
+              <div className="relative aspect-[360/460] h-[min(52vh,420px)] sm:h-[min(72vh,560px)] bg-gradient-to-b from-surface-container-low to-surface-container">
                 <div className="pointer-events-none absolute -top-10 right-0 h-40 w-40 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift" />
                 {view === '3d' ? (
                   <Suspense fallback={<div className="grid h-full place-items-center"><ThreadSpinner size={56} /></div>}>
