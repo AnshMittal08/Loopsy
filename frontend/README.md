@@ -15,6 +15,7 @@ React 19 + Vite client for Loopsy.
 - AI Tutor floating chat panel
 - Account page: usage bars (incl. Vision trial), upgrade plan cards
 - First-run onboarding on the design editors
+- **Mobile**: native-style bottom tab bar (`MobileTabBar`) on phones, safe-area aware; the Design/Draw editors collapse their side panels into a single vertical scroll below `md`
 - Design system: Atelier — dual theme, yarn accents, Fraunces display font, motion animation system
 
 ## Design System — "Atelier · Ink & Violet"
@@ -58,6 +59,7 @@ React 19 + Vite client for Loopsy.
 | `src/components/AuthProvider.jsx` | `useAuth()` — user, signIn, signUp, signOut |
 | `src/components/SideNav.jsx` | Desktop sidebar with logo + nav items |
 | `src/components/MobileNav.jsx` | Portal-rendered slide-in drawer |
+| `src/components/MobileTabBar.jsx` | Phone bottom tab bar (hidden ≥ md, and on the editor/share routes) |
 | `src/components/AiTutor.jsx` | Floating step-specific Q&A panel |
 | `src/components/VisionStudio.jsx` | Photo upload → editable analysis (M3) |
 | `src/components/CanvasStage.jsx` | Build-mode SVG canvas: drag/resize/sculpt parts |

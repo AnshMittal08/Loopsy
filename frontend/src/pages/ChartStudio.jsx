@@ -131,7 +131,7 @@ export default function ChartStudio({ onMode }) {
   const toolIcon = (id) => (id === 'paint' ? <Paintbrush size={14} /> : id === 'fill' ? <PaintBucket size={14} /> : id === 'erase' ? <Eraser size={14} /> : <Pipette size={14} />);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface-dim text-on-surface"
+    <div className="flex min-h-dvh flex-col bg-surface-dim text-on-surface md:h-dvh md:overflow-hidden"
       onPointerUp={() => { painting.current = false; }} onPointerLeave={() => { painting.current = false; }}>
       <OnboardingCard
         storageKey="loopsy_onboard_draw"
@@ -143,17 +143,17 @@ export default function ChartStudio({ onMode }) {
         ]}
       />
       {/* Top bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:gap-3 md:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"><ArrowLeft size={18} /></Link>
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Chart name"
-            className="w-32 sm:w-52 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
+            className="w-full min-w-0 sm:w-52 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2">
           {/* Build / Draw mode toggle */}
-          <div className="hidden sm:flex rounded-full bg-surface-container-low p-0.5">
-            <button onClick={() => onMode('build')} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"><Shapes size={13} />Build 3D</button>
-            <button className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary"><Grid3x3 size={13} />Draw</button>
+          <div className="flex rounded-full bg-surface-container-low p-0.5">
+            <button onClick={() => onMode('build')} className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors sm:px-3" aria-label="Build 3D mode"><Shapes size={13} /><span className="hidden sm:inline">Build 3D</span></button>
+            <button className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1.5 text-xs font-semibold text-on-primary sm:px-3" aria-label="Draw mode"><Grid3x3 size={13} /><span className="hidden sm:inline">Draw</span></button>
           </div>
           <button onClick={generate} disabled={busy}
             className="shine-sweep inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs sm:text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50">
@@ -168,7 +168,7 @@ export default function ChartStudio({ onMode }) {
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* Left: colors + tools */}
-        <aside className="shrink-0 overflow-y-auto border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface-container-lowest p-3 md:w-56">
+        <aside className="shrink-0 border-b md:border-b-0 md:border-r border-outline-variant/15 bg-surface-container-lowest p-3 md:w-56 md:overflow-y-auto">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Start from a template</p>
           <div className="grid grid-cols-2 gap-1.5">
             {PRESETS.map((p) => (
@@ -210,7 +210,7 @@ export default function ChartStudio({ onMode }) {
         </aside>
 
         {/* Center: the pixel grid */}
-        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8">
+        <div className="relative flex min-h-[60vh] flex-1 items-center justify-center overflow-auto p-4 md:min-h-0 md:p-8">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
 
           {/* Flat / Round construction toggle — floating */}
@@ -246,7 +246,7 @@ export default function ChartStudio({ onMode }) {
         </div>
 
         {/* Right: chart settings */}
-        <aside className="shrink-0 overflow-y-auto border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest p-4 md:w-64">
+        <aside className="shrink-0 border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest p-4 md:w-64 md:overflow-y-auto">
           <div className="mb-4 rounded-xl bg-tertiary-container/40 border border-tertiary/20 p-3 text-xs leading-relaxed text-on-surface-variant">
             {construction === 'round'
               ? 'Round 3D: your drawing is sampled ring by ring and worked in the round into a disc or dome — like a real shield. Keep the design inside the circle.'

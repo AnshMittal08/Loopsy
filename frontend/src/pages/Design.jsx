@@ -274,7 +274,7 @@ export default function Design() {
   );
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface-dim text-on-surface">
+    <div className="flex min-h-dvh flex-col bg-surface-dim text-on-surface md:h-dvh md:overflow-hidden">
       <OnboardingCard
         storageKey="loopsy_onboard_build"
         title="Design it in 3 steps"
@@ -285,19 +285,19 @@ export default function Design() {
         ]}
       />
       {/* Top bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-outline-variant/15 bg-surface-container-lowest px-3 md:gap-3 md:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
           <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" aria-label="Exit editor"><ArrowLeft size={18} /></Link>
           <span className="font-display text-base font-bold hidden sm:block">Loopsy</span>
           <span className="text-outline-variant hidden sm:block">/</span>
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Design name"
-            className="w-32 sm:w-56 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
+            className="w-full min-w-0 sm:w-56 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2">
           {/* Build / Draw mode toggle */}
-          <div className="hidden sm:flex rounded-full bg-surface-container-low p-0.5">
-            <button className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary"><Shapes size={13} />Build 3D</button>
-            <button onClick={() => setMode('draw')} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors"><Grid3x3 size={13} />Draw</button>
+          <div className="flex rounded-full bg-surface-container-low p-0.5">
+            <button className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1.5 text-xs font-semibold text-on-primary sm:px-3" aria-label="Build 3D mode"><Shapes size={13} /><span className="hidden sm:inline">Build 3D</span></button>
+            <button onClick={() => setMode('draw')} className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors sm:px-3" aria-label="Draw mode"><Grid3x3 size={13} /><span className="hidden sm:inline">Draw</span></button>
           </div>
           <button onClick={shareDesign} disabled={sharing}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
@@ -326,7 +326,7 @@ export default function Design() {
               </button>
             ))}
           </div>
-          <div className="flex-1 overflow-y-auto p-3 md:max-h-none max-h-56">
+          <div className="p-3 md:flex-1 md:overflow-y-auto">
             {tab === 'elements' ? (
               <div className="space-y-4">
                 <div>
@@ -371,7 +371,7 @@ export default function Design() {
         </aside>
 
         {/* Center desk + artboard */}
-        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8">
+        <div className="relative flex min-h-[60vh] flex-1 items-center justify-center overflow-auto p-4 md:min-h-0 md:p-8">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
           <Motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -431,7 +431,7 @@ export default function Design() {
         </div>
 
         {/* Right inspector */}
-        <aside className="shrink-0 overflow-y-auto border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest md:w-72">
+        <aside className="shrink-0 border-t md:border-t-0 md:border-l border-outline-variant/15 bg-surface-container-lowest md:w-72 md:overflow-y-auto">
           <div className="border-b border-outline-variant/15 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">{selected ? 'Properties' : `${parts.length} part${parts.length === 1 ? '' : 's'}`}</p>
           </div>
