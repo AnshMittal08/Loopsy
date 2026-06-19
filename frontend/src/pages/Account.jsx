@@ -245,6 +245,31 @@ export default function Account() {
                     {fieldErrors.password && <p className="mt-1 text-xs text-error">{fieldErrors.password}</p>}
                   </div>
 
+                  {mode === 'signin' && (
+                    <div className="flex justify-end -mt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const email = form.email.trim().toLowerCase();
+                          if (!email) { showToast('Enter your email above first.', 'info'); return; }
+                          try {
+                            await fetch('/api/auth/forgot-password', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email }),
+                            });
+                            showToast('If that email has an account, a reset link is on its way.', 'success');
+                          } catch {
+                            showToast('Could not send a reset email. Please try again.', 'error');
+                          }
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
+
                   <Motion.button
                     disabled={submitting}
                     whileTap={{ scale: 0.97 }}

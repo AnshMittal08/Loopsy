@@ -74,9 +74,12 @@ and a regression lock that all 22 seed templates have **0 arithmetic errors**.
 **Add a test whenever you touch `lib/engine/`** — it is the product's moat.
 
 CI (`.github/workflows/ci.yml`) runs backend `npm test` + `npm run build` and
-frontend `npm run lint` + `npm run build` on every push and PR.
+frontend `npm test` + `npm run lint` + `npm run build` on every push and PR.
 
-The frontend has no automated tests yet. Validate UI changes by:
+The frontend has a small **`node:test`** suite for its pure logic modules
+(`cd frontend && npm test`, zero deps) — covering the stitch-count parser and
+the yarn-colour resolver. It does not yet cover React components (that needs
+RTL + jsdom). Validate UI changes by:
 
 - Exercising the affected `/api/*` routes locally
 - Walking the main flows in the frontend

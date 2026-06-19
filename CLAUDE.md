@@ -71,9 +71,12 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 
 ## Auth Surface
 
-- `POST /api/auth/signup`
+- `POST /api/auth/signup` (sends an email-verification link)
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
+- `POST /api/auth/verify-email` (consume token → mark verified)
+- `POST /api/auth/forgot-password` (generic response; emails a reset link)
+- `POST /api/auth/reset-password` (consume token → set new password)
 - `GET /api/me`
 
 Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
@@ -97,6 +100,16 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
   so `script-src` stays `'self'` (no `unsafe-inline`).
 - **Config validation** — `lib/config.js` `validateConfig()` runs at DB init and
   logs loudly when required prod env (`FRONTEND_URL`) is missing.
+- **Email verification & password reset** — single-use, hashed, expiring tokens
+  in `email_tokens` via `lib/models/emailTokenModel.js`; delivery through a
+  provider-agnostic `lib/email/mailer.js` (logs the link with no provider; sends
+  via Resend when `RESEND_API_KEY` is set — set `EMAIL_FROM` too). `users.emailVerified`
+  tracks state. Frontend landing pages: `/verify-email`, `/reset-password`.
+- **Soft delete + audit** — destructive/privileged actions append to `audit_log`
+  via `lib/models/auditModel.js`; `patterns`/`designs` carry `deletedAt` and reads
+  filter it out (pattern delete is now a soft delete, recoverable).
+- The session cookie is `loopsy_session`; the legacy `stitchflow_session` is still
+  read and cleared so the rename doesn't sign anyone out.
 
 ## Main Routes
 
@@ -136,6 +149,9 @@ Important tables now include:
 - `designs` (canvas spec JSON + linked `patternId`, for revisiting/sharing)
 - `ai_usage` (per-user monthly + lifetime usage; powers rate limits and the vision trial)
 - `rate_limits` (rolling-window counters for auth throttling; keyed by an opaque `bucket`)
+- `audit_log` (append-only trail of privileged/destructive actions)
+- `email_tokens` (single-use hashed tokens for email verification + password reset)
+- `users.emailVerified`, `patterns.deletedAt`, `designs.deletedAt` (added via idempotent migrations)
 - `analytics`
 
 When adding new persistent product features, prefer incremental `ALTER TABLE` migrations inside `backend/lib/db/index.js`. **Make migrations idempotent** (swallow "duplicate column" errors) — Next build collects page data across parallel workers that all init the same DB.

@@ -1,4 +1,5 @@
 const db = require('../db');
+const { recordAudit } = require('./auditModel');
 
 const insertPatternStmt = db.prepare(`
   INSERT INTO patterns (
@@ -10,11 +11,11 @@ const insertPatternStmt = db.prepare(`
 `);
 
 const getAllPatternsStmt = db.prepare(`
-  SELECT * FROM patterns WHERE userId = ? ORDER BY createdAt DESC
+  SELECT * FROM patterns WHERE userId = ? AND deletedAt IS NULL ORDER BY createdAt DESC
 `);
 
 const getPatternByIdStmt = db.prepare(`
-  SELECT * FROM patterns WHERE id = ? AND userId = ?
+  SELECT * FROM patterns WHERE id = ? AND userId = ? AND deletedAt IS NULL
 `);
 
 /**
@@ -101,12 +102,18 @@ function parseJsonArray(value) {
   }
 }
 
-const deletePatternStmt = db.prepare('DELETE FROM patterns WHERE id = ? AND userId = ?');
-const deleteProgressForPatternStmt = db.prepare('DELETE FROM progress WHERE patternId = ? AND userId = ?');
+// Soft delete: the row is hidden from reads but retained so it can be
+// recovered and so the audit trail stays meaningful. Progress is kept too.
+const softDeletePatternStmt = db.prepare(
+  'UPDATE patterns SET deletedAt = ? WHERE id = ? AND userId = ? AND deletedAt IS NULL'
+);
 
-function deletePattern(id, userId) {
-  deleteProgressForPatternStmt.run(id, userId);
-  deletePatternStmt.run(id, userId);
+function deletePattern(id, userId, ctx = {}) {
+  const info = softDeletePatternStmt.run(new Date().toISOString(), id, userId);
+  if (info.changes > 0) {
+    recordAudit({ actorId: userId, action: 'pattern.delete', resource: 'pattern', resourceId: id, ip: ctx.ip });
+  }
+  return info.changes > 0;
 }
 
 module.exports = { getAllPatterns, getPatternById, createPattern, deletePattern };

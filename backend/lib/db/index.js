@@ -128,6 +128,27 @@ function initializeDatabase(db) {
       windowStart TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      actorId TEXT,
+      action TEXT NOT NULL,
+      resource TEXT,
+      resourceId TEXT,
+      meta TEXT,
+      ip TEXT,
+      createdAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS email_tokens (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      tokenHash TEXT NOT NULL UNIQUE,
+      expiresAt TEXT NOT NULL,
+      usedAt TEXT,
+      createdAt TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_progress_patternId ON progress(patternId);
     CREATE INDEX IF NOT EXISTS idx_patterns_userId ON patterns(userId);
     CREATE INDEX IF NOT EXISTS idx_progress_userId ON progress(userId);
@@ -137,6 +158,9 @@ function initializeDatabase(db) {
     CREATE INDEX IF NOT EXISTS idx_patterns_templateId ON patterns(templateId);
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_type_month ON ai_usage(userId, type, month);
     CREATE INDEX IF NOT EXISTS idx_designs_userId ON designs(userId);
+    CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actorId);
+    CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_log(resource, resourceId);
+    CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(userId, type);
   `);
 
   const patternColumns = db.prepare(`PRAGMA table_info(patterns)`).all();
@@ -155,7 +179,8 @@ function initializeDatabase(db) {
     ['isFallback', "ALTER TABLE patterns ADD COLUMN isFallback INTEGER DEFAULT 0"],
     ['userId', "ALTER TABLE patterns ADD COLUMN userId TEXT"],
     ['verified', "ALTER TABLE patterns ADD COLUMN verified INTEGER DEFAULT 0"],
-    ['isExperimental', "ALTER TABLE patterns ADD COLUMN isExperimental INTEGER DEFAULT 0"]
+    ['isExperimental', "ALTER TABLE patterns ADD COLUMN isExperimental INTEGER DEFAULT 0"],
+    ['deletedAt', "ALTER TABLE patterns ADD COLUMN deletedAt TEXT"]
   ];
 
   // Idempotent migration: the column guard can still lose a race when several
@@ -177,6 +202,14 @@ function initializeDatabase(db) {
   const progressColumns = db.prepare(`PRAGMA table_info(progress)`).all();
   const existingProgressColumns = new Set(progressColumns.map((column) => column.name));
   addColumnIfMissing(existingProgressColumns, 'userId', "ALTER TABLE progress ADD COLUMN userId TEXT");
+
+  const designColumns = db.prepare(`PRAGMA table_info(designs)`).all();
+  const existingDesignColumns = new Set(designColumns.map((column) => column.name));
+  addColumnIfMissing(existingDesignColumns, 'deletedAt', "ALTER TABLE designs ADD COLUMN deletedAt TEXT");
+
+  const userColumns = db.prepare(`PRAGMA table_info(users)`).all();
+  const existingUserColumns = new Set(userColumns.map((column) => column.name));
+  addColumnIfMissing(existingUserColumns, 'emailVerified', "ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0");
 
   const initAnalytics = db.prepare(`
     INSERT OR IGNORE INTO analytics (key, value) VALUES (?, ?)

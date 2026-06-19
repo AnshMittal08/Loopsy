@@ -36,7 +36,11 @@ This is the bridge between *what exists today* and *being ready to take money*. 
 
 ### P0 — Must fix before charging anyone (security & correctness)
 
-> **Status (current pass):** 0.1 ✅, 0.2 ✅, 0.3 ✅, 0.5 ✅ (Origin-check + SameSite=Lax; full double-submit token deferred), 0.6 ✅. **0.4 (email verification + password reset) is the only P0 still open** — it needs a transactional email provider decision before implementation.
+> **Status:** **All P0 done** — 0.1 ✅ 0.2 ✅ 0.3 ✅ 0.4 ✅ (email verify + password reset; provider-agnostic mailer logs the link until `RESEND_API_KEY` is set) 0.5 ✅ (Origin-check + SameSite=Lax; full double-submit deferred) 0.6 ✅.
+>
+> **P1/P2 in-repo items also done:** 0.10 ✅ (heic2any pinned), 0.11 ✅ (Vite `manualChunks` — three/heic2any/motion split out; main bundle 574 kB → 440 kB), 0.12 ✅ (frontend `node:test` suite in CI), 0.13 ✅ (cookie renamed `loopsy_session`, legacy still honoured), 0.15 ✅ (logger `child`/`captureError`/request-id seam), 0.16 ✅ (soft-delete `deletedAt` + `audit_log`).
+>
+> **Still blocked on your input / infra (not code):** 0.7–0.9 (Postgres host + Redis + AWS/EKS/Terraform/staging), 0.15-Sentry (needs a DSN), and 0.14 = Stripe (that's M5). Email currently logs the link — drop in a Resend key (`RESEND_API_KEY` + `EMAIL_FROM`) to send for real.
 
 | # | Item | Evidence (file) | Fix |
 |---|------|-----------------|-----|

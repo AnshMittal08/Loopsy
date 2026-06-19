@@ -8,6 +8,11 @@ export function clientIp(request) {
   return request.headers.get("x-real-ip") || "unknown";
 }
 
+/** The canonical app origin, used to build email links. */
+export function appOrigin() {
+  return process.env.FRONTEND_URL || "http://localhost:5173";
+}
+
 /** Origins we trust as first-party. Localhost is added outside production. */
 export function allowedOrigins() {
   const list = [];

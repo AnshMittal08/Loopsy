@@ -11,6 +11,8 @@ import DesignShare from './pages/DesignShare';
 import Tracker from './pages/Tracker';
 import TemplateDetail from './pages/TemplateDetail';
 import Account from './pages/Account';
+import VerifyEmail from './pages/VerifyEmail';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
           <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/create/:templateId?" element={<Create />} />
             <Route path="/design" element={<Design />} />

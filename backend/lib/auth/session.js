@@ -4,7 +4,10 @@ import { generateId } from "@/lib/utils/helpers";
 import { getUserWithSubscriptionById } from "@/lib/models/userModel";
 import { createSession, getSessionByToken, deleteSessionByToken } from "@/lib/models/sessionModel";
 
-export const SESSION_COOKIE_NAME = "stitchflow_session";
+export const SESSION_COOKIE_NAME = "loopsy_session";
+// Older sessions used the previous product name; still accepted on read and
+// cleared on logout so existing users aren't signed out by the rename.
+const LEGACY_COOKIE_NAMES = ["stitchflow_session"];
 const SESSION_TTL_DAYS = 30;
 
 export function hashPassword(password) {
@@ -39,9 +42,11 @@ export function readSessionToken(request) {
   const cookieHeader = request.headers.get("cookie") ?? "";
   const parts = cookieHeader.split(";").map((part) => part.trim());
 
-  for (const part of parts) {
-    if (part.startsWith(`${SESSION_COOKIE_NAME}=`)) {
-      return decodeURIComponent(part.slice(SESSION_COOKIE_NAME.length + 1));
+  for (const name of [SESSION_COOKIE_NAME, ...LEGACY_COOKIE_NAMES]) {
+    for (const part of parts) {
+      if (part.startsWith(`${name}=`)) {
+        return decodeURIComponent(part.slice(name.length + 1));
+      }
     }
   }
 
@@ -76,13 +81,15 @@ export function setSessionCookie(response, session) {
 }
 
 export function clearSessionCookie(response) {
-  response.cookies.set(SESSION_COOKIE_NAME, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: new Date(0)
-  });
+  for (const name of [SESSION_COOKIE_NAME, ...LEGACY_COOKIE_NAMES]) {
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: new Date(0)
+    });
+  }
   return response;
 }
 
