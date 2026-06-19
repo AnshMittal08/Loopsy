@@ -1,3 +1,5 @@
+import logger from "../logger.js";
+
 // Request-level security helpers: client IP extraction and a defense-in-depth
 // CSRF/origin check that complements the SameSite=Lax session cookie.
 
@@ -8,19 +10,64 @@ export function clientIp(request) {
   return request.headers.get("x-real-ip") || "unknown";
 }
 
-/** The canonical app origin, used to build email links. */
-export function appOrigin() {
-  return process.env.FRONTEND_URL || "http://localhost:5173";
+// Normalise any URL-ish string to a bare origin ("https://host[:port]"),
+// lower-cased and stripped of path/trailing slash. Returns null if unparseable.
+function toOrigin(value) {
+  try {
+    return new URL(String(value).trim()).origin.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
-/** Origins we trust as first-party. Localhost is added outside production. */
+/** The canonical app origin, used to build email links. */
+export function appOrigin() {
+  const first = (process.env.FRONTEND_URL || "").split(",")[0];
+  return toOrigin(first) || "http://localhost:5173";
+}
+
+/**
+ * First-party origins. FRONTEND_URL may be a comma-separated list. Localhost is
+ * added outside production. All entries are normalised so a trailing slash or
+ * casing mismatch can't cause a false block.
+ */
 export function allowedOrigins() {
   const list = [];
-  if (process.env.FRONTEND_URL) list.push(process.env.FRONTEND_URL);
+  for (const part of (process.env.FRONTEND_URL || "").split(",")) {
+    const o = toOrigin(part);
+    if (o) list.push(o);
+  }
   if (process.env.NODE_ENV !== "production") {
     list.push("http://localhost:5173", "http://localhost:3000");
   }
   return list;
+}
+
+// Host suffixes that are always accepted — covers ephemeral preview deploys.
+// Set explicitly via ALLOWED_ORIGIN_SUFFIXES (comma-separated, e.g. ".vercel.app"),
+// and auto-included when a configured origin is itself on *.vercel.app so Vercel
+// preview URLs work without extra config.
+function allowedSuffixes() {
+  const suffixes = new Set();
+  for (const raw of (process.env.ALLOWED_ORIGIN_SUFFIXES || "").split(",")) {
+    const s = raw.trim().toLowerCase();
+    if (s) suffixes.add(s.startsWith(".") ? s : `.${s}`);
+  }
+  for (const origin of allowedOrigins()) {
+    try {
+      if (new URL(origin).host.endsWith(".vercel.app")) suffixes.add(".vercel.app");
+    } catch { /* ignore */ }
+  }
+  return [...suffixes];
+}
+
+function originAllowed(value) {
+  const origin = toOrigin(value);
+  if (!origin) return false;
+  if (allowedOrigins().includes(origin)) return true;
+  let host;
+  try { host = new URL(origin).host; } catch { return false; }
+  return allowedSuffixes().some((suffix) => host === suffix.slice(1) || host.endsWith(suffix));
 }
 
 /**
@@ -33,15 +80,20 @@ export function allowedOrigins() {
  * SameSite=Lax remains the primary CSRF control; this is a second layer.
  */
 export function isCrossSiteRequest(request) {
-  const origins = allowedOrigins();
-  if (origins.length === 0) return false; // cannot determine — do not block
+  if (allowedOrigins().length === 0) return false; // cannot determine — do not block
 
   const origin = request.headers.get("origin");
-  if (origin) return !origins.includes(origin);
-
-  // No Origin header (some same-origin requests omit it): fall back to Referer.
   const referer = request.headers.get("referer");
-  if (referer) return !origins.some((o) => referer.startsWith(o));
+  const candidate = origin || referer;
+  if (!candidate) return false; // no Origin/Referer — rely on SameSite=Lax
 
-  return false;
+  if (originAllowed(candidate)) return false;
+
+  // Surface the mismatch in logs so a misconfigured FRONTEND_URL is obvious.
+  logger.warn("auth.cross_site_blocked", {
+    origin: origin || null,
+    referer: referer || null,
+    allowed: allowedOrigins(),
+  });
+  return true;
 }
