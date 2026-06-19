@@ -6,15 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Loopsy — the AI-native crochet studio. Generate patterns, design amigurumi, and track every row." />
     <title>Loopsy — Crochet Studio</title>
-    <script>
-      // Theme bootstrap — runs before paint to avoid a flash of the wrong theme.
-      (function () {
-        var stored = null;
-        try { stored = localStorage.getItem('loopsy-theme'); } catch (e) { /* private mode */ }
-        var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>

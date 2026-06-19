@@ -2,9 +2,27 @@ import { NextResponse } from "next/server";
 import { generateId } from "@/lib/utils/helpers";
 import { createUser, getUserByEmail } from "@/lib/models/userModel";
 import { hashPassword, createUserSession, setSessionCookie } from "@/lib/auth/session";
+import { clientIp, isCrossSiteRequest } from "@/lib/auth/request";
+import { peek, hit } from "@/lib/models/rateLimitModel";
+
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_SIGNUPS_PER_IP = 10; // throttle mass account creation
 
 export async function POST(request) {
   try {
+    if (isCrossSiteRequest(request)) {
+      return NextResponse.json({ error: "Request blocked." }, { status: 403 });
+    }
+
+    const ip = clientIp(request);
+    const signupBucket = `signup:ip:${ip}`;
+    if (peek(signupBucket, SIGNUP_WINDOW_MS) >= MAX_SIGNUPS_PER_IP) {
+      return NextResponse.json(
+        { error: "Too many accounts created from here. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const email = body.email?.trim().toLowerCase();
     const name = body.name?.trim();
@@ -36,6 +54,8 @@ export async function POST(request) {
         updatedAt: timestamp
       }
     });
+
+    hit(signupBucket, SIGNUP_WINDOW_MS);
 
     const session = createUserSession(user.id);
     const response = NextResponse.json({ user }, { status: 201 });

@@ -78,6 +78,26 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 
 Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 
+### Auth & request hardening (P0)
+
+- **Login/signup throttling** — DB-backed rolling-window counters in the
+  `rate_limits` table via `lib/models/rateLimitModel.js` (`peek/hit/clear`).
+  Login: 5 failed attempts per (ip,email) and 20 per ip / 15 min; a successful
+  sign-in clears the account bucket. Signup: 10 per ip / hour. Same 401 message
+  whether or not the account exists (no enumeration).
+- **CSRF defense-in-depth** — `lib/auth/request.js` `isCrossSiteRequest()` checks
+  the `Origin`/`Referer` against `allowedOrigins()` on auth POSTs. It complements
+  (does not replace) the `SameSite=Lax` session cookie, and fails open only when
+  no allowlist can be determined (misconfigured `FRONTEND_URL`).
+- **Security headers** — backend API responses set nosniff / frame-deny /
+  referrer-policy / permissions-policy / HSTS (`next.config.js`); CORS no longer
+  falls back to `*` (requires `FRONTEND_URL` in prod, emits credentialed CORS
+  only for that origin). The SPA sets a strict **CSP** + the same headers in
+  `frontend/vercel.json`; the theme bootstrap is an external `public/theme-init.js`
+  so `script-src` stays `'self'` (no `unsafe-inline`).
+- **Config validation** — `lib/config.js` `validateConfig()` runs at DB init and
+  logs loudly when required prod env (`FRONTEND_URL`) is missing.
+
 ## Main Routes
 
 | Route | Purpose |
@@ -115,6 +135,7 @@ Important tables now include:
 - `progress` with `userId`
 - `designs` (canvas spec JSON + linked `patternId`, for revisiting/sharing)
 - `ai_usage` (per-user monthly + lifetime usage; powers rate limits and the vision trial)
+- `rate_limits` (rolling-window counters for auth throttling; keyed by an opaque `bucket`)
 - `analytics`
 
 When adding new persistent product features, prefer incremental `ALTER TABLE` migrations inside `backend/lib/db/index.js`. **Make migrations idempotent** (swallow "duplicate column" errors) — Next build collects page data across parallel workers that all init the same DB.

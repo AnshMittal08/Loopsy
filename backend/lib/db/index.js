@@ -1,6 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { validateConfig } = require('../config');
+
+validateConfig();
 
 const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data.db');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -117,6 +120,12 @@ function initializeDatabase(db) {
       patternId TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      bucket TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0,
+      windowStart TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_progress_patternId ON progress(patternId);

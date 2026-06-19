@@ -35,6 +35,9 @@
 This is the bridge between *what exists today* and *being ready to take money*. It is intentionally first. Items are ordered by risk × effort. Each maps to a grounded finding elsewhere in this doc.
 
 ### P0 — Must fix before charging anyone (security & correctness)
+
+> **Status (current pass):** 0.1 ✅, 0.2 ✅, 0.3 ✅, 0.5 ✅ (Origin-check + SameSite=Lax; full double-submit token deferred), 0.6 ✅. **0.4 (email verification + password reset) is the only P0 still open** — it needs a transactional email provider decision before implementation.
+
 | # | Item | Evidence (file) | Fix |
 |---|------|-----------------|-----|
 | 0.1 | **No brute-force / rate limiting on `/api/auth/login`** | `app/api/auth/login/route.js`, `lib/utils/planLimits.js` (only meters AI usage, not auth) | Add IP+account throttle (e.g. 5/min, exponential lockout) via a `rate_limits` table or Redis; generic error messages. |
