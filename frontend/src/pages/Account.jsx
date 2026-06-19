@@ -66,13 +66,13 @@ export default function Account() {
   };
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="flex min-h-dvh bg-surface">
       <SideNav />
 
-      <main className="flex-1 px-6 py-10 md:px-10 lg:px-16">
+      <main className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16">
         <div className="mx-auto max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Account</p>
-          <h1 className="font-display display-wonk text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
+          <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
             Your crochet workspace.
           </h1>
           <p className="text-on-surface-variant max-w-xl mb-10">

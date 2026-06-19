@@ -54,14 +54,14 @@ export default function DesignShare() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface px-6 text-center">
         <p className="text-on-surface-variant">{error}</p>
         <Link to="/" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors">Explore Loopsy</Link>
       </div>
     );
   }
   if (!design) {
-    return <div className="flex min-h-screen items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
+    return <div className="flex min-h-dvh items-center justify-center bg-surface"><ThreadSpinner size={56} /></div>;
   }
 
   const parts = design.spec?.parts || [];
@@ -82,7 +82,7 @@ export default function DesignShare() {
   }));
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface">
+    <div className="min-h-dvh bg-surface text-on-surface">
       {/* top bar */}
       <header className="flex items-center justify-between px-6 py-5 md:px-12">
         <Link to="/" className="font-display text-xl font-bold">Loopsy</Link>
@@ -113,7 +113,7 @@ export default function DesignShare() {
           {/* Details */}
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary mb-2">Crochet design</p>
-            <h1 className="font-display display-wonk text-[2.6rem] md:text-[3.2rem] font-bold leading-tight">{design.name}</h1>
+            <h1 className="font-display display-wonk text-[2rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold leading-tight">{design.name}</h1>
             <p className="mt-3 text-on-surface-variant leading-relaxed">
               {parts.length} parts · amigurumi · designed on Loopsy. The pattern's stitch counts are computed by the engine, not guessed.
             </p>

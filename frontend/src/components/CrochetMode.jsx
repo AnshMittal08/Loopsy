@@ -100,15 +100,15 @@ export default function CrochetMode({ pattern, progress, onToggleStep, onClose }
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-center gap-4 px-6 pb-10 shrink-0">
+      <div className="flex items-center justify-center gap-3 px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] shrink-0 sm:gap-4 sm:px-6 sm:pb-10">
         <button onClick={() => setIdx((i) => Math.max(i - 1, 0))} disabled={idx === 0} aria-label="Previous step"
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors">
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors">
           <ChevronLeft size={20} />
         </button>
         <Motion.button onClick={advance} whileTap={{ scale: 0.95 }} transition={SPRING.snappy}
-          className="flex items-center gap-2.5 rounded-full bg-primary px-9 py-4 text-base font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md">
-          <Check size={19} />
-          {isDone ? 'Mark not done' : 'Done — next row'}
+          className="flex items-center gap-2.5 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm-md sm:px-9 sm:py-4 sm:text-base">
+          <Check size={19} className="shrink-0" />
+          {isDone ? 'Mark not done' : (<><span className="sm:hidden">Done</span><span className="hidden sm:inline">Done — next row</span></>)}
         </Motion.button>
         <button onClick={() => setIdx((i) => Math.min(i + 1, steps.length - 1))} disabled={idx >= steps.length - 1} aria-label="Next step"
           className="flex h-12 w-12 items-center justify-center rounded-full border border-outline-variant/40 text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors">

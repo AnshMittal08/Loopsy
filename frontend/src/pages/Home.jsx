@@ -209,10 +209,10 @@ export default function Home() {
   return (
     <>
       <TopNav />
-      <main className="w-full max-w-[1440px] mx-auto px-6 pb-24 pt-24 md:px-12">
+      <main className="w-full max-w-[1440px] mx-auto px-5 pb-28 pt-24 sm:px-6 md:px-12 md:pb-24">
 
         {/* ── Hero ── */}
-        <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-lg px-8 py-12 md:px-14 md:py-16">
+        <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm-lg px-6 py-10 sm:px-8 sm:py-12 md:px-14 md:py-16">
           {/* Yarn gradient-mesh blobs — slow CSS drift, killed by the reduced-motion switch */}
           <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-yarn-coral/15 blur-3xl blob-drift" />
           <div className="pointer-events-none absolute -bottom-10 left-1/4 h-48 w-48 rounded-full bg-yarn-periwinkle/15 blur-3xl blob-drift-slow" />
@@ -229,7 +229,7 @@ export default function Home() {
               <RevealItem>
                 <StaggeredHeadline
                   words={HEADLINE}
-                  className="font-display display-wonk max-w-2xl text-[3.2rem] font-bold leading-[1.05] tracking-tight text-on-surface md:text-[4.4rem]"
+                  className="font-display display-wonk max-w-2xl text-[2.4rem] font-bold leading-[1.05] tracking-tight text-on-surface sm:text-[3.2rem] md:text-[4.4rem]"
                 />
               </RevealItem>
               <RevealItem>

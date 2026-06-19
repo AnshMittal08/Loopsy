@@ -179,7 +179,7 @@ export default function Tracker() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+      <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
         <SideNav />
         <main className="flex-1 overflow-y-auto p-6 md:p-10">
           <div className="max-w-5xl mx-auto">
@@ -199,7 +199,7 @@ export default function Tracker() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface px-6">
+      <div className="flex min-h-dvh items-center justify-center bg-surface px-6">
         <div className="w-full max-w-sm text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <BookOpen size={24} className="text-primary" />
@@ -217,12 +217,12 @@ export default function Tracker() {
   /* ── My Projects list ─────────────────────────────── */
   if (!patternId) {
     return (
-      <div className="flex min-h-screen bg-surface">
+      <div className="flex min-h-dvh bg-surface">
         <SideNav />
-        <main className="flex-1 px-6 py-10 md:px-10 lg:px-16">
+        <main className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16">
           <div className="max-w-3xl mx-auto">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">In Progress</p>
-            <h1 className="font-display display-wonk text-[2.4rem] font-bold text-on-surface mb-8">My Projects</h1>
+            <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface mb-8">My Projects</h1>
 
             {allPatterns === null ? (
               <div className="space-y-3">
@@ -290,7 +290,7 @@ export default function Tracker() {
 
   if (!pattern) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-surface">
+      <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-surface">
         <p className="text-on-surface-variant">{error || 'Pattern not found.'}</p>
         <Link to="/create" className="text-primary underline text-sm">Go Back</Link>
       </div>
@@ -303,7 +303,7 @@ export default function Tracker() {
   const completedCount = steps.filter((_, i) => progress?.steps?.[i]?.completed ?? false).length;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface text-on-surface">
+    <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
       <SideNav />
 
       <main className="flex-1 flex flex-col h-full overflow-y-auto">
@@ -316,7 +316,7 @@ export default function Tracker() {
           <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 md:p-8">
+        <div className="flex-1 overflow-y-auto p-5 pb-24 md:p-8">
           {/* Studio header — title, live stats, yarn ball */}
           <div className="flex flex-wrap items-start justify-between gap-5 mb-6">
             <div className="min-w-0">

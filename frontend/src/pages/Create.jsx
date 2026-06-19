@@ -248,7 +248,7 @@ export default function Create() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
+      <div className="flex min-h-dvh items-center justify-center bg-surface">
         <ThreadSpinner size={56} />
       </div>
     );
@@ -256,7 +256,7 @@ export default function Create() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen bg-surface text-on-surface">
+      <div className="flex min-h-dvh bg-surface text-on-surface">
         <SideNav />
         <main className="flex-1 flex items-center justify-center px-6 py-16">
           <Reveal className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-10 text-center">
@@ -434,7 +434,7 @@ export default function Create() {
   );
 
   return (
-    <div className="flex min-h-screen bg-surface text-on-surface">
+    <div className="flex min-h-dvh bg-surface text-on-surface">
       <SideNav />
 
       <main className="flex-1 overflow-y-auto">
@@ -451,7 +451,7 @@ export default function Create() {
           <MobileNav isOpen={mobileOpen} onClose={closeMobileNav} />
         </header>
 
-        <div className="px-6 py-10 md:px-12 md:py-14 lg:px-20">
+        <div className="px-5 py-10 pb-28 sm:px-6 md:px-12 md:py-14 md:pb-14 lg:px-20">
           <div className="max-w-3xl mx-auto">
 
             {/* Page header */}
@@ -459,7 +459,7 @@ export default function Create() {
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">
                 {mode === 'template' ? 'Template Studio' : 'AI Studio'}
               </p>
-              <h1 className="font-display display-wonk text-[2.6rem] md:text-[3.2rem] font-bold text-on-surface leading-tight tracking-tight">
+              <h1 className="font-display display-wonk text-[2rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold text-on-surface leading-tight tracking-tight">
                 {mode === 'template' ? 'Customize your pattern.' : 'Draft your next masterpiece.'}
               </h1>
               <p className="mt-4 text-on-surface-variant text-base leading-relaxed max-w-xl">

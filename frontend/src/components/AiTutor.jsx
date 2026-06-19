@@ -91,9 +91,8 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle }) {
       {/* FAB */}
       <button
         onClick={() => { setIsOpen(o => !o); if (!hasOpened) setHasOpened(true); }}
-        className="fixed bottom-6 right-6 z-[9000] flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-on-primary shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-transform"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-5 z-[9000] flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-on-primary shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-transform md:bottom-6 md:right-6"
         aria-label="Open AI crochet tutor"
-        style={{ bottom: 24, right: 24 }}
       >
         <Sparkles size={20} />
         <span className="hidden sm:inline text-sm font-bold">Ask tutor</span>
@@ -108,12 +107,10 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle }) {
       {/* Chat panel */}
       {isOpen && (
         <div
-          className="fixed z-[9000] flex flex-col rounded-2xl bg-surface-container shadow-2xl ring-1 ring-outline-variant/20 overflow-hidden"
+          className="fixed right-4 z-[9000] flex flex-col rounded-2xl bg-surface-container shadow-2xl ring-1 ring-outline-variant/20 overflow-hidden bottom-[calc(env(safe-area-inset-bottom)+9.5rem)] md:right-6 md:bottom-24"
           style={{
-            bottom: 96,
-            right: 24,
-            width: 'min(400px, calc(100vw - 48px))',
-            height: 480,
+            width: 'min(400px, calc(100vw - 32px))',
+            height: 'min(480px, calc(100dvh - 13rem))',
           }}
         >
           {/* Header */}
