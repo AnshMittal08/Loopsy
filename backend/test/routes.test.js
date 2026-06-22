@@ -72,3 +72,12 @@ test('GET /api/templates returns the seeded catalog (public)', async () => {
   const list = Array.isArray(body) ? body : body.templates;
   assert.ok(list.length >= 22, 'catalog present');
 });
+
+test('input validation: malformed auth bodies are rejected with 400', async () => {
+  const { POST: signup } = await import('../app/api/auth/signup/route.js');
+  const { POST: login } = await import('../app/api/auth/login/route.js');
+  assert.equal((await signup(jsonReq('http://x/api/auth/signup', { name: '', email: 'nope', password: 'short' }))).status, 400);
+  assert.equal((await login(jsonReq('http://x/api/auth/login', { email: 'not-an-email', password: '' }))).status, 400);
+  // a well-formed body still succeeds
+  assert.equal((await signup(jsonReq('http://x/api/auth/signup', { name: 'Valid', email: `v_${Date.now()}@example.com`, password: 'longenough1' }))).status, 201);
+});

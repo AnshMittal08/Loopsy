@@ -3,6 +3,8 @@ import { consumeEmailToken } from "@/lib/models/emailTokenModel";
 import { markEmailVerified } from "@/lib/models/userModel";
 import { recordAudit } from "@/lib/models/auditModel";
 import { clientIp, isCrossSiteRequest } from "@/lib/auth/request";
+import { validate, readJsonBody } from "@/lib/validation";
+import { verifyEmailSchema } from "@/lib/validation/schemas";
 
 export async function POST(request) {
   try {
@@ -10,8 +12,9 @@ export async function POST(request) {
       return NextResponse.json({ error: "Request blocked." }, { status: 403 });
     }
 
-    const { token } = await request.json();
-    const result = await consumeEmailToken(token, "verify");
+    const { data, response: invalid } = validate(verifyEmailSchema, await readJsonBody(request));
+    if (invalid) return invalid;
+    const result = await consumeEmailToken(data.token, "verify");
     if (!result) {
       return NextResponse.json(
         { error: "This verification link is invalid or has expired." },

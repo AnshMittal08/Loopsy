@@ -3,6 +3,8 @@ import { getUserByEmail, getUserWithSubscriptionById } from "@/lib/models/userMo
 import { verifyPassword, createUserSession, setSessionCookie } from "@/lib/auth/session";
 import { clientIp, isCrossSiteRequest } from "@/lib/auth/request";
 import { peek, hit, clear } from "@/lib/models/rateLimitModel";
+import { validate, readJsonBody } from "@/lib/validation";
+import { loginSchema } from "@/lib/validation/schemas";
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_PER_ACCOUNT = 5; // failed attempts per (ip, email)
@@ -14,13 +16,9 @@ export async function POST(request) {
       return NextResponse.json({ error: "Request blocked." }, { status: 403 });
     }
 
-    const body = await request.json();
-    const email = body.email?.trim().toLowerCase();
-    const password = body.password ?? "";
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
-    }
+    const { data, response: invalid } = validate(loginSchema, await readJsonBody(request));
+    if (invalid) return invalid;
+    const { email, password } = data;
 
     const ip = clientIp(request);
     const ipBucket = `login:ip:${ip}`;
