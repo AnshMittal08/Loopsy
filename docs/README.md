@@ -19,6 +19,7 @@
 - [`00-product-overview.md`](./product/00-product-overview.md) — problem, moat, value-prop canvas, positioning, competitors
 - [`personas.md`](./product/personas.md) — Beginner, Power User/Designer (current); Admin, Org Owner (target)
 - [`ai-opportunities.md`](./product/ai-opportunities.md) — Copilot/Recs/Search/Summaries/Automation/Analytics, RICE + Impact×Effort
+- [`feature-expansion.md`](./product/feature-expansion.md) — growth strategy: community catalog + marketplace, AI/Design 2.0 (industry-ready), Learning Centre
 
 ### `architecture/` — how it's built
 - [`01-current-architecture.md`](./architecture/01-current-architecture.md) — stack, layers, Design-Spec contract, full C4 model (Mermaid)
