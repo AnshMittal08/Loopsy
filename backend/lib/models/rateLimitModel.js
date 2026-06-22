@@ -17,27 +17,27 @@ function isExpired(windowStart, windowMs) {
 }
 
 /** Current count for a bucket within the rolling window (0 if none/expired). */
-function peek(bucket, windowMs) {
-  const row = getStmt.get(bucket);
+async function peek(bucket, windowMs) {
+  const row = await getStmt.get(bucket);
   if (!row || isExpired(row.windowStart, windowMs)) return 0;
   return row.count;
 }
 
 /** Record one hit and return the new count within the rolling window. */
-function hit(bucket, windowMs) {
-  const row = getStmt.get(bucket);
+async function hit(bucket, windowMs) {
+  const row = await getStmt.get(bucket);
   if (!row || isExpired(row.windowStart, windowMs)) {
-    setStmt.run(bucket, 1, new Date().toISOString());
+    await setStmt.run(bucket, 1, new Date().toISOString());
     return 1;
   }
   const next = row.count + 1;
-  setStmt.run(bucket, next, row.windowStart);
+  await setStmt.run(bucket, next, row.windowStart);
   return next;
 }
 
 /** Clear a bucket (e.g. after a successful login). */
-function clear(bucket) {
-  deleteStmt.run(bucket);
+async function clear(bucket) {
+  await deleteStmt.run(bucket);
 }
 
 module.exports = { peek, hit, clear };

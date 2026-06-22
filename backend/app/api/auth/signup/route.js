@@ -20,7 +20,7 @@ export async function POST(request) {
 
     const ip = clientIp(request);
     const signupBucket = `signup:ip:${ip}`;
-    if (peek(signupBucket, SIGNUP_WINDOW_MS) >= MAX_SIGNUPS_PER_IP) {
+    if (await peek(signupBucket, SIGNUP_WINDOW_MS) >= MAX_SIGNUPS_PER_IP) {
       return NextResponse.json(
         { error: "Too many accounts created from here. Please try again later." },
         { status: 429 }
@@ -39,12 +39,12 @@ export async function POST(request) {
       );
     }
 
-    if (getUserByEmail(email)) {
+    if (await getUserByEmail(email)) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
     }
 
     const timestamp = new Date().toISOString();
-    const user = createUser({
+    const user = await createUser({
       id: generateId(),
       email,
       name,
@@ -59,11 +59,11 @@ export async function POST(request) {
       }
     });
 
-    hit(signupBucket, SIGNUP_WINDOW_MS);
+    await hit(signupBucket, SIGNUP_WINDOW_MS);
 
     // Fire a verification email (non-blocking on failure — the account is usable).
     try {
-      const token = createEmailToken({ userId: user.id, type: "verify", ttlMs: VERIFY_TTL_MS });
+      const token = await createEmailToken({ userId: user.id, type: "verify", ttlMs: VERIFY_TTL_MS });
       const link = `${appOrigin()}/verify-email?token=${token}`;
       await sendEmail({
         to: email,
@@ -73,7 +73,7 @@ export async function POST(request) {
       });
     } catch { /* verification email is best-effort */ }
 
-    const session = createUserSession(user.id);
+    const session = await createUserSession(user.id);
     const response = NextResponse.json({ user }, { status: 201 });
     return setSessionCookie(response, session);
   } catch (error) {

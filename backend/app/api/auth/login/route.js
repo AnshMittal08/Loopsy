@@ -26,25 +26,25 @@ export async function POST(request) {
     const ipBucket = `login:ip:${ip}`;
     const acctBucket = `login:acct:${ip}:${email}`;
 
-    if (peek(ipBucket, WINDOW_MS) >= MAX_PER_IP || peek(acctBucket, WINDOW_MS) >= MAX_PER_ACCOUNT) {
+    if (await peek(ipBucket, WINDOW_MS) >= MAX_PER_IP || await peek(acctBucket, WINDOW_MS) >= MAX_PER_ACCOUNT) {
       return NextResponse.json(
         { error: "Too many sign-in attempts. Please wait a few minutes and try again." },
         { status: 429 }
       );
     }
 
-    const userRecord = getUserByEmail(email);
+    const userRecord = await getUserByEmail(email);
     if (!userRecord || !verifyPassword(password, userRecord.passwordHash)) {
-      hit(ipBucket, WINDOW_MS);
-      hit(acctBucket, WINDOW_MS);
+      await hit(ipBucket, WINDOW_MS);
+      await hit(acctBucket, WINDOW_MS);
       // Identical message + status whether or not the account exists (no enumeration).
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    clear(acctBucket); // a real sign-in resets that account's counter
+    await clear(acctBucket); // a real sign-in resets that account's counter
 
-    const user = getUserWithSubscriptionById(userRecord.id);
-    const session = createUserSession(user.id);
+    const user = await getUserWithSubscriptionById(userRecord.id);
+    const session = await createUserSession(user.id);
     const response = NextResponse.json({ user }, { status: 200 });
     return setSessionCookie(response, session);
   } catch (error) {

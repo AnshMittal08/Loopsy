@@ -9,8 +9,8 @@ const insertStmt = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
-const getByIdStmt = db.prepare(`SELECT * FROM designs WHERE id = ?`);
-const getForUserStmt = db.prepare(`SELECT * FROM designs WHERE userId = ? ORDER BY updatedAt DESC`);
+const getByIdStmt = db.prepare(`SELECT * FROM designs WHERE id = ? AND deletedAt IS NULL`);
+const getForUserStmt = db.prepare(`SELECT * FROM designs WHERE userId = ? AND deletedAt IS NULL ORDER BY updatedAt DESC`);
 const setPatternStmt = db.prepare(`UPDATE designs SET patternId = ?, updatedAt = ? WHERE id = ?`);
 
 function deserialize(row) {
@@ -20,23 +20,23 @@ function deserialize(row) {
   return { ...row, spec };
 }
 
-function createDesign({ userId = null, name, spec }) {
+async function createDesign({ userId = null, name, spec }) {
   const now = new Date().toISOString();
   const id = randomUUID();
-  insertStmt.run(id, userId, name || 'Untitled design', JSON.stringify(spec ?? {}), null, now, now);
-  return deserialize(getByIdStmt.get(id));
+  await insertStmt.run(id, userId, name || 'Untitled design', JSON.stringify(spec ?? {}), null, now, now);
+  return deserialize(await getByIdStmt.get(id));
 }
 
-function getDesignById(id) {
-  return deserialize(getByIdStmt.get(id));
+async function getDesignById(id) {
+  return deserialize(await getByIdStmt.get(id));
 }
 
-function getDesignsForUser(userId) {
-  return getForUserStmt.all(userId).map(deserialize);
+async function getDesignsForUser(userId) {
+  return (await getForUserStmt.all(userId)).map(deserialize);
 }
 
-function linkPattern(id, patternId) {
-  setPatternStmt.run(patternId, new Date().toISOString(), id);
+async function linkPattern(id, patternId) {
+  await setPatternStmt.run(patternId, new Date().toISOString(), id);
 }
 
 module.exports = { createDesign, getDesignById, getDesignsForUser, linkPattern };

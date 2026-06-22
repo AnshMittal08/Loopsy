@@ -40,7 +40,7 @@ function partSvg(part) {
 }
 
 export async function GET(_request, { params }) {
-  const design = getDesignById(params.id);
+  const design = await getDesignById(params.id);
   if (!design) return new Response("Not found", { status: 404 });
 
   const name = esc(design.name);

@@ -6,10 +6,10 @@ import { checkRateLimit, recordUsage } from "@/lib/utils/planLimits";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    const check = checkRateLimit(user, "generation");
+    const check = await checkRateLimit(user, "generation");
     if (!check.allowed) {
       return NextResponse.json(
         { error: `You've used all ${check.limit} AI generations for this month.`, code: "RATE_LIMIT_EXCEEDED", limit: check.limit, used: check.used, plan: check.plan },
@@ -35,9 +35,9 @@ export async function POST(request) {
       );
     }
     pattern.userId = user.id;
-    createPattern(pattern);
+    await createPattern(pattern);
 
-    recordUsage(user.id, "generation");
+    await recordUsage(user.id, "generation");
     return NextResponse.json(pattern, { status: 201 });
   } catch (error) {
     return NextResponse.json(

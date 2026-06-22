@@ -3,7 +3,7 @@ import { destroySessionForRequest, clearSessionCookie } from "@/lib/auth/session
 
 export async function POST(request) {
   try {
-    destroySessionForRequest(request);
+    await destroySessionForRequest(request);
     const response = NextResponse.json({ ok: true }, { status: 200 });
     return clearSessionCookie(response);
   } catch (error) {

@@ -4,7 +4,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export async function PATCH(request, { params }) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -18,7 +18,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "stepIndex must be a non-negative integer." }, { status: 400 });
     }
 
-    const updated = toggleStepAtomic(params.id, user.id, stepIndex);
+    const updated = await toggleStepAtomic(params.id, user.id, stepIndex);
 
     if (!updated) {
       return NextResponse.json(

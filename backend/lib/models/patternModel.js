@@ -18,32 +18,29 @@ const getPatternByIdStmt = db.prepare(`
   SELECT * FROM patterns WHERE id = ? AND userId = ? AND deletedAt IS NULL
 `);
 
+const analyticsIncrementStmt = db.prepare('UPDATE analytics SET value = value + 1 WHERE key = ?');
+
 /**
- * Return all patterns.
- * @returns {Array}
+ * Return all patterns for a user.
  */
-function getAllPatterns(userId) {
-  return getAllPatternsStmt.all(userId).map(deserializePatternRow);
+async function getAllPatterns(userId) {
+  return (await getAllPatternsStmt.all(userId)).map(deserializePatternRow);
 }
 
 /**
  * Find a pattern by ID.
- * @param {string} id
- * @returns {Object|null}
  */
-function getPatternById(id, userId) {
-  const row = getPatternByIdStmt.get(id, userId);
+async function getPatternById(id, userId) {
+  const row = await getPatternByIdStmt.get(id, userId);
   if (!row) return null;
   return deserializePatternRow(row);
 }
 
 /**
  * Insert a new pattern and return it.
- * @param {Object} pattern
- * @returns {Object}
  */
-function createPattern(pattern) {
-  insertPatternStmt.run(
+async function createPattern(pattern) {
+  await insertPatternStmt.run(
     pattern.id,
     pattern.userId ?? null,
     pattern.title,
@@ -68,9 +65,7 @@ function createPattern(pattern) {
     pattern.createdAt
   );
 
-  // Increment analytics counter
-  const stmt = db.prepare('UPDATE analytics SET value = value + 1 WHERE key = ?');
-  stmt.run('pattern_generations');
+  await analyticsIncrementStmt.run('pattern_generations');
 
   return pattern;
 }
@@ -95,6 +90,7 @@ function deserializePatternRow(row) {
 
 function parseJsonArray(value) {
   if (!value) return [];
+  if (Array.isArray(value)) return value;
   try {
     return JSON.parse(value);
   } catch {
@@ -108,10 +104,10 @@ const softDeletePatternStmt = db.prepare(
   'UPDATE patterns SET deletedAt = ? WHERE id = ? AND userId = ? AND deletedAt IS NULL'
 );
 
-function deletePattern(id, userId, ctx = {}) {
-  const info = softDeletePatternStmt.run(new Date().toISOString(), id, userId);
+async function deletePattern(id, userId, ctx = {}) {
+  const info = await softDeletePatternStmt.run(new Date().toISOString(), id, userId);
   if (info.changes > 0) {
-    recordAudit({ actorId: userId, action: 'pattern.delete', resource: 'pattern', resourceId: id, ip: ctx.ip });
+    await recordAudit({ actorId: userId, action: 'pattern.delete', resource: 'pattern', resourceId: id, ip: ctx.ip });
   }
   return info.changes > 0;
 }

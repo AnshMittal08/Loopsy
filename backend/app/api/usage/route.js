@@ -4,7 +4,7 @@ import { getUsageCount, getLifetimeUsageCount } from "@/lib/models/usageModel";
 import { PLAN_LIMITS, FREE_VISION_TRIALS } from "@/lib/utils/planLimits";
 
 export async function GET(request) {
-  const { user, response } = requireAuthenticatedUser(request);
+  const { user, response } = await requireAuthenticatedUser(request);
   if (response) return response;
 
   const plan = user.subscription?.plan || "free";
@@ -19,7 +19,7 @@ export async function GET(request) {
   //  - creator: unlimited
   let vision;
   if (plan === "free") {
-    vision = { mode: "trial", trialLimit: FREE_VISION_TRIALS, trialUsed: getLifetimeUsageCount(user.id, "vision") };
+    vision = { mode: "trial", trialLimit: FREE_VISION_TRIALS, trialUsed: await getLifetimeUsageCount(user.id, "vision") };
   } else if (plan === "maker_pro") {
     vision = { mode: "generation" };
   } else {
@@ -30,8 +30,8 @@ export async function GET(request) {
     plan,
     limits: { generations: generationLimit, tutor: tutorLimit },
     used: {
-      generations: getUsageCount(user.id, "generation"),
-      tutor: getUsageCount(user.id, "tutor"),
+      generations: await getUsageCount(user.id, "generation"),
+      tutor: await getUsageCount(user.id, "tutor"),
     },
     vision,
   });

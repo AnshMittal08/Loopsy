@@ -9,6 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const TMP = path.join(os.tmpdir(), `loopsy-routes-${process.pid}-${Date.now()}.db`);
+delete process.env.DATABASE_URL; // tests always run against SQLite
 process.env.DB_PATH = TMP;
 // Pin an allowlist so the CSRF origin-check accepts our test requests.
 process.env.FRONTEND_URL = 'http://localhost:5173';

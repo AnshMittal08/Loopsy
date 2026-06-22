@@ -25,11 +25,11 @@ function hash(token) {
  * Create a token of a given type. Invalidates any prior unused tokens of the
  * same type for the user (one live link at a time). Returns the RAW token.
  */
-function createEmailToken({ userId, type, ttlMs }) {
-  invalidateForUserStmt.run(new Date().toISOString(), userId, type);
+async function createEmailToken({ userId, type, ttlMs }) {
+  await invalidateForUserStmt.run(new Date().toISOString(), userId, type);
   const token = crypto.randomBytes(32).toString('hex');
   const now = Date.now();
-  insertStmt.run(
+  await insertStmt.run(
     crypto.randomUUID(),
     userId,
     type,
@@ -44,12 +44,12 @@ function createEmailToken({ userId, type, ttlMs }) {
  * Consume a raw token: returns { userId } when valid+unused+unexpired and marks
  * it used; otherwise null.
  */
-function consumeEmailToken(token, type) {
+async function consumeEmailToken(token, type) {
   if (!token) return null;
-  const row = getByHashStmt.get(hash(token));
+  const row = await getByHashStmt.get(hash(token));
   if (!row || row.type !== type || row.usedAt) return null;
   if (new Date(row.expiresAt).getTime() < Date.now()) return null;
-  const info = markUsedStmt.run(new Date().toISOString(), row.id);
+  const info = await markUsedStmt.run(new Date().toISOString(), row.id);
   if (info.changes === 0) return null; // lost a race
   return { userId: row.userId };
 }

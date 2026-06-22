@@ -19,7 +19,7 @@ function base64Bytes(data) {
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -29,7 +29,7 @@ export async function POST(request) {
       );
     }
 
-    const access = checkVisionAccess(user);
+    const access = await checkVisionAccess(user);
     if (!access.allowed) {
       const message =
         access.code === "VISION_TRIAL_USED"
@@ -63,7 +63,7 @@ export async function POST(request) {
 
     // The metered event is the analysis itself (plan-v2): record it now, before
     // the user edits and compiles, so an abandoned analysis still counts.
-    recordVisionUse(user);
+    await recordVisionUse(user);
 
     // Normalize the spec (fill defaults, drop unknown fields) before returning
     // it to the editable-chips UI. Keep the readout fields alongside it.

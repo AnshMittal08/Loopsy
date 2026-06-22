@@ -7,7 +7,7 @@ import { getTemplateById } from "@/lib/models/templateModel";
  */
 export async function GET(request, { params }) {
   try {
-    const template = getTemplateById(params.id);
+    const template = await getTemplateById(params.id);
 
     if (!template) {
       return NextResponse.json(

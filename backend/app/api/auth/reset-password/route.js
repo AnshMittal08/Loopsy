@@ -17,13 +17,13 @@ export async function POST(request) {
 
     const ip = clientIp(request);
     const bucket = `reset:ip:${ip}`;
-    if (peek(bucket, WINDOW_MS) >= MAX_PER_IP) {
+    if (await peek(bucket, WINDOW_MS) >= MAX_PER_IP) {
       return NextResponse.json(
         { error: "Too many attempts. Please wait a few minutes and try again." },
         { status: 429 }
       );
     }
-    hit(bucket, WINDOW_MS);
+    await hit(bucket, WINDOW_MS);
 
     const body = await request.json();
     const token = body.token;
@@ -33,7 +33,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     }
 
-    const result = consumeEmailToken(token, "reset");
+    const result = await consumeEmailToken(token, "reset");
     if (!result) {
       return NextResponse.json(
         { error: "This reset link is invalid or has expired." },
@@ -41,8 +41,8 @@ export async function POST(request) {
       );
     }
 
-    setUserPassword(result.userId, hashPassword(password));
-    recordAudit({
+    await setUserPassword(result.userId, hashPassword(password));
+    await recordAudit({
       actorId: result.userId,
       action: "auth.password_reset",
       resource: "user",

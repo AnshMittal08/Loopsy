@@ -9,7 +9,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const { spec } = await request.json();

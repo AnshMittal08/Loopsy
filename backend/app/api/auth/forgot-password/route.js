@@ -17,21 +17,21 @@ export async function POST(request) {
 
     const ip = clientIp(request);
     const bucket = `forgot:ip:${ip}`;
-    if (peek(bucket, WINDOW_MS) >= MAX_PER_IP) {
+    if (await peek(bucket, WINDOW_MS) >= MAX_PER_IP) {
       return NextResponse.json(
         { error: "Too many requests. Please wait a few minutes and try again." },
         { status: 429 }
       );
     }
-    hit(bucket, WINDOW_MS);
+    await hit(bucket, WINDOW_MS);
 
     const body = await request.json();
     const email = body.email?.trim().toLowerCase();
 
     if (email) {
-      const userRecord = getUserByEmail(email);
+      const userRecord = await getUserByEmail(email);
       if (userRecord) {
-        const token = createEmailToken({ userId: userRecord.id, type: "reset", ttlMs: RESET_TTL_MS });
+        const token = await createEmailToken({ userId: userRecord.id, type: "reset", ttlMs: RESET_TTL_MS });
         const link = `${appOrigin()}/reset-password?token=${token}`;
         await sendEmail({
           to: email,
