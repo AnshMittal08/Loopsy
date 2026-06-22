@@ -11,7 +11,7 @@ export async function POST(request) {
     }
 
     const { token } = await request.json();
-    const result = consumeEmailToken(token, "verify");
+    const result = await consumeEmailToken(token, "verify");
     if (!result) {
       return NextResponse.json(
         { error: "This verification link is invalid or has expired." },
@@ -19,8 +19,8 @@ export async function POST(request) {
       );
     }
 
-    markEmailVerified(result.userId);
-    recordAudit({
+    await markEmailVerified(result.userId);
+    await recordAudit({
       actorId: result.userId,
       action: "auth.email_verified",
       resource: "user",

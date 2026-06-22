@@ -7,7 +7,7 @@ import { createDesign, getDesignsForUser } from "@/lib/models/designModel";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -16,7 +16,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "A design spec is required." }, { status: 400 });
     }
 
-    const design = createDesign({
+    const design = await createDesign({
       userId: user.id,
       name: name || spec.name || "Untitled design",
       spec: normalizeDesignSpec(spec),
@@ -29,9 +29,9 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
-    return NextResponse.json(getDesignsForUser(user.id));
+    return NextResponse.json(await getDesignsForUser(user.id));
   } catch (error) {
     return NextResponse.json({ error: "Failed to load designs.", details: error.message }, { status: 500 });
   }

@@ -21,6 +21,9 @@ jobs:
       # Lock the "verified math" moat: the engine suite must pass before anything ships.
       - run: npm test
       - run: npm run build
+      # Surface dependency advisories (non-blocking until the tree is clean; tighten to a gate later).
+      - run: npm audit --audit-level=high
+        continue-on-error: true
 
   frontend:
     name: Frontend — lint + build
@@ -37,3 +40,5 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: npm run build
+      - run: npm audit --audit-level=high
+        continue-on-error: true

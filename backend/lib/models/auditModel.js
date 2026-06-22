@@ -14,9 +14,9 @@ const insertStmt = db.prepare(`
  * @param {{ actorId?: string, action: string, resource?: string,
  *           resourceId?: string, meta?: object, ip?: string }} event
  */
-function recordAudit({ actorId = null, action, resource = null, resourceId = null, meta = null, ip = null } = {}) {
+async function recordAudit({ actorId = null, action, resource = null, resourceId = null, meta = null, ip = null } = {}) {
   try {
-    insertStmt.run(
+    await insertStmt.run(
       randomUUID(),
       actorId,
       action,

@@ -10,7 +10,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -36,7 +36,7 @@ export async function POST(request) {
     if (!stream) {
       const pattern = await generatePatternFromSpec(spec, normalizedDifficulty, { sourceLabel: spec.name });
       pattern.userId = user.id;
-      createPattern(pattern);
+      await createPattern(pattern);
       return NextResponse.json(pattern, { status: 201 });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request) {
             },
           });
           pattern.userId = user.id;
-          createPattern(pattern);
+          await createPattern(pattern);
           send("pattern", pattern);
         } catch (error) {
           send("error", { error: error.message, code: error.code || "COMPILE_FAILED" });

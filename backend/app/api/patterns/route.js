@@ -9,8 +9,8 @@ import { getAuthenticatedUser, requireAuthenticatedUser } from "@/lib/auth/sessi
  */
 export async function GET(request) {
   try {
-    const user = getAuthenticatedUser(request);
-    const patterns = user ? getAllPatterns(user.id) : [];
+    const user = await getAuthenticatedUser(request);
+    const patterns = user ? await getAllPatterns(user.id) : [];
     return NextResponse.json(patterns, { status: 200 });
   } catch (error) {
     return NextResponse.json(
@@ -28,7 +28,7 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -41,7 +41,7 @@ export async function POST(request) {
       );
     }
 
-    const { pattern, error } = generatePattern(templateId, title, customization ?? {}, { userId: user.id });
+    const { pattern, error } = await generatePattern(templateId, title, customization ?? {}, { userId: user.id });
 
     if (error) {
       return NextResponse.json({ error }, { status: 404 });

@@ -15,8 +15,8 @@ export async function GET(request) {
 
     const hasFilters = difficulty || category || search;
     const templates = hasFilters
-      ? getFilteredTemplates({ difficulty, category, search })
-      : getAllTemplates();
+      ? await getFilteredTemplates({ difficulty, category, search })
+      : await getAllTemplates();
 
     return NextResponse.json(templates, { status: 200 });
   } catch (error) {

@@ -6,7 +6,7 @@ import { checkRateLimit, recordUsage } from "@/lib/utils/planLimits";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -16,7 +16,7 @@ export async function POST(request) {
       );
     }
 
-    const check = checkRateLimit(user, "tutor");
+    const check = await checkRateLimit(user, "tutor");
     if (!check.allowed) {
       return NextResponse.json(
         { error: `You've used all ${check.limit} AI tutor questions for this month.`, code: "RATE_LIMIT_EXCEEDED", limit: check.limit, used: check.used, plan: check.plan },
@@ -34,7 +34,7 @@ export async function POST(request) {
       );
     }
 
-    const pattern = getPatternById(patternId, user.id);
+    const pattern = await getPatternById(patternId, user.id);
     if (!pattern) {
       return NextResponse.json({ error: "Pattern not found." }, { status: 404 });
     }
@@ -63,7 +63,7 @@ Answer conversationally in 2–4 sentences. Focus on the specific step they're o
       messages,
     });
 
-    recordUsage(user.id, "tutor");
+    await recordUsage(user.id, "tutor");
     return NextResponse.json({ reply: resp.content[0].text });
   } catch (error) {
     return NextResponse.json(

@@ -8,10 +8,10 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
  */
 export async function GET(request, { params }) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    const records = getProgressByPatternId(params.patternId, user.id);
+    const records = await getProgressByPatternId(params.patternId, user.id);
 
     return NextResponse.json(records, { status: 200 });
   } catch (error) {

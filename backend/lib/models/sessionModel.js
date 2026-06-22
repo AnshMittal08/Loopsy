@@ -21,8 +21,8 @@ const deleteExpiredSessionsStmt = db.prepare(`
   WHERE expiresAt <= ?
 `);
 
-function createSession(session) {
-  insertSessionStmt.run(
+async function createSession(session) {
+  await insertSessionStmt.run(
     session.id,
     session.userId,
     session.token,
@@ -33,13 +33,13 @@ function createSession(session) {
   return session;
 }
 
-function getSessionByToken(token) {
-  deleteExpiredSessionsStmt.run(new Date().toISOString());
-  return getSessionByTokenStmt.get(token) ?? null;
+async function getSessionByToken(token) {
+  await deleteExpiredSessionsStmt.run(new Date().toISOString());
+  return (await getSessionByTokenStmt.get(token)) ?? null;
 }
 
-function deleteSessionByToken(token) {
-  deleteSessionByTokenStmt.run(token);
+async function deleteSessionByToken(token) {
+  await deleteSessionByTokenStmt.run(token);
 }
 
 module.exports = {

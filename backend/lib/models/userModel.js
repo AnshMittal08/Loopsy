@@ -6,7 +6,7 @@ const insertUserStmt = db.prepare(`
 `);
 
 const getUserByIdStmt = db.prepare(`
-  SELECT id, email, name, skillLevel, createdAt
+  SELECT id, email, name, skillLevel, emailVerified, createdAt
   FROM users
   WHERE id = ?
 `);
@@ -35,8 +35,8 @@ const getSubscriptionByUserIdStmt = db.prepare(`
 const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHERE id = ?`);
 const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
 
-function createUser(user) {
-  insertUserStmt.run(
+async function createUser(user) {
+  await insertUserStmt.run(
     user.id,
     user.email.toLowerCase(),
     user.name,
@@ -45,7 +45,7 @@ function createUser(user) {
     user.createdAt
   );
 
-  upsertSubscriptionStmt.run(
+  await upsertSubscriptionStmt.run(
     user.subscription.id,
     user.id,
     user.subscription.plan,
@@ -57,16 +57,16 @@ function createUser(user) {
   return getUserWithSubscriptionById(user.id);
 }
 
-function getUserByEmail(email) {
-  const row = getUserByEmailStmt.get(email.toLowerCase());
+async function getUserByEmail(email) {
+  const row = await getUserByEmailStmt.get(email.toLowerCase());
   return row || null;
 }
 
-function getUserWithSubscriptionById(id) {
-  const user = getUserByIdStmt.get(id);
+async function getUserWithSubscriptionById(id) {
+  const user = await getUserByIdStmt.get(id);
   if (!user) return null;
 
-  const subscription = getSubscriptionByUserIdStmt.get(id) ?? {
+  const subscription = (await getSubscriptionByUserIdStmt.get(id)) ?? {
     plan: 'free',
     status: 'active',
     createdAt: user.createdAt,
@@ -79,12 +79,12 @@ function getUserWithSubscriptionById(id) {
   };
 }
 
-function markEmailVerified(userId) {
-  setEmailVerifiedStmt.run(userId);
+async function markEmailVerified(userId) {
+  await setEmailVerifiedStmt.run(userId);
 }
 
-function setUserPassword(userId, passwordHash) {
-  setPasswordStmt.run(passwordHash, userId);
+async function setUserPassword(userId, passwordHash) {
+  await setPasswordStmt.run(passwordHash, userId);
 }
 
 module.exports = {

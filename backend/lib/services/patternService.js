@@ -22,8 +22,8 @@ const SIZE_FACTORS = {
  * @param {{ color?: string, size?: string }} customization
  * @returns {{ pattern: Object, error: string|null }}
  */
-export function generatePattern(templateId, title, customization = {}, options = {}) {
-  const template = getTemplateById(templateId);
+export async function generatePattern(templateId, title, customization = {}, options = {}) {
+  const template = await getTemplateById(templateId);
 
   if (!template) {
     return { pattern: null, error: `Template with id "${templateId}" not found.` };
@@ -85,7 +85,7 @@ export function generatePattern(templateId, title, customization = {}, options =
     createdAt: new Date().toISOString(),
   };
 
-  createPattern(newPattern);
+  await createPattern(newPattern);
   return { pattern: newPattern, error: null };
 }
 

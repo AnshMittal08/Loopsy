@@ -6,7 +6,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -16,7 +16,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "patternId is required." }, { status: 400 });
     }
 
-    const pattern = getPatternById(patternId, user.id);
+    const pattern = await getPatternById(patternId, user.id);
     if (!pattern) {
       return NextResponse.json(
         { error: `Pattern with id "${patternId}" not found.` },
@@ -25,7 +25,7 @@ export async function POST(request) {
     }
 
     // Idempotent: returns existing record if one already exists for this pattern
-    const record = getOrCreateProgress({
+    const record = await getOrCreateProgress({
       id: generateId(),
       userId: user.id,
       patternId,
@@ -46,10 +46,10 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    return NextResponse.json(getProgressSummaryForUser(user.id));
+    return NextResponse.json(await getProgressSummaryForUser(user.id));
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to load progress summary.", details: error.message },

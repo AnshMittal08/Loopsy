@@ -1,12 +1,29 @@
-const Database = require('better-sqlite3');
 const path = require('path');
-const fs = require('fs');
 const { validateConfig } = require('../config');
 
 validateConfig();
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data.db');
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+const usePostgres = !!process.env.DATABASE_URL;
+
+// Postgres folds unquoted camelCase identifiers to lowercase; map result keys
+// back to the camelCase the app expects so model SQL stays driver-agnostic.
+const PG_KEYMAP = {
+  userid: 'userId', createdat: 'createdAt', updatedat: 'updatedAt', passwordhash: 'passwordHash',
+  skilllevel: 'skillLevel', emailverified: 'emailVerified', imageurl: 'imageUrl', hooksize: 'hookSize',
+  yarnweight: 'yarnWeight', timeestimate: 'timeEstimate', finishedsize: 'finishedSize',
+  defaultpattern: 'defaultPattern', isaigenerated: 'isAIGenerated', isfallback: 'isFallback',
+  isexperimental: 'isExperimental', deletedat: 'deletedAt', promptsummary: 'promptSummary',
+  totalsteps: 'totalSteps', progresspercentage: 'progressPercentage', patternid: 'patternId',
+  templateid: 'templateId', actorid: 'actorId', resourceid: 'resourceId', tokenhash: 'tokenHash',
+  expiresat: 'expiresAt', usedat: 'usedAt', windowstart: 'windowStart',
+};
+function remapRow(row) {
+  if (!row) return row;
+  const out = {};
+  for (const k in row) out[PG_KEYMAP[k] || k] = row[k];
+  return out;
+}
+function toPgText(sql) { let n = 0; return sql.replace(/\?/g, () => `$${++n}`); }
 
 function initializeDatabase(db) {
   try {
@@ -218,10 +235,84 @@ function initializeDatabase(db) {
   initAnalytics.run('active_users', 0);
 }
 
-if (!globalThis.__crochetDb) {
-  const db = new Database(dbPath, { timeout: 5000 });
-  initializeDatabase(db);
-  globalThis.__crochetDb = db;
+// ── Driver adapters ────────────────────────────────────────────────────────
+// Both expose an async statement interface: prepare(sql) -> { get, all, run },
+// exec(sql), and withTransaction(fn). SQLite (default) wraps the synchronous
+// better-sqlite3 driver; Postgres (when DATABASE_URL is set) uses a pg Pool.
+// The engine never touches the DB, so it is unaffected by this layer.
+
+function buildSqlite() {
+  const Database = require('better-sqlite3');
+  const fs = require('fs');
+  const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data.db');
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const raw = new Database(dbPath, { timeout: 5000 });
+  initializeDatabase(raw);
+
+  const wrap = (stmt) => ({
+    get: async (...p) => stmt.get(...p),
+    all: async (...p) => stmt.all(...p),
+    run: async (...p) => { const i = stmt.run(...p); return { changes: i.changes, lastInsertRowid: i.lastInsertRowid }; },
+  });
+
+  return {
+    driver: 'sqlite',
+    sqlite: raw,
+    prepare: (sql) => wrap(raw.prepare(sql)),
+    exec: async (sql) => { raw.exec(sql); },
+    withTransaction: async (fn) => {
+      raw.exec('BEGIN');
+      try {
+        const r = await fn({ prepare: (sql) => wrap(raw.prepare(sql)) });
+        raw.exec('COMMIT');
+        return r;
+      } catch (e) {
+        try { raw.exec('ROLLBACK'); } catch { /* ignore */ }
+        throw e;
+      }
+    },
+  };
 }
 
-module.exports = globalThis.__crochetDb;
+function buildPostgres() {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: Number(process.env.PG_POOL_MAX || 10),
+  });
+  const stmt = (sql, exec) => {
+    const text = toPgText(sql);
+    return {
+      get: async (...p) => remapRow((await exec(text, p)).rows[0]),
+      all: async (...p) => (await exec(text, p)).rows.map(remapRow),
+      run: async (...p) => ({ changes: (await exec(text, p)).rowCount }),
+    };
+  };
+  return {
+    driver: 'pg',
+    sqlite: null,
+    prepare: (sql) => stmt(sql, (t, p) => pool.query(t, p)),
+    exec: async (sql) => { await pool.query(sql); },
+    withTransaction: async (fn) => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const r = await fn({ prepare: (sql) => stmt(sql, (t, p) => client.query(t, p)) });
+        await client.query('COMMIT');
+        return r;
+      } catch (e) {
+        try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+  };
+}
+
+if (!globalThis.__loopsyDb) {
+  globalThis.__loopsyDb = usePostgres ? buildPostgres() : buildSqlite();
+}
+
+module.exports = globalThis.__loopsyDb;

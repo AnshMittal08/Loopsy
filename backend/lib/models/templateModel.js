@@ -6,20 +6,21 @@ function deserialize(row) {
   if (!row) return null;
   const out = { ...row };
   for (const f of JSON_FIELDS) {
-    if (out[f] != null) out[f] = JSON.parse(out[f]);
+    if (typeof out[f] === 'string') out[f] = JSON.parse(out[f]);
   }
   return out;
 }
 
-function getAllTemplates() {
-  return db.prepare(
+async function getAllTemplates() {
+  const rows = await db.prepare(
     `SELECT id, name, description, difficulty, category, tags, imageUrl,
             hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes
-     FROM templates ORDER BY rowid`
-  ).all().map(deserialize);
+     FROM templates ORDER BY createdAt`
+  ).all();
+  return rows.map(deserialize);
 }
 
-function getFilteredTemplates({ difficulty, category, search }) {
+async function getFilteredTemplates({ difficulty, category, search }) {
   let sql = `SELECT id, name, description, difficulty, category, tags, imageUrl,
             hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes
      FROM templates WHERE 1=1`;
@@ -39,12 +40,13 @@ function getFilteredTemplates({ difficulty, category, search }) {
     params.push(term, term, term);
   }
 
-  sql += ' ORDER BY rowid';
-  return db.prepare(sql).all(...params).map(deserialize);
+  sql += ' ORDER BY createdAt';
+  const rows = await db.prepare(sql).all(...params);
+  return rows.map(deserialize);
 }
 
-function getTemplateById(id) {
-  return deserialize(db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
+async function getTemplateById(id) {
+  return deserialize(await db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
 }
 
 // Templates are canonical, code-defined content (not user-editable). Seeding
@@ -53,7 +55,8 @@ function getTemplateById(id) {
 // fixes ship to existing databases without a manual migration. createdAt is
 // preserved on rows that already exist.
 function seedTemplates(templates) {
-  const upsert = db.prepare(`
+  const raw = db.sqlite;
+  const upsert = raw.prepare(`
     INSERT INTO templates
       (id, name, description, difficulty, category, tags, imageUrl,
        hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes, defaultPattern, createdAt)
@@ -75,7 +78,7 @@ function seedTemplates(templates) {
       defaultPattern = excluded.defaultPattern
   `);
 
-  const runSeed = db.transaction(() => {
+  const runSeed = raw.transaction(() => {
     for (const t of templates) {
       upsert.run({
         id: t.id,
@@ -666,7 +669,8 @@ const TEMPLATE_SEED = [
   },
 ];
 
-// Seed templates on module load (no-op if already seeded)
-seedTemplates(TEMPLATE_SEED);
+// Seed templates on module load for SQLite (canonical content lives in code).
+// On Postgres, templates are seeded by the migration step instead.
+if (db.sqlite) seedTemplates(TEMPLATE_SEED);
 
 module.exports = { getAllTemplates, getFilteredTemplates, getTemplateById };

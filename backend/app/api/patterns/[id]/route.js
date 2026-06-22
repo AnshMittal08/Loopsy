@@ -9,10 +9,10 @@ import { clientIp } from "@/lib/auth/request";
  */
 export async function GET(request, { params }) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    const pattern = getPatternById(params.id, user.id);
+    const pattern = await getPatternById(params.id, user.id);
 
     if (!pattern) {
       return NextResponse.json(
@@ -36,10 +36,10 @@ export async function GET(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    const pattern = getPatternById(params.id, user.id);
+    const pattern = await getPatternById(params.id, user.id);
 
     if (!pattern) {
       return NextResponse.json(
@@ -48,7 +48,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    deletePattern(params.id, user.id, { ip: clientIp(request) });
+    await deletePattern(params.id, user.id, { ip: clientIp(request) });
     return NextResponse.json({ deleted: true, id: params.id }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

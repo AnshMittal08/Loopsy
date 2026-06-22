@@ -56,7 +56,7 @@ function buildChartPattern({ name, yarnWeight, cols, rows, grid, difficulty, con
 
 export async function POST(request) {
   try {
-    const { user, response } = requireAuthenticatedUser(request);
+    const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
     const body = await request.json();
@@ -68,7 +68,7 @@ export async function POST(request) {
     if (!stream) {
       const pattern = buildChartPattern({ name, yarnWeight, cols, rows, grid, difficulty, construction });
       pattern.userId = user.id;
-      createPattern(pattern);
+      await createPattern(pattern);
       return NextResponse.json(pattern, { status: 201 });
     }
 
@@ -82,7 +82,7 @@ export async function POST(request) {
           send("status", { stage: "writing", message: "Writing every row…" });
           for (const s of pattern.steps) send("step", { row: s.row, instruction: s.instruction });
           pattern.userId = user.id;
-          createPattern(pattern);
+          await createPattern(pattern);
           send("pattern", pattern);
         } catch (error) {
           send("error", { error: error.message, code: error.code || "CHART_FAILED" });

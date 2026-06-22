@@ -24,7 +24,7 @@ export function verifyPassword(password, storedHash) {
   return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(derived, "hex"));
 }
 
-export function createUserSession(userId) {
+export async function createUserSession(userId) {
   const now = new Date();
   const expiresAt = new Date(now);
   expiresAt.setDate(expiresAt.getDate() + SESSION_TTL_DAYS);
@@ -53,14 +53,14 @@ export function readSessionToken(request) {
   return null;
 }
 
-export function getAuthenticatedUser(request) {
+export async function getAuthenticatedUser(request) {
   const token = readSessionToken(request);
   if (!token) return null;
 
-  const session = getSessionByToken(token);
+  const session = await getSessionByToken(token);
   if (!session) return null;
 
-  const user = getUserWithSubscriptionById(session.userId);
+  const user = await getUserWithSubscriptionById(session.userId);
   if (!user) return null;
 
   return {
@@ -93,8 +93,8 @@ export function clearSessionCookie(response) {
   return response;
 }
 
-export function requireAuthenticatedUser(request) {
-  const user = getAuthenticatedUser(request);
+export async function requireAuthenticatedUser(request) {
+  const user = await getAuthenticatedUser(request);
   if (!user) {
     return {
       user: null,
@@ -105,9 +105,9 @@ export function requireAuthenticatedUser(request) {
   return { user, response: null };
 }
 
-export function destroySessionForRequest(request) {
+export async function destroySessionForRequest(request) {
   const token = readSessionToken(request);
   if (token) {
-    deleteSessionByToken(token);
+    await deleteSessionByToken(token);
   }
 }
