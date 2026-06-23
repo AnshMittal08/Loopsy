@@ -31,3 +31,8 @@ export const resetPasswordSchema = z.object({
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Verification token is required."),
 });
+
+export const createDesignSchema = z.object({
+  name: z.string().trim().max(200).optional(),
+  spec: z.record(z.string(), z.any()).refine((v) => v && typeof v === "object", "A design spec is required."),
+});
