@@ -109,6 +109,26 @@ test('designs: create (validated) then list for the owner', async () => {
   assert.ok(list.some((d) => d.id === design.id), 'the new design appears in the owner list');
 });
 
+test('search: public templates + scoped owner results', async () => {
+  const { GET: search } = await import('../app/api/search/route.js');
+
+  // Public (no auth): the template catalog is searchable.
+  const pub = await (await search(new Request('http://x/api/search?q=scarf'))).json();
+  assert.ok(pub.templates.some((t) => /scarf/i.test(t.name)), 'finds Classic Scarf');
+  assert.deepEqual(pub.patterns, [], 'no owner results without auth');
+
+  // Too-short query → empty groups.
+  const short = await (await search(new Request('http://x/api/search?q=a'))).json();
+  assert.deepEqual(short.templates, []);
+
+  // Authenticated: the caller's own designs are searchable.
+  const cookie = await signedUpCookie();
+  const { POST: createDesign } = await import('../app/api/designs/route.js');
+  await createDesign(jsonReq('http://x/api/designs', { name: 'Spiderman Mask', spec: { parts: [{ shape: 'sphere' }] } }, { cookie }));
+  const mine = await (await search(new Request('http://x/api/search?q=spiderman', { headers: { cookie } }))).json();
+  assert.ok(mine.designs.some((d) => /spiderman/i.test(d.name)), 'finds the owner\'s design');
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');

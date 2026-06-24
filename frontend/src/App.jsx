@@ -13,6 +13,7 @@ import TemplateDetail from './pages/TemplateDetail';
 import Account from './pages/Account';
 import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';
+import SearchResults from './pages/SearchResults';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Routes location={location}>
             <Route path="/" element={<Home />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/search" element={<SearchResults />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
