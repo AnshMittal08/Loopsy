@@ -5,6 +5,8 @@ import { hashPassword } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/models/auditModel";
 import { clientIp, isCrossSiteRequest } from "@/lib/auth/request";
 import { peek, hit } from "@/lib/models/rateLimitModel";
+import { validate, readJsonBody } from "@/lib/validation";
+import { resetPasswordSchema } from "@/lib/validation/schemas";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_IP = 10;
@@ -25,13 +27,9 @@ export async function POST(request) {
     }
     await hit(bucket, WINDOW_MS);
 
-    const body = await request.json();
-    const token = body.token;
-    const password = body.password ?? "";
-
-    if (password.length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
-    }
+    const { data, response: invalid } = validate(resetPasswordSchema, await readJsonBody(request));
+    if (invalid) return invalid;
+    const { token, password } = data;
 
     const result = await consumeEmailToken(token, "reset");
     if (!result) {

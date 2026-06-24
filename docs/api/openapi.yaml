@@ -1,0 +1,350 @@
+openapi: 3.1.0
+info:
+  title: Loopsy API
+  version: "1.0.0"
+  description: >
+    Loopsy — the AI-native crochet studio. API-only Next.js backend. Every
+    front door (text, photo, canvas) emits a Design Spec; the deterministic
+    engine computes and verifies all stitch counts. Auth is cookie-session
+    based; AI generation is metered per plan. Generated from the verified route
+    inventory (docs/api/01-endpoint-catalog.md).
+servers:
+  - url: https://loopsy-hazel.vercel.app
+    description: Production (SPA origin; /api/* is rewritten to the Railway backend)
+  - url: http://localhost:5173
+    description: Local (Vite dev proxy → backend on :3000)
+
+tags:
+  - name: Auth
+  - name: Account
+  - name: Templates
+  - name: Patterns
+  - name: Progress
+  - name: Designs
+  - name: AI
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: loopsy_session
+      description: Opaque session token set on signup/login; httpOnly, SameSite=Lax, Secure in prod.
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        details: { type: string }
+      required: [error]
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        emailVerified: { type: integer, enum: [0, 1] }
+        subscription:
+          type: object
+          properties:
+            plan: { type: string, enum: [free, maker_pro, creator] }
+            status: { type: string }
+    Template:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        difficulty: { type: string }
+        category: { type: string }
+        tags: { type: array, items: { type: string } }
+        defaultPattern: { type: array, items: { type: string } }
+    PatternStep:
+      type: object
+      properties:
+        row: { type: integer }
+        instruction: { type: string }
+    Pattern:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/PatternStep" } }
+        verified: { type: boolean }
+        isExperimental: { type: boolean }
+        difficulty: { type: string }
+        category: { type: string }
+    Design:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        spec: { type: object, additionalProperties: true }
+        patternId: { type: [string, "null"] }
+
+  responses:
+    Unauthorized:
+      description: Not signed in.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    BadRequest:
+      description: Validation error.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    RateLimited:
+      description: Plan limit reached (code RATE_LIMIT_EXCEEDED) or throttled.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+
+paths:
+  /api/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create an account (sends an email-verification link)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 1 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "201":
+          description: Created; sets the session cookie.
+          content: { application/json: { schema: { type: object, properties: { user: { $ref: "#/components/schemas/User" } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { description: Cross-site request blocked (CSRF). }
+        "409": { description: Email already registered. }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200": { description: OK; sets the session cookie. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { description: Invalid email or password (identical for unknown vs wrong — no enumeration). }
+        "403": { description: Cross-site request blocked (CSRF). }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out (clears the session cookie)
+      security: [{ cookieAuth: [] }]
+      responses: { "200": { description: OK } }
+  /api/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Consume an email-verification token
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [token], properties: { token: { type: string } } } } }
+      responses:
+        "200": { description: Verified. }
+        "400": { description: Invalid or expired token. }
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password-reset link (always generic — no enumeration)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { email: { type: string, format: email } } } } }
+      responses:
+        "200": { description: Generic acknowledgement. }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Set a new password using a reset token
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string, minLength: 8 } } } } }
+      responses:
+        "200": { description: Password updated. }
+        "400": { description: Invalid/expired token or weak password. }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Current session user (or null)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { user: { oneOf: [{ $ref: "#/components/schemas/User" }, { type: "null" }] } } } } } }
+
+  /api/usage:
+    get:
+      tags: [Account]
+      summary: Plan limits + current usage (incl. Vision trial)
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/templates:
+    get:
+      tags: [Templates]
+      summary: List templates (public)
+      parameters:
+        - { name: difficulty, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Template" } } } } }
+  /api/templates/{id}:
+    get:
+      tags: [Templates]
+      summary: Get a template (public)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Template" } } } }
+        "404": { description: Not found. }
+
+  /api/patterns:
+    get:
+      tags: [Patterns]
+      summary: List the caller's patterns
+      security: [{ cookieAuth: [] }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" } }
+    post:
+      tags: [Patterns]
+      summary: Create a pattern from a template + customization
+      security: [{ cookieAuth: [] }]
+      responses: { "201": { description: Created }, "401": { $ref: "#/components/responses/Unauthorized" } }
+  /api/patterns/{id}:
+    get:
+      tags: [Patterns]
+      summary: Get one of the caller's patterns
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "404": { description: Not found. } }
+    delete:
+      tags: [Patterns]
+      summary: Soft-delete a pattern (recoverable; audited)
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted }, "401": { $ref: "#/components/responses/Unauthorized" }, "404": { description: Not found. } }
+
+  /api/progress:
+    post:
+      tags: [Progress]
+      summary: Start (or fetch existing) progress for a pattern
+      security: [{ cookieAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [patternId], properties: { patternId: { type: string } } } } } }
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" } }
+  /api/progress/{id}:
+    patch:
+      tags: [Progress]
+      summary: Toggle a step / update progress (atomic)
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" } }
+  /api/progress/pattern/{patternId}:
+    get:
+      tags: [Progress]
+      summary: Get progress for a given pattern
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: patternId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" } }
+
+  /api/designs:
+    get:
+      tags: [Designs]
+      summary: List the caller's designs
+      security: [{ cookieAuth: [] }]
+      responses: { "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Design" } } } } }, "401": { $ref: "#/components/responses/Unauthorized" } }
+    post:
+      tags: [Designs]
+      summary: Save a canvas design
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [spec], properties: { name: { type: string }, spec: { type: object, additionalProperties: true } } } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Design" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/designs/{id}:
+    get:
+      tags: [Designs]
+      summary: Get a design (public — powers the share page)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Design" } } } }, "404": { description: Not found. } }
+    patch:
+      tags: [Designs]
+      summary: Update a design (owner only)
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "403": { description: Not the owner. } }
+  /api/designs/{id}/og:
+    get:
+      tags: [Designs]
+      summary: Auto-generated Open Graph image (SVG)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK, content: { image/svg+xml: {} } } }
+  /api/design/preview:
+    post:
+      tags: [Designs]
+      summary: Live, no-save compile summary for the canvas (verified math)
+      security: [{ cookieAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [spec], properties: { spec: { type: object, additionalProperties: true } } } } } }
+      responses: { "200": { description: "OK — { ok, peakStitches, finishedSize }" } }
+
+  /api/ai/generate-pattern:
+    post:
+      tags: [AI]
+      summary: Text → verified pattern (Server-Sent Events when stream:true)
+      description: Metered (plan generation allowance). 429 RATE_LIMIT_EXCEEDED when exhausted. Returns AI_UNAVAILABLE if all providers fail.
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [prompt], properties: { prompt: { type: string }, difficulty: { type: string }, stream: { type: boolean } } } } }
+      responses:
+        "200": { description: "Pattern JSON, or text/event-stream when stream:true." }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { description: AI_UNAVAILABLE — all providers failed (no save, no quota charged). }
+  /api/ai/generate-from-spec:
+    post:
+      tags: [AI]
+      summary: Compile an approved/canvas Design Spec → verified pattern (SSE)
+      security: [{ cookieAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [spec], properties: { spec: { type: object, additionalProperties: true }, stream: { type: boolean } } } } } }
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "429": { $ref: "#/components/responses/RateLimited" } }
+  /api/ai/generate-chart:
+    post:
+      tags: [AI]
+      summary: Colourwork grid → flat or worked-in-the-round pattern
+      security: [{ cookieAuth: [] }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "429": { $ref: "#/components/responses/RateLimited" } }
+  /api/ai/analyze-image:
+    post:
+      tags: [AI]
+      summary: Vision Studio — photo(s) → Design Spec (metered; free = 1 lifetime trial)
+      description: Images are passed through to the model, never stored.
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { description: "VISION_TRIAL_USED or RATE_LIMIT_EXCEEDED." }
+  /api/ai/regenerate:
+    post:
+      tags: [AI]
+      summary: Regenerate a pattern (metered)
+      security: [{ cookieAuth: [] }]
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "429": { $ref: "#/components/responses/RateLimited" } }
+  /api/ai/tutor:
+    post:
+      tags: [AI]
+      summary: Step-specific Q&A coach (metered)
+      security: [{ cookieAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { patternId: { type: string }, currentStepIndex: { type: integer }, userMessage: { type: string } } } } } }
+      responses: { "200": { description: OK }, "401": { $ref: "#/components/responses/Unauthorized" }, "429": { $ref: "#/components/responses/RateLimited" } }

@@ -6,6 +6,8 @@ import { clientIp, isCrossSiteRequest, appOrigin } from "@/lib/auth/request";
 import { peek, hit } from "@/lib/models/rateLimitModel";
 import { createEmailToken } from "@/lib/models/emailTokenModel";
 import { sendEmail } from "@/lib/email/mailer";
+import { validate, readJsonBody } from "@/lib/validation";
+import { signupSchema } from "@/lib/validation/schemas";
 
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -27,17 +29,9 @@ export async function POST(request) {
       );
     }
 
-    const body = await request.json();
-    const email = body.email?.trim().toLowerCase();
-    const name = body.name?.trim();
-    const password = body.password ?? "";
-
-    if (!email || !name || password.length < 8) {
-      return NextResponse.json(
-        { error: "Name, email, and a password with at least 8 characters are required." },
-        { status: 400 }
-      );
-    }
+    const { data, response: invalid } = validate(signupSchema, await readJsonBody(request));
+    if (invalid) return invalid;
+    const { email, name, password } = data;
 
     if (await getUserByEmail(email)) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });

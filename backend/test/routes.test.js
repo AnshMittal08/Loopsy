@@ -72,3 +72,48 @@ test('GET /api/templates returns the seeded catalog (public)', async () => {
   const list = Array.isArray(body) ? body : body.templates;
   assert.ok(list.length >= 22, 'catalog present');
 });
+
+// Sign up a fresh user and return its session cookie.
+async function signedUpCookie() {
+  const { POST: signup } = await import('../app/api/auth/signup/route.js');
+  const res = await signup(jsonReq('http://x/api/auth/signup', { name: 'Auth', email: `auth_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`, password: 'supersecret123' }));
+  assert.equal(res.status, 201);
+  return res.headers.get('set-cookie').split(';')[0];
+}
+
+test('authenticated routes: the requireAuthenticatedUser gate works through the stack', async () => {
+  const { GET: usage } = await import('../app/api/usage/route.js');
+  // Unauthenticated → 401 (the gate).
+  assert.equal((await usage(new Request('http://x/api/usage'))).status, 401);
+  // Authenticated → 200 with the free-plan shape.
+  const cookie = await signedUpCookie();
+  const res = await usage(new Request('http://x/api/usage', { headers: { cookie } }));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).plan, 'free');
+});
+
+test('designs: create (validated) then list for the owner', async () => {
+  const { POST: createDesign, GET: listDesigns } = await import('../app/api/designs/route.js');
+  const cookie = await signedUpCookie();
+
+  // Missing spec → 400 (zod).
+  assert.equal((await createDesign(jsonReq('http://x/api/designs', { name: 'X' }, { cookie }))).status, 400);
+
+  // Valid spec → 201.
+  const created = await createDesign(jsonReq('http://x/api/designs', { name: 'Teddy', spec: { parts: [{ shape: 'sphere' }] } }, { cookie }));
+  assert.equal(created.status, 201);
+  const design = await created.json();
+  assert.ok(design.id);
+
+  const list = await (await listDesigns(new Request('http://x/api/designs', { headers: { cookie } }))).json();
+  assert.ok(list.some((d) => d.id === design.id), 'the new design appears in the owner list');
+});
+
+test('input validation: malformed auth bodies are rejected with 400', async () => {
+  const { POST: signup } = await import('../app/api/auth/signup/route.js');
+  const { POST: login } = await import('../app/api/auth/login/route.js');
+  assert.equal((await signup(jsonReq('http://x/api/auth/signup', { name: '', email: 'nope', password: 'short' }))).status, 400);
+  assert.equal((await login(jsonReq('http://x/api/auth/login', { email: 'not-an-email', password: '' }))).status, 400);
+  // a well-formed body still succeeds
+  assert.equal((await signup(jsonReq('http://x/api/auth/signup', { name: 'Valid', email: `v_${Date.now()}@example.com`, password: 'longenough1' }))).status, 201);
+});

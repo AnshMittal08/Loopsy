@@ -41,6 +41,7 @@
 ### `api/`
 - [`01-endpoint-catalog.md`](./api/01-endpoint-catalog.md) — full REST catalog + auth/authz sequence diagrams
 - [`02-api-modernization.md`](./api/02-api-modernization.md) — v1/OpenAPI, GraphQL BFF, WebSockets, RBAC, caching, gateway
+- [`openapi.yaml`](./api/openapi.yaml) — machine-readable OpenAPI 3.1 contract (25 paths, generated from the catalog)
 
 ### `security/`
 - [`01-owasp-review.md`](./security/01-owasp-review.md) — OWASP Top 10 posture, auth/authz/secrets/data-protection review

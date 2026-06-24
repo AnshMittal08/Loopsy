@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { normalizeDesignSpec } from "@/lib/engine";
 import { createDesign, getDesignsForUser } from "@/lib/models/designModel";
+import { validate, readJsonBody } from "@/lib/validation";
+import { createDesignSchema } from "@/lib/validation/schemas";
 
 // Design Canvas (M4): persist a canvas state so it can be revisited and shared.
 
@@ -10,11 +12,9 @@ export async function POST(request) {
     const { user, response } = await requireAuthenticatedUser(request);
     if (response) return response;
 
-    const body = await request.json();
-    const { name, spec } = body;
-    if (!spec || typeof spec !== "object") {
-      return NextResponse.json({ error: "A design spec is required." }, { status: 400 });
-    }
+    const { data, response: invalid } = validate(createDesignSchema, await readJsonBody(request));
+    if (invalid) return invalid;
+    const { name, spec } = data;
 
     const design = await createDesign({
       userId: user.id,
