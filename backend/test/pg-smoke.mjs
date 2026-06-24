@@ -34,6 +34,7 @@ const { GET: me } = await import('../app/api/me/route.js');
 const { POST: signup } = await import('../app/api/auth/signup/route.js');
 const { POST: login } = await import('../app/api/auth/login/route.js');
 const { GET: templates } = await import('../app/api/templates/route.js');
+const { GET: search } = await import('../app/api/search/route.js');
 
 let cookie;
 await check('signup → 201 + session cookie', async () => {
@@ -65,6 +66,11 @@ await check('GET /api/templates → ≥ 22 seeded', async () => {
   const body = await res.json();
   const list = Array.isArray(body) ? body : body.templates;
   assert.ok(list.length >= 22, `got ${list?.length}`);
+});
+await check('GET /api/search → finds a seeded template', async () => {
+  const res = await search(new Request('http://x/api/search?q=scarf'));
+  const body = await res.json();
+  assert.ok(body.templates.some((t) => /scarf/i.test(t.name)), 'search returned a Scarf template');
 });
 
 // Clean up the row we created (cascades to sessions/subscription/ai_usage/tokens).

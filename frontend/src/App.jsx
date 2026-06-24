@@ -4,6 +4,7 @@ import PageTransition from './components/motion/PageTransition';
 import CursorDot from './components/motion/CursorDot';
 import ScrollThread from './components/motion/ScrollThread';
 import MobileTabBar from './components/MobileTabBar';
+import CommandPalette from './components/CommandPalette';
 import Home from './pages/Home';
 import Create from './pages/Create';
 import Design from './pages/Design';
@@ -43,6 +44,7 @@ function App() {
         )}
       </PageTransition>
       <MobileTabBar />
+      <CommandPalette />
     </MotionConfig>
   );
 }
