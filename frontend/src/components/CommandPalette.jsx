@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, Compass, Sparkles, Shapes, BookOpen, User, CornerDownLeft } from 'lucide-react';
 import { useFocusTrap } from '../lib/useFocusTrap';
+import { OPEN_EVENT } from '../lib/commandPalette';
 
 // Static quick-nav actions, always available.
 const ACTIONS = [
@@ -43,6 +44,13 @@ export default function CommandPalette() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
+
+  // Allow opening from a nav button (custom event).
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, []);
 
   // Focus the input when opening (DOM call, not setState).
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
