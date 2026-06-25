@@ -32,6 +32,11 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Verification token is required."),
 });
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, "Name is required.").max(80),
+  skillLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+});
+
 export const createDesignSchema = z.object({
   name: z.string().trim().max(200).optional(),
   spec: z.record(z.string(), z.any()).refine((v) => v && typeof v === "object", "A design spec is required."),

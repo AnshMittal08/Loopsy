@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
-  Lightbulb, Check, Maximize2,
+  Lightbulb, Check, Maximize2, Trash2,
 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
@@ -76,6 +76,18 @@ export default function Tracker() {
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
   const reduceMotion = useReducedMotion();
+
+  const handleDeleteProject = async (id, title) => {
+    if (!window.confirm(`Delete “${title}”? This removes it from your projects (recoverable for now).`)) return;
+    try {
+      const res = await fetch(`/api/patterns/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Could not delete the project.');
+      setAllPatterns((list) => (list || []).filter((p) => p.id !== id));
+      showToast('Project deleted.', 'info');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
   const theme = getPatternTheme(pattern?.category);
   const ThemeIcon = theme.icon;
 
@@ -253,7 +265,14 @@ export default function Tracker() {
                   const pct = progressMap[p.id] ?? 0;
                   const finished = pct >= 100;
                   return (
-                    <Motion.div key={p.id} variants={{ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } }}>
+                    <Motion.div key={p.id} variants={{ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } }} className="group relative">
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteProject(p.id, p.title); }}
+                        aria-label={`Delete ${p.title}`}
+                        className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant opacity-0 shadow-warm backdrop-blur transition-opacity hover:text-error focus:opacity-100 group-hover:opacity-100"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                       <Link
                         to={`/tracker/${p.id}`}
                         className="group block h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift"

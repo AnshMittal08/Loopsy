@@ -34,6 +34,7 @@ const getSubscriptionByUserIdStmt = db.prepare(`
 
 const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHERE id = ?`);
 const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
+const updateProfileStmt = db.prepare(`UPDATE users SET name = ?, skillLevel = ? WHERE id = ?`);
 
 async function createUser(user) {
   await insertUserStmt.run(
@@ -87,10 +88,15 @@ async function setUserPassword(userId, passwordHash) {
   await setPasswordStmt.run(passwordHash, userId);
 }
 
+async function updateUserProfile(userId, { name, skillLevel }) {
+  await updateProfileStmt.run(name, skillLevel, userId);
+}
+
 module.exports = {
   createUser,
   getUserByEmail,
   getUserWithSubscriptionById,
   markEmailVerified,
-  setUserPassword
+  setUserPassword,
+  updateUserProfile
 };
