@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, BookOpen, User, Plus, Shapes } from 'lucide-react';
+import { Compass, Sparkles, BookOpen, User, Plus, Shapes, Search } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from './AuthProvider';
+import { openCommandPalette } from '../lib/commandPalette';
 
 function NavItem({ to, icon, label, active }) {
   const Icon = icon;
@@ -45,6 +46,14 @@ export default function SideNav() {
 
       <nav className="flex-1 px-3 space-y-0.5">
         <NavItem to="/" icon={Compass} label="Explore" active={isActive('/')} />
+        <button
+          onClick={openCommandPalette}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+        >
+          <Search size={18} className="shrink-0" strokeWidth={2} />
+          <span>Search</span>
+          <kbd className="ml-auto rounded border border-outline-variant/30 px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+        </button>
         <NavItem to="/create" icon={Sparkles} label="Create" active={isActive('/create')} />
         <NavItem to="/design" icon={Shapes} label="Design Canvas" active={isActive('/design')} />
         <NavItem to="/tracker" icon={BookOpen} label="In Progress" active={isActive('/tracker')} />
