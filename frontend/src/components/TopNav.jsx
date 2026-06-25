@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Menu } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import MobileNav from './MobileNav';
 import ThemeToggle from './ThemeToggle';
 import Magnetic from './motion/Magnetic';
 import { useAuth } from './AuthProvider';
+import { openCommandPalette } from '../lib/commandPalette';
 
 const LINKS = [
   { to: '/', label: 'Explore' },
@@ -52,6 +53,15 @@ export default function TopNav() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <button
+            onClick={openCommandPalette}
+            aria-label="Search"
+            className="flex items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container-lowest/60 px-3 py-1.5 text-sm text-on-surface-variant hover:text-on-surface hover:border-outline-variant/50 transition-colors"
+          >
+            <Search size={15} />
+            <span>Search</span>
+            <kbd className="rounded border border-outline-variant/30 px-1.5 text-[10px]">⌘K</kbd>
+          </button>
           <ThemeToggle />
           {user && (
             <Link
@@ -72,6 +82,13 @@ export default function TopNav() {
         </div>
 
         <div className="flex md:hidden items-center gap-2">
+          <button
+            onClick={openCommandPalette}
+            aria-label="Search"
+            className="text-on-surface-variant hover:text-on-surface transition-colors p-1"
+          >
+            <Search size={24} />
+          </button>
           <ThemeToggle />
           <button
             className="text-on-surface-variant hover:text-on-surface transition-colors p-1"
