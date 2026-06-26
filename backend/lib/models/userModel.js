@@ -27,7 +27,7 @@ const upsertSubscriptionStmt = db.prepare(`
 `);
 
 const getSubscriptionByUserIdStmt = db.prepare(`
-  SELECT plan, status, createdAt, updatedAt
+  SELECT plan, status, stripeCustomerId, createdAt, updatedAt
   FROM subscriptions
   WHERE userId = ?
 `);
@@ -36,6 +36,7 @@ const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHER
 const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
 const updateProfileStmt = db.prepare(`UPDATE users SET name = ?, skillLevel = ? WHERE id = ?`);
 const setPlanStmt = db.prepare(`UPDATE subscriptions SET plan = ?, status = ?, updatedAt = ? WHERE userId = ?`);
+const setStripeCustomerStmt = db.prepare(`UPDATE subscriptions SET stripeCustomerId = ?, updatedAt = ? WHERE userId = ?`);
 
 async function createUser(user) {
   await insertUserStmt.run(
@@ -98,6 +99,11 @@ async function setUserPlan(userId, plan, status = "active") {
   await setPlanStmt.run(plan, status, new Date().toISOString(), userId);
 }
 
+/** Persist the Stripe customer id so we can open the billing portal later. */
+async function setStripeCustomerId(userId, stripeCustomerId) {
+  await setStripeCustomerStmt.run(stripeCustomerId, new Date().toISOString(), userId);
+}
+
 module.exports = {
   createUser,
   getUserByEmail,
@@ -105,5 +111,6 @@ module.exports = {
   markEmailVerified,
   setUserPassword,
   updateUserProfile,
-  setUserPlan
+  setUserPlan,
+  setStripeCustomerId
 };

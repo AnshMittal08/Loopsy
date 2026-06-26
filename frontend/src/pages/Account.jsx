@@ -19,8 +19,27 @@ export default function Account() {
   const [resending, setResending] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [upgradingPlan, setUpgradingPlan] = useState(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
   const nameRef = useRef(null);
   const skillRef = useRef(null);
+
+  const handleManageBilling = async () => {
+    setOpeningPortal(true);
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 503 || res.status === 409) {
+        showToast(data.error || 'Billing management is not available yet.', 'info');
+        return;
+      }
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not open billing.');
+      window.location.assign(data.url);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
 
   const handleUpgrade = async (plan) => {
     setUpgradingPlan(plan);
@@ -176,8 +195,13 @@ export default function Account() {
                   </div>
                   <div className="rounded-xl bg-primary-fixed px-5 py-3">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary-fixed">Plan</p>
-                    <p className="mt-1 text-lg font-bold text-on-primary-fixed capitalize">{user.subscription?.plan || 'free'}</p>
+                    <p className="mt-1 text-lg font-bold text-on-primary-fixed capitalize">{(user.subscription?.plan || 'free').replace('_', ' ')}</p>
                     <p className="text-xs text-on-primary-fixed-variant capitalize">{user.subscription?.status || 'active'}</p>
+                    {user.subscription?.plan && user.subscription.plan !== 'free' && (
+                      <button onClick={handleManageBilling} disabled={openingPortal} className="mt-2 text-xs font-semibold text-on-primary-fixed underline underline-offset-2 hover:opacity-80 disabled:opacity-60">
+                        {openingPortal ? 'Opening…' : 'Manage billing'}
+                      </button>
+                    )}
                   </div>
                 </div>
 

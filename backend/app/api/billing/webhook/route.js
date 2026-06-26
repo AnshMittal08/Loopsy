@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe, isBillingConfigured } from "@/lib/billing/stripe";
 import { planForPriceId } from "@/lib/billing/plans";
-import { setUserPlan } from "@/lib/models/userModel";
+import { setUserPlan, setStripeCustomerId } from "@/lib/models/userModel";
 import { recordAudit } from "@/lib/models/auditModel";
 
 // Stripe sends raw JSON we must verify against the signing secret, so we read
@@ -30,6 +30,7 @@ export async function POST(request) {
         const plan = s.metadata?.plan;
         if (userId && plan) {
           await setUserPlan(userId, plan, "active");
+          if (s.customer) await setStripeCustomerId(userId, s.customer);
           await recordAudit({ actorId: userId, action: "billing.plan_changed", resource: "subscription", resourceId: userId, meta: { plan, via: "checkout" } });
         }
         break;

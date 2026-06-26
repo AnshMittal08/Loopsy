@@ -186,6 +186,15 @@ test('billing: checkout requires auth and 503s until configured', async () => {
   assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
 });
 
+test('billing: portal requires auth and 503s until configured', async () => {
+  const { POST: portal } = await import('../app/api/billing/portal/route.js');
+  assert.equal((await portal(jsonReq('http://x/api/billing/portal', {}))).status, 401);
+  const cookie = await signedUpCookie();
+  const res = await portal(jsonReq('http://x/api/billing/portal', {}, { cookie }));
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');

@@ -82,6 +82,13 @@ test('billing: setUserPlan updates the subscription plan + status', async () => 
   assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.status, 'canceled');
 });
 
+test('billing: setStripeCustomerId persists onto the subscription', async () => {
+  const user = await makeUser();
+  assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.stripeCustomerId ?? null, null);
+  await userModel.setStripeCustomerId(user.id, 'cus_test_123');
+  assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.stripeCustomerId, 'cus_test_123');
+});
+
 test('sessions: create, fetch by token, delete', async () => {
   const user = await makeUser();
   const token = crypto.randomBytes(16).toString('hex');
