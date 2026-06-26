@@ -17,6 +17,9 @@ const PG_KEYMAP = {
   templateid: 'templateId', actorid: 'actorId', resourceid: 'resourceId', tokenhash: 'tokenHash',
   expiresat: 'expiresAt', usedat: 'usedAt', windowstart: 'windowStart',
   stripecustomerid: 'stripeCustomerId',
+  publishedat: 'publishedAt',
+  starcount: 'starCount',
+  patterndid: 'patternId',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -232,6 +235,24 @@ function initializeDatabase(db) {
   const subscriptionColumns = db.prepare(`PRAGMA table_info(subscriptions)`).all();
   const existingSubscriptionColumns = new Set(subscriptionColumns.map((column) => column.name));
   addColumnIfMissing(existingSubscriptionColumns, 'stripeCustomerId', "ALTER TABLE subscriptions ADD COLUMN stripeCustomerId TEXT");
+
+  // Community catalog: published flag + star count on patterns; stars join table.
+  addColumnIfMissing(existingPatternColumns, 'publishedAt', "ALTER TABLE patterns ADD COLUMN publishedAt TEXT");
+  addColumnIfMissing(existingPatternColumns, 'starCount', "ALTER TABLE patterns ADD COLUMN starCount INTEGER DEFAULT 0");
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pattern_stars (
+        userId TEXT NOT NULL,
+        patternId TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (userId, patternId)
+      );
+      CREATE INDEX IF NOT EXISTS idx_pattern_stars_pattern ON pattern_stars(patternId);
+      CREATE INDEX IF NOT EXISTS idx_pattern_stars_user ON pattern_stars(userId);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
 
   const initAnalytics = db.prepare(`
     INSERT OR IGNORE INTO analytics (key, value) VALUES (?, ?)

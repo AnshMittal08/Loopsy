@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, Shapes, BookOpen, User } from 'lucide-react';
+import { Compass, Sparkles, Globe, BookOpen, User } from 'lucide-react';
 
 const TABS = [
   { to: '/', icon: Compass, label: 'Explore' },
   { to: '/create', icon: Sparkles, label: 'Create' },
-  { to: '/design', icon: Shapes, label: 'Design' },
+  { to: '/community', icon: Globe, label: 'Community' },
   { to: '/tracker', icon: BookOpen, label: 'Projects' },
   { to: '/account', icon: User, label: 'Account' },
 ];

@@ -74,9 +74,17 @@ test('GET /api/templates returns the seeded catalog (public)', async () => {
 });
 
 // Sign up a fresh user and return its session cookie.
+// Each call uses a unique X-Forwarded-For so the per-IP signup rate limit
+// (10 req/hr) is never reached within the test run.
+let _signupCounter = 0;
 async function signedUpCookie() {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
-  const res = await signup(jsonReq('http://x/api/auth/signup', { name: 'Auth', email: `auth_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`, password: 'supersecret123' }));
+  const ip = `10.0.${Math.floor((_signupCounter) / 255)}.${(_signupCounter++) % 255 + 1}`;
+  const res = await signup(new Request('http://x/api/auth/signup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': ip },
+    body: JSON.stringify({ name: 'Auth', email: `auth_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`, password: 'supersecret123' }),
+  }));
   assert.equal(res.status, 201);
   return res.headers.get('set-cookie').split(';')[0];
 }
@@ -184,6 +192,50 @@ test('billing: checkout requires auth and 503s until configured', async () => {
   const res = await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }, { cookie }));
   assert.equal(res.status, 503);
   assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
+test('community: publish toggle, public feed, and star', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: community } = await import('../app/api/community/route.js');
+  const { POST: star } = await import('../app/api/patterns/[id]/star/route.js');
+
+  const cookie = await signedUpCookie();
+
+  // Create a pattern.
+  const created = await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Community Scarf' }, { cookie }));
+  assert.equal(created.status, 201);
+  const p = await created.json();
+
+  // Community feed is empty before publish.
+  const feedBefore = await (await community(new Request('http://x/api/community'))).json();
+  assert.equal(feedBefore.patterns.some((x) => x.id === p.id), false, 'not in feed before publish');
+
+  // Publish the pattern.
+  const pub = await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+  assert.equal(pub.status, 200);
+  assert.equal((await pub.json()).published, true);
+
+  // Community feed now includes it.
+  const feedAfter = await (await community(new Request('http://x/api/community'))).json();
+  assert.ok(feedAfter.patterns.some((x) => x.id === p.id), 'appears in feed after publish');
+
+  // Star it.
+  const s = await star(new Request(`http://x/api/patterns/${p.id}/star`, { method: 'POST', headers: { cookie }, body: null }), { params: { id: p.id } });
+  assert.equal(s.status, 200);
+  const sData = await s.json();
+  assert.equal(sData.starred, true);
+  assert.equal(sData.starCount, 1);
+
+  // Star again toggles off.
+  const s2 = await star(new Request(`http://x/api/patterns/${p.id}/star`, { method: 'POST', headers: { cookie }, body: null }), { params: { id: p.id } });
+  assert.equal((await s2.json()).starred, false);
+
+  // Unpublish.
+  const unpub = await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: false }) }), { params: { id: p.id } });
+  assert.equal((await unpub.json()).published, false);
+  const feedGone = await (await community(new Request('http://x/api/community'))).json();
+  assert.equal(feedGone.patterns.some((x) => x.id === p.id), false, 'gone from feed after unpublish');
 });
 
 test('billing: portal requires auth and 503s until configured', async () => {
