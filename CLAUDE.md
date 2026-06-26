@@ -156,6 +156,17 @@ Important tables now include:
 
 When adding new persistent product features, prefer incremental `ALTER TABLE` migrations inside `backend/lib/db/index.js`. **Make migrations idempotent** (swallow "duplicate column" errors) — Next build collects page data across parallel workers that all init the same DB.
 
+### Dual-driver schema changes (SQLite + Postgres)
+
+Every schema change must land in **three** places or it breaks one driver:
+1. `backend/lib/db/index.js` — idempotent `ALTER TABLE` for the boot-time SQLite path.
+2. `backend/migrations/000N_*.sql` — a new idempotent file for Postgres (`ADD COLUMN IF NOT EXISTS`); `npm run migrate` applies all files in order.
+3. `PG_KEYMAP` in `lib/db/index.js` — add a `lowercase: 'camelCase'` entry for any new camelCase column (Postgres folds unquoted identifiers to lowercase).
+
+### Ops runbook — keep it current
+
+`docs/devops/DEPLOYMENT.md` is the living source of truth for everything that must change on the live servers (Railway env, Neon migrations, Stripe/Resend config, Vercel). **Any change that needs a new env var, a migration, or other server-side action MUST be recorded under "Pending deploy actions" in that file in the same commit** — this is part of "done". Move items to "Applied history" once deployed.
+
 ## Testing
 
 - `cd backend && npm test` runs the engine suite (`node:test`, zero deps). It locks the moat: distribution math, every shape/revolve/chart self-validating, the validator flagging wrong counts, and a regression lock that all 22 seed templates have 0 arithmetic errors.
