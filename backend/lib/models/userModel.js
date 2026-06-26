@@ -35,6 +35,7 @@ const getSubscriptionByUserIdStmt = db.prepare(`
 const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHERE id = ?`);
 const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
 const updateProfileStmt = db.prepare(`UPDATE users SET name = ?, skillLevel = ? WHERE id = ?`);
+const setPlanStmt = db.prepare(`UPDATE subscriptions SET plan = ?, status = ?, updatedAt = ? WHERE userId = ?`);
 
 async function createUser(user) {
   await insertUserStmt.run(
@@ -92,11 +93,17 @@ async function updateUserProfile(userId, { name, skillLevel }) {
   await updateProfileStmt.run(name, skillLevel, userId);
 }
 
+/** Set a user's subscription plan (the billing source of truth). */
+async function setUserPlan(userId, plan, status = "active") {
+  await setPlanStmt.run(plan, status, new Date().toISOString(), userId);
+}
+
 module.exports = {
   createUser,
   getUserByEmail,
   getUserWithSubscriptionById,
   markEmailVerified,
   setUserPassword,
-  updateUserProfile
+  updateUserProfile,
+  setUserPlan
 };

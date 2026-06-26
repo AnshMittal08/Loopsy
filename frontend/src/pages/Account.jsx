@@ -18,8 +18,31 @@ export default function Account() {
   const [usage, setUsage] = useState(null);
   const [resending, setResending] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [upgradingPlan, setUpgradingPlan] = useState(null);
   const nameRef = useRef(null);
   const skillRef = useRef(null);
+
+  const handleUpgrade = async (plan) => {
+    setUpgradingPlan(plan);
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 503) {
+        showToast('Upgrades are not available just yet — check back soon.', 'info');
+        return;
+      }
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout.');
+      window.location.assign(data.url);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
 
   const handleResend = async () => {
     setResending(true);
@@ -232,6 +255,9 @@ export default function Account() {
                         price="$9/mo"
                         features={['30 AI generations', 'Unlimited tutor', 'PDF export']}
                         highlight={false}
+                        plan="maker_pro"
+                        onUpgrade={handleUpgrade}
+                        busy={upgradingPlan === 'maker_pro'}
                       />
                     )}
                     <PlanCard
@@ -239,6 +265,9 @@ export default function Account() {
                       price="$18/mo"
                       features={['Unlimited AI', 'Analytics', 'Featured placement']}
                       highlight={true}
+                      plan="creator"
+                      onUpgrade={handleUpgrade}
+                      busy={upgradingPlan === 'creator'}
                     />
                   </div>
                 </Reveal>
@@ -407,7 +436,7 @@ function UsageBar({ label, used, limit, unit = 'used' }) {
   );
 }
 
-function PlanCard({ name, price, features, highlight }) {
+function PlanCard({ name, price, features, highlight, plan, onUpgrade, busy }) {
   return (
     <div className={`rounded-xl px-5 py-5 border glow-lift ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
       <div className="flex items-baseline justify-between mb-3">
@@ -422,8 +451,14 @@ function PlanCard({ name, price, features, highlight }) {
           </li>
         ))}
       </ul>
-      <button disabled className="w-full rounded-full bg-surface-container px-4 py-2.5 text-sm font-semibold text-on-surface-variant opacity-60 cursor-not-allowed">
-        Upgrade (coming soon)
+      <button
+        onClick={() => onUpgrade?.(plan)}
+        disabled={busy}
+        className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+          highlight ? 'bg-primary text-on-primary hover:bg-primary-dim shadow-warm' : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+        }`}
+      >
+        {busy ? 'Starting checkout…' : `Upgrade to ${name}`}
       </button>
     </div>
   );

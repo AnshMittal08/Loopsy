@@ -175,6 +175,17 @@ test('patterns: create from a template, then soft-delete via the API', async () 
   assert.ok(!list.some((p) => p.id === pattern.id), 'soft-deleted pattern no longer lists');
 });
 
+test('billing: checkout requires auth and 503s until configured', async () => {
+  const { POST: checkout } = await import('../app/api/billing/checkout/route.js');
+  // Unauthenticated → 401 (the gate).
+  assert.equal((await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }))).status, 401);
+  // Authenticated but Stripe unconfigured → 503 with an honest code.
+  const cookie = await signedUpCookie();
+  const res = await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }, { cookie }));
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');
