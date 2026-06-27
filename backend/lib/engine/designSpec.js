@@ -61,6 +61,11 @@ function normalizeDesignSpec(raw = {}) {
         stitch: SUPPORTED_STITCHES.includes(part.stitch) ? part.stitch : null,
         quantity: Math.max(1, Math.min(12, Number(part.quantity) || 1)),
       };
+      // Optional stripe plan: cycle `colors` every `stripeRounds` rounds. Colors
+      // only annotate which yarn each round uses — they never change the stitch
+      // arithmetic, so the validator moat is unaffected. Dropped if malformed.
+      const plan = normalizeColorPlan(part.colorPlan);
+      if (plan) normalized.colorPlan = plan;
       // Preserve canvas layout (x, y) when present — the compiler ignores it,
       // but designs persist it so the preview and share card place parts where
       // the maker put them.
@@ -75,6 +80,21 @@ function normalizeDesignSpec(raw = {}) {
     embellishments: Array.isArray(raw.embellishments) ? raw.embellishments.map(String) : [],
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : [],
   };
+}
+
+/**
+ * Normalize an optional stripe plan. Returns null if absent/malformed (so a bad
+ * plan simply degrades to the part's solid `color`, never breaks compilation).
+ * @returns {{ colors: string[], stripeRounds: number } | null}
+ */
+function normalizeColorPlan(plan) {
+  if (!plan || typeof plan !== 'object') return null;
+  const colors = Array.isArray(plan.colors)
+    ? plan.colors.map((c) => (c == null ? '' : String(c))).filter(Boolean).slice(0, 6)
+    : [];
+  if (colors.length < 2) return null; // a single colour isn't a stripe
+  const stripeRounds = Math.max(1, Math.min(50, Math.round(Number(plan.stripeRounds) || 1)));
+  return { colors, stripeRounds };
 }
 
 /**
@@ -123,5 +143,6 @@ module.exports = {
   SUPPORTED_SHAPES,
   SUPPORTED_STITCHES,
   normalizeDesignSpec,
+  normalizeColorPlan,
   validateDesignSpec,
 };

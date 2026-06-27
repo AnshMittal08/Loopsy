@@ -80,7 +80,15 @@ const DESIGN_SPEC_TOOL = {
                 size: { type: "string", enum: Object.keys(HAT_SIZES), description: "hatCrown only" },
               },
             },
-            color: { type: "string", description: "Yarn color for this part, if specified or sensible" },
+            color: { type: "string", description: "Single yarn color for this part, if specified or sensible. Omit if the part is striped (use colorPlan instead)." },
+            colorPlan: {
+              type: "object",
+              description: "OPTIONAL. Use ONLY when this part is striped/color-cycled (e.g. 'red and white striped scarf'). The engine cycles `colors` every `stripeRounds` rounds. Leave unset for solid parts.",
+              properties: {
+                colors: { type: "array", items: { type: "string" }, description: "2–6 yarn colors in stripe order" },
+                stripeRounds: { type: "number", description: "How many rounds/rows each color runs before switching (e.g. 2)" },
+              },
+            },
             stitch: { type: "string", enum: SUPPORTED_STITCHES },
             quantity: { type: "number", description: "How many of this part to make (e.g. 2 ears)" },
           },
@@ -104,7 +112,7 @@ async function parseDesignIntent(prompt, difficulty) {
         type: "text",
         text: `You are the intent parser for a crochet pattern compiler. You translate a maker's request into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
 
-Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). Be honest with the "feasible" flag: garments with shaping, lace charts, and complex colorwork are NOT feasible.`,
+Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). When a part is striped or color-cycled (e.g. "red and white striped scarf", "rainbow hat"), set its colorPlan with the colors in order and a sensible stripeRounds (commonly 2) instead of a single color — simple horizontal stripes ARE feasible. Be honest with the "feasible" flag: garments with shaping, lace charts, and intarsia/tapestry picture colorwork are NOT feasible.`,
         cache_control: { type: "ephemeral" },
       },
     ],

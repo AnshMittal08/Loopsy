@@ -41,16 +41,24 @@ function compileDesignSpec(rawSpec) {
     const generated = generate(part.dimensions, gauge, part.stitch || defaultStitch);
 
     const qty = part.quantity > 1 ? ` (make ${part.quantity})` : '';
-    const color = part.color ? ` — in ${colorName(part.color)} yarn` : '';
+    const worked = generated.worked === 'rounds' ? 'in continuous rounds' : 'back and forth in rows';
     const partLabel = `${part.name}${qty}`;
 
-    steps.push({
-      instruction: `${partLabel}${color}: work the following ${generated.worked === 'rounds' ? 'in continuous rounds' : 'back and forth in rows'}.`,
-    });
-
-    for (const row of generated.rows) {
-      const label = row.label ? `${partLabel} — ${row.label}: ` : `${partLabel} — `;
-      steps.push({ instruction: `${label}${row.instruction}`, stitchCount: row.count ?? undefined });
+    if (part.colorPlan) {
+      // Striped part: the preamble names the starting colour; colour-change
+      // notes are inserted at stripe boundaries as count-less steps.
+      const first = colorName(part.colorPlan.colors[0]);
+      steps.push({ instruction: `${partLabel} — starting in ${first} yarn: work the following ${worked}.` });
+      emitStripedRows(steps, partLabel, generated.rows, part.colorPlan);
+    } else {
+      const color = part.color ? ` — in ${colorName(part.color)} yarn` : '';
+      steps.push({
+        instruction: `${partLabel}${color}: work the following ${worked}.`,
+      });
+      for (const row of generated.rows) {
+        const label = row.label ? `${partLabel} — ${row.label}: ` : `${partLabel} — `;
+        steps.push({ instruction: `${label}${row.instruction}`, stitchCount: row.count ?? undefined });
+      }
     }
 
     partSummaries.push({
@@ -84,6 +92,55 @@ function compileDesignSpec(rawSpec) {
   };
 }
 
+// The colour band a 1-indexed round falls into, given the stripe plan.
+function bandFor(round, plan) {
+  return Math.floor((round - 1) / plan.stripeRounds) % plan.colors.length;
+}
+
+function roundLabel(a, b) {
+  return a === b ? `Round ${a}` : `Rounds ${a}–${b}`;
+}
+
+/**
+ * Emit a part's rows with stripe colour changes. Walks the running round
+ * counter; when a row spans a stripe boundary it is split into sub-ranges so
+ * each colour band gets its own labelled row. Stitch counts are never altered —
+ * only the label is recomputed and a count-less "Change to … yarn" note is
+ * inserted — so the validator re-derives identical counts.
+ */
+function emitStripedRows(steps, partLabel, rows, plan) {
+  let round = 1;
+  let activeBand = 0; // preamble already declared colors[0]
+  for (const row of rows) {
+    const span = Number(row.rounds) > 0 ? Number(row.rounds) : 0;
+    // Rows that don't advance rounds (finishing notes, stuffing) pass through.
+    if (span === 0 || !row.label || !/^Rounds?\s/i.test(row.label)) {
+      const label = row.label ? `${partLabel} — ${row.label}: ` : `${partLabel} — `;
+      steps.push({ instruction: `${label}${row.instruction}`, stitchCount: row.count ?? undefined });
+      round += span;
+      continue;
+    }
+    // Split [round .. round+span-1] into maximal constant-band sub-ranges.
+    let start = round;
+    const end = round + span - 1;
+    while (start <= end) {
+      const band = bandFor(start, plan);
+      let stop = start;
+      while (stop + 1 <= end && bandFor(stop + 1, plan) === band) stop += 1;
+      if (band !== activeBand) {
+        steps.push({ instruction: `${partLabel} — Change to ${colorName(plan.colors[band])} yarn.` });
+        activeBand = band;
+      }
+      steps.push({
+        instruction: `${partLabel} — ${roundLabel(start, stop)}: ${row.instruction}`,
+        stitchCount: row.count ?? undefined,
+      });
+      start = stop + 1;
+    }
+    round += span;
+  }
+}
+
 function describeFinishedSize(spec) {
   const dims = [];
   for (const part of spec.parts) {
@@ -100,7 +157,12 @@ function describeFinishedSize(spec) {
 }
 
 function suggestMaterials(spec, gauge) {
-  const colors = [...new Set(spec.parts.map((p) => p.color).filter(Boolean).map(colorName))];
+  const raw = [];
+  for (const p of spec.parts) {
+    if (p.color) raw.push(p.color);
+    if (p.colorPlan) raw.push(...p.colorPlan.colors);
+  }
+  const colors = [...new Set(raw.filter(Boolean).map(colorName))];
   const yarnLine = colors.length
     ? `${spec.yarnWeight} yarn in ${colors.join(', ')}`
     : `${spec.yarnWeight} yarn`;
