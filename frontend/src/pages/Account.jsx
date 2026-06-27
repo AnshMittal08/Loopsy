@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, useReducedMotion } from 'motion/react';
-import { Lock, BookMarked, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Lock, BookMarked, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import { Reveal } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
@@ -9,13 +9,89 @@ import { useToast } from '../components/Toast';
 
 export default function Account() {
   const navigate = useNavigate();
-  const { user, loading, signIn, signUp, signOut } = useAuth();
+  const { user, loading, signIn, signUp, signOut, refreshSession } = useAuth();
   const { showToast } = useToast();
   const [mode, setMode] = useState('signin');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [usage, setUsage] = useState(null);
+  const [resending, setResending] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [upgradingPlan, setUpgradingPlan] = useState(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const nameRef = useRef(null);
+  const skillRef = useRef(null);
+
+  const handleManageBilling = async () => {
+    setOpeningPortal(true);
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 503 || res.status === 409) {
+        showToast(data.error || 'Billing management is not available yet.', 'info');
+        return;
+      }
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not open billing.');
+      window.location.assign(data.url);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
+
+  const handleUpgrade = async (plan) => {
+    setUpgradingPlan(plan);
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 503) {
+        showToast('Upgrades are not available just yet — check back soon.', 'info');
+        return;
+      }
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout.');
+      window.location.assign(data.url);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/resend-verification', { method: 'POST' });
+      if (!res.ok) throw new Error('Could not send the email. Please try again.');
+      showToast('Verification email sent — check your inbox.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    const name = nameRef.current?.value.trim();
+    const skillLevel = skillRef.current?.value;
+    if (!name) { showToast('Name is required.', 'error'); return; }
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, skillLevel }) });
+      if (!res.ok) throw new Error('Could not save your profile.');
+      await refreshSession?.();
+      showToast('Profile updated.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -87,6 +163,19 @@ export default function Account() {
 
           ) : user ? (
             <div className="space-y-5">
+              {/* Email verification banner */}
+              {!user.emailVerified && (
+                <Reveal className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-tertiary/30 bg-tertiary-container/40 p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle size={18} className="shrink-0 text-tertiary" />
+                    <p className="text-sm text-on-surface">Verify your email to secure your account and unlock everything.</p>
+                  </div>
+                  <button onClick={handleResend} disabled={resending} className="rounded-full bg-tertiary px-4 py-2 text-sm font-semibold text-on-tertiary transition-opacity hover:opacity-90 disabled:opacity-60">
+                    {resending ? 'Sending…' : 'Resend email'}
+                  </button>
+                </Reveal>
+              )}
+
               {/* Profile card */}
               <Reveal className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -106,8 +195,13 @@ export default function Account() {
                   </div>
                   <div className="rounded-xl bg-primary-fixed px-5 py-3">
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary-fixed">Plan</p>
-                    <p className="mt-1 text-lg font-bold text-on-primary-fixed capitalize">{user.subscription?.plan || 'free'}</p>
+                    <p className="mt-1 text-lg font-bold text-on-primary-fixed capitalize">{(user.subscription?.plan || 'free').replace('_', ' ')}</p>
                     <p className="text-xs text-on-primary-fixed-variant capitalize">{user.subscription?.status || 'active'}</p>
+                    {user.subscription?.plan && user.subscription.plan !== 'free' && (
+                      <button onClick={handleManageBilling} disabled={openingPortal} className="mt-2 text-xs font-semibold text-on-primary-fixed underline underline-offset-2 hover:opacity-80 disabled:opacity-60">
+                        {openingPortal ? 'Opening…' : 'Manage billing'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -122,6 +216,28 @@ export default function Account() {
                     Sign out
                   </button>
                 </div>
+              </Reveal>
+
+              {/* Profile editor */}
+              <Reveal delay={0.04} className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
+                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-primary mb-5">Profile</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="profile-name" className="block text-sm font-semibold mb-1.5">Name</label>
+                    <input id="profile-name" ref={nameRef} defaultValue={user.name} className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25" />
+                  </div>
+                  <div>
+                    <label htmlFor="profile-skill" className="block text-sm font-semibold mb-1.5">Skill level</label>
+                    <select id="profile-skill" ref={skillRef} defaultValue={user.skillLevel || 'beginner'} className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25">
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+                </div>
+                <button onClick={handleSaveProfile} disabled={savingProfile} className="mt-5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-60">
+                  {savingProfile ? 'Saving…' : 'Save profile'}
+                </button>
               </Reveal>
 
               {/* Usage */}
@@ -163,6 +279,9 @@ export default function Account() {
                         price="$9/mo"
                         features={['30 AI generations', 'Unlimited tutor', 'PDF export']}
                         highlight={false}
+                        plan="maker_pro"
+                        onUpgrade={handleUpgrade}
+                        busy={upgradingPlan === 'maker_pro'}
                       />
                     )}
                     <PlanCard
@@ -170,6 +289,9 @@ export default function Account() {
                       price="$18/mo"
                       features={['Unlimited AI', 'Analytics', 'Featured placement']}
                       highlight={true}
+                      plan="creator"
+                      onUpgrade={handleUpgrade}
+                      busy={upgradingPlan === 'creator'}
                     />
                   </div>
                 </Reveal>
@@ -338,7 +460,7 @@ function UsageBar({ label, used, limit, unit = 'used' }) {
   );
 }
 
-function PlanCard({ name, price, features, highlight }) {
+function PlanCard({ name, price, features, highlight, plan, onUpgrade, busy }) {
   return (
     <div className={`rounded-xl px-5 py-5 border glow-lift ${highlight ? 'border-primary/30 bg-primary-fixed' : 'border-outline-variant/20 bg-surface-container-low'}`}>
       <div className="flex items-baseline justify-between mb-3">
@@ -353,8 +475,14 @@ function PlanCard({ name, price, features, highlight }) {
           </li>
         ))}
       </ul>
-      <button disabled className="w-full rounded-full bg-surface-container px-4 py-2.5 text-sm font-semibold text-on-surface-variant opacity-60 cursor-not-allowed">
-        Upgrade (coming soon)
+      <button
+        onClick={() => onUpgrade?.(plan)}
+        disabled={busy}
+        className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+          highlight ? 'bg-primary text-on-primary hover:bg-primary-dim shadow-warm' : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+        }`}
+      >
+        {busy ? 'Starting checkout…' : `Upgrade to ${name}`}
       </button>
     </div>
   );

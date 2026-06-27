@@ -16,6 +16,7 @@ const PG_KEYMAP = {
   totalsteps: 'totalSteps', progresspercentage: 'progressPercentage', patternid: 'patternId',
   templateid: 'templateId', actorid: 'actorId', resourceid: 'resourceId', tokenhash: 'tokenHash',
   expiresat: 'expiresAt', usedat: 'usedAt', windowstart: 'windowStart',
+  stripecustomerid: 'stripeCustomerId',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -227,6 +228,10 @@ function initializeDatabase(db) {
   const userColumns = db.prepare(`PRAGMA table_info(users)`).all();
   const existingUserColumns = new Set(userColumns.map((column) => column.name));
   addColumnIfMissing(existingUserColumns, 'emailVerified', "ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0");
+
+  const subscriptionColumns = db.prepare(`PRAGMA table_info(subscriptions)`).all();
+  const existingSubscriptionColumns = new Set(subscriptionColumns.map((column) => column.name));
+  addColumnIfMissing(existingSubscriptionColumns, 'stripeCustomerId', "ALTER TABLE subscriptions ADD COLUMN stripeCustomerId TEXT");
 
   const initAnalytics = db.prepare(`
     INSERT OR IGNORE INTO analytics (key, value) VALUES (?, ?)

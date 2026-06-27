@@ -129,6 +129,72 @@ test('search: public templates + scoped owner results', async () => {
   assert.ok(mine.designs.some((d) => /spiderman/i.test(d.name)), 'finds the owner\'s design');
 });
 
+test('profile: PATCH /api/me updates name + skill level (auth required)', async () => {
+  const { PATCH: patchMe, GET: me } = await import('../app/api/me/route.js');
+  const patchReq = (body, headers = {}) =>
+    new Request('http://x/api/me', { method: 'PATCH', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+
+  assert.equal((await patchMe(patchReq({ name: 'X' }))).status, 401, 'unauthenticated is rejected');
+
+  const cookie = await signedUpCookie();
+  const res = await patchMe(patchReq({ name: 'Renamed Maker', skillLevel: 'advanced' }, { cookie }));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).user.name, 'Renamed Maker');
+
+  const u = (await (await me(new Request('http://x/api/me', { headers: { cookie } }))).json()).user;
+  assert.equal(u.name, 'Renamed Maker');
+  assert.equal(u.skillLevel, 'advanced');
+
+  // Invalid skill level → 400.
+  assert.equal((await patchMe(patchReq({ name: 'Y', skillLevel: 'wizard' }, { cookie }))).status, 400);
+});
+
+test('resend verification: requires auth, returns ok for a fresh user', async () => {
+  const { POST: resend } = await import('../app/api/auth/resend-verification/route.js');
+  assert.equal((await resend(jsonReq('http://x/api/auth/resend-verification', {}))).status, 401);
+  const cookie = await signedUpCookie();
+  const res = await resend(jsonReq('http://x/api/auth/resend-verification', {}, { cookie }));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).ok, true);
+});
+
+test('patterns: create from a template, then soft-delete via the API', async () => {
+  const { POST: createPattern, GET: listPatterns } = await import('../app/api/patterns/route.js');
+  const { DELETE: deletePattern } = await import('../app/api/patterns/[id]/route.js');
+  const cookie = await signedUpCookie();
+
+  const created = await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'My Scarf' }, { cookie }));
+  assert.equal(created.status, 201);
+  const pattern = await created.json();
+  assert.ok(pattern.id);
+
+  const del = await deletePattern(new Request(`http://x/api/patterns/${pattern.id}`, { method: 'DELETE', headers: { cookie } }), { params: { id: pattern.id } });
+  assert.equal(del.status, 200);
+
+  const list = await (await listPatterns(new Request('http://x/api/patterns', { headers: { cookie } }))).json();
+  assert.ok(!list.some((p) => p.id === pattern.id), 'soft-deleted pattern no longer lists');
+});
+
+test('billing: checkout requires auth and 503s until configured', async () => {
+  const { POST: checkout } = await import('../app/api/billing/checkout/route.js');
+  // Unauthenticated → 401 (the gate).
+  assert.equal((await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }))).status, 401);
+  // Authenticated but Stripe unconfigured → 503 with an honest code.
+  const cookie = await signedUpCookie();
+  const res = await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }, { cookie }));
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
+test('billing: portal requires auth and 503s until configured', async () => {
+  const { POST: portal } = await import('../app/api/billing/portal/route.js');
+  assert.equal((await portal(jsonReq('http://x/api/billing/portal', {}))).status, 401);
+  const cookie = await signedUpCookie();
+  const res = await portal(jsonReq('http://x/api/billing/portal', {}, { cookie }));
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');

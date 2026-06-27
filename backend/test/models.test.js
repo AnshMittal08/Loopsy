@@ -72,6 +72,23 @@ test('users: create, lookup, verify, password change', async () => {
   assert.equal((await userModel.getUserByEmail(user.email)).passwordHash, 'salt2:hash2');
 });
 
+test('billing: setUserPlan updates the subscription plan + status', async () => {
+  const user = await makeUser();
+  await userModel.setUserPlan(user.id, 'creator', 'active');
+  const u = await userModel.getUserWithSubscriptionById(user.id);
+  assert.equal(u.subscription.plan, 'creator');
+  assert.equal(u.subscription.status, 'active');
+  await userModel.setUserPlan(user.id, 'free', 'canceled');
+  assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.status, 'canceled');
+});
+
+test('billing: setStripeCustomerId persists onto the subscription', async () => {
+  const user = await makeUser();
+  assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.stripeCustomerId ?? null, null);
+  await userModel.setStripeCustomerId(user.id, 'cus_test_123');
+  assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.stripeCustomerId, 'cus_test_123');
+});
+
 test('sessions: create, fetch by token, delete', async () => {
   const user = await makeUser();
   const token = crypto.randomBytes(16).toString('hex');
