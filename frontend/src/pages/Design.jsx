@@ -117,6 +117,7 @@ export default function Design() {
         color: p.color, quantity: p.quantity,
         layout: { x: Math.round(p.x), y: Math.round(p.y) },
         ...(p.face ? { face: true } : {}),
+        ...(p.colorPlan ? { colorPlan: p.colorPlan } : {}),
       };
     }),
     assembly: deriveAssembly(parts),
@@ -244,6 +245,50 @@ export default function Design() {
       <div>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn color</p>
         <ColorPicker value={selected.color} onChange={(c) => updatePart(selected.id, { color: c })} recents={recents} onAddRecent={addRecent} size={28} />
+      </div>
+
+      <div className="space-y-3">
+        <button onClick={() => updatePart(selected.id, { colorPlan: selected.colorPlan ? undefined : { colors: [selected.color || 'coral', 'cream'], stripeRounds: 2 } })}
+          className="flex w-full items-center justify-between gap-3 rounded-lg bg-surface-container-low px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-container">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Stripes</span>
+          <span className={`flex h-5 w-9 items-center rounded-full px-0.5 transition-colors ${selected.colorPlan ? 'bg-primary' : 'bg-outline-variant/40'}`}>
+            <span className={`h-4 w-4 rounded-full bg-white transition-transform ${selected.colorPlan ? 'translate-x-4' : ''}`} />
+          </span>
+        </button>
+
+        {selected.colorPlan && (
+          <div className="space-y-3 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-3">
+            <div className="flex flex-wrap items-start gap-2">
+              {selected.colorPlan.colors.map((c, i) => (
+                <div key={i} className="space-y-1">
+                  <ColorPicker
+                    value={c}
+                    onChange={(nc) => updatePart(selected.id, { colorPlan: { ...selected.colorPlan, colors: selected.colorPlan.colors.map((x, j) => (j === i ? nc : x)) } })}
+                    recents={recents} onAddRecent={addRecent} size={24}
+                  />
+                  {selected.colorPlan.colors.length > 2 && (
+                    <button onClick={() => updatePart(selected.id, { colorPlan: { ...selected.colorPlan, colors: selected.colorPlan.colors.filter((_, j) => j !== i) } })}
+                      className="w-full text-[10px] font-semibold text-on-surface-variant hover:text-error transition-colors" aria-label={`Remove stripe color ${i + 1}`}>× remove</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {selected.colorPlan.colors.length < 6 && (
+              <button onClick={() => updatePart(selected.id, { colorPlan: { ...selected.colorPlan, colors: [...selected.colorPlan.colors, 'cream'] } })}
+                className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"><Plus size={12} />Add color</button>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Stripe height</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => updatePart(selected.id, { colorPlan: { ...selected.colorPlan, stripeRounds: Math.max(1, (selected.colorPlan.stripeRounds || 2) - 1) } })}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-outline-variant/30 hover:bg-surface-container-low transition-colors" aria-label="Fewer rounds per stripe"><Minus size={12} /></button>
+                <span className="min-w-[58px] text-center text-xs font-semibold tabular-nums">{selected.colorPlan.stripeRounds || 2} round{(selected.colorPlan.stripeRounds || 2) === 1 ? '' : 's'}</span>
+                <button onClick={() => updatePart(selected.id, { colorPlan: { ...selected.colorPlan, stripeRounds: Math.min(10, (selected.colorPlan.stripeRounds || 2) + 1) } })}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-outline-variant/30 hover:bg-surface-container-low transition-colors" aria-label="More rounds per stripe"><Plus size={12} /></button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3">

@@ -77,6 +77,7 @@ export default function DesignShare() {
     color: p.color,
     quantity: p.quantity,
     face: p.face,
+    ...(p.colorPlan ? { colorPlan: p.colorPlan } : {}),
     x: p.layout?.x ?? 180,
     y: p.layout?.y ?? 80 + i * 70,
   }));
