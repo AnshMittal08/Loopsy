@@ -24,8 +24,8 @@ const round1 = (n) => Math.round(n * 10) / 10;
 // A friendly starter so the canvas isn't empty: a simple two-ball creature.
 function starterParts() {
   return [
-    { id: nextId(), name: 'Body', shape: 'ellipsoid', dims: { diameterCm: 7, heightCm: 9 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 280 },
-    { id: nextId(), name: 'Head', shape: 'sphere', dims: { diameterCm: 6.5 }, color: 'violet', quantity: 1, x: CANVAS.w / 2, y: 150, face: true },
+    { id: nextId(), name: 'Body', shape: 'ellipsoid', dims: { diameterCm: 7, heightCm: 9 }, color: 'violet', quantity: 1, stitch: 'sc', x: CANVAS.w / 2, y: 280 },
+    { id: nextId(), name: 'Head', shape: 'sphere', dims: { diameterCm: 6.5 }, color: 'violet', quantity: 1, stitch: 'sc', x: CANVAS.w / 2, y: 150, face: true },
   ];
 }
 
@@ -51,7 +51,24 @@ export default function Design() {
   const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
   const [preview, setPreview] = useState(null); // live compile summary
 
+  // Assembly: auto-derived from layout until the maker takes over. While
+  // `assemblyEdited` is false we derive at render/build time (don't store);
+  // once edited we persist `assemblySteps` verbatim.
+  const [assemblySteps, setAssemblySteps] = useState([]);
+  const [assemblyEdited, setAssemblyEdited] = useState(false);
+  const [embellishments, setEmbellishments] = useState([]); // [{ id, text }]
+
   const selected = parts.find((p) => p.id === selectedId) || null;
+
+  // Effective assembly steps shown in the editor: derived (live) until edited.
+  const effectiveAssembly = assemblyEdited ? assemblySteps : deriveAssembly(parts);
+
+  // Take over the assembly: snapshot the current derived steps, then mutate them.
+  const beginAssemblyEdit = (mutate) => {
+    setAssemblySteps((prev) => mutate(assemblyEdited ? prev : deriveAssembly(parts)));
+    if (!assemblyEdited) setAssemblyEdited(true);
+  };
+  const resetAssembly = () => { setAssemblyEdited(false); setAssemblySteps([]); };
 
   const updatePart = (id, patch) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const updateDim = (id, key, value) =>
@@ -74,6 +91,8 @@ export default function Design() {
     setParts(t.parts().map((p) => ({ ...p, id: nextId(), dims: JSON.parse(JSON.stringify(p.dims)) })));
     setSelectedId(null);
     setName(t.label);
+    setAssemblyEdited(false);
+    setAssemblySteps([]);
   };
 
   // Reshape a sculpt part's silhouette point (drag handle on the canvas).
@@ -115,14 +134,15 @@ export default function Design() {
       return {
         name: p.name, shape: p.shape, dimensions,
         color: p.color, quantity: p.quantity,
+        stitch: p.stitch || 'sc',
         layout: { x: Math.round(p.x), y: Math.round(p.y) },
         ...(p.face ? { face: true } : {}),
         ...(p.colorPlan ? { colorPlan: p.colorPlan } : {}),
       };
     }),
-    assembly: deriveAssembly(parts),
-    embellishments: [],
-  }), [parts, name]);
+    assembly: (assemblyEdited ? assemblySteps : deriveAssembly(parts)).filter((s) => s.trim()),
+    embellishments: embellishments.map((e) => e.text).filter((s) => s.trim()),
+  }), [parts, name, assemblyEdited, assemblySteps, embellishments]);
 
   // Live verified-math feedback: debounced compile of the current design so the
   // canvas shows "≈ N stitches · verified ✓" while you work, not only after Generate.
@@ -245,6 +265,19 @@ export default function Design() {
       <div>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Yarn color</p>
         <ColorPicker value={selected.color} onChange={(c) => updatePart(selected.id, { color: c })} recents={recents} onAddRecent={addRecent} size={28} />
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Stitch</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[{ id: 'sc', label: 'SC', sub: 'Single' }, { id: 'hdc', label: 'HDC', sub: 'Half double' }, { id: 'dc', label: 'DC', sub: 'Double' }].map((s) => (
+            <button key={s.id} onClick={() => updatePart(selected.id, { stitch: s.id })} title={s.sub}
+              className={`flex flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 border transition-colors ${(selected.stitch || 'sc') === s.id ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>
+              <span className="text-xs font-semibold">{s.label}</span>
+              <span className="text-[9px] leading-none opacity-80">{s.sub}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -410,6 +443,61 @@ export default function Design() {
                   </div>
                 </div>
                 <p className="text-xs text-on-surface-variant leading-relaxed">Every shape compiles to exact, verified stitch counts. We read your layout to write the assembly steps automatically.</p>
+
+                <div className="border-t border-outline-variant/15 pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Assembly</p>
+                    {assemblyEdited && (
+                      <button onClick={resetAssembly} className="text-[10px] font-semibold text-on-surface-variant hover:text-primary transition-colors">Reset to auto</button>
+                    )}
+                  </div>
+                  {!assemblyEdited && (
+                    <p className="mb-2 text-[10px] text-on-surface-variant">Auto-derived from your layout. Edit any step to take over.</p>
+                  )}
+                  <div className="space-y-1.5">
+                    {effectiveAssembly.map((step, i) => (
+                      <div key={i} className="flex items-start gap-1">
+                        <textarea
+                          rows={1}
+                          value={step}
+                          onChange={(e) => beginAssemblyEdit((steps) => steps.map((s, j) => (j === i ? e.target.value : s)))}
+                          className="min-h-[34px] flex-1 resize-none rounded-lg bg-surface-container-low px-2 py-1.5 text-[11px] leading-snug outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        <div className="flex shrink-0 flex-col gap-0.5">
+                          <button onClick={() => beginAssemblyEdit((steps) => steps.filter((_, j) => j !== i))}
+                            className="flex h-4 w-5 items-center justify-center rounded text-on-surface-variant hover:text-error transition-colors" aria-label="Remove step"><Minus size={11} /></button>
+                          <button onClick={() => beginAssemblyEdit((steps) => { if (i <= 0) return steps; const n = [...steps]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; })}
+                            className="flex h-4 w-5 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-30" disabled={i === 0} aria-label="Move up"><ChevronUp size={11} /></button>
+                          <button onClick={() => beginAssemblyEdit((steps) => { if (i >= steps.length - 1) return steps; const n = [...steps]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; return n; })}
+                            className="flex h-4 w-5 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-30" disabled={i === effectiveAssembly.length - 1} aria-label="Move down"><ChevronDown size={11} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => beginAssemblyEdit((steps) => [...steps, ''])}
+                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"><Plus size={12} />Add step</button>
+                </div>
+
+                <div className="border-t border-outline-variant/15 pt-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Embellishments</p>
+                  <p className="mb-2 text-[10px] text-on-surface-variant">Hand-finished touches, e.g. “Embroider a smile in black”.</p>
+                  <div className="space-y-1.5">
+                    {embellishments.map((e) => (
+                      <div key={e.id} className="flex items-start gap-1">
+                        <input
+                          value={e.text}
+                          onChange={(ev) => setEmbellishments((list) => list.map((x) => (x.id === e.id ? { ...x, text: ev.target.value } : x)))}
+                          placeholder="Add a finishing touch…"
+                          className="flex-1 rounded-lg bg-surface-container-low px-2 py-1.5 text-[11px] leading-snug outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        <button onClick={() => setEmbellishments((list) => list.filter((x) => x.id !== e.id))}
+                          className="flex h-[30px] w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:text-error transition-colors" aria-label="Remove embellishment"><Minus size={11} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => setEmbellishments((list) => [...list, { id: nextId(), text: '' }])}
+                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"><Plus size={12} />Add embellishment</button>
+                </div>
               </div>
             )}
           </div>
