@@ -63,18 +63,43 @@ function SculptHandles({ part, onSculptDown }) {
   );
 }
 
+// Horizontal stripe bands clipped to the part's silhouette. Stylized preview:
+// band height tracks stripeRounds (taller bands = more rounds per stripe), and
+// colors cycle through colorPlan.colors. Falls back gracefully if no plan.
+function StripeBands({ part, clipId }) {
+  const colors = part.colorPlan?.colors || [];
+  if (colors.length < 2) return null;
+  const bb = partBBox(part, CANVAS.px);
+  const rounds = Math.max(1, Math.min(10, part.colorPlan?.stripeRounds || 2));
+  // ~1 band per 1.2cm of height, scaled by stripeRounds; keep it readable.
+  const band = Math.max(6, rounds * 7);
+  const count = Math.max(2, Math.ceil(bb.h / band));
+  return (
+    <g clipPath={`url(#${clipId})`}>
+      {Array.from({ length: count }, (_, i) => (
+        <rect key={i} x={bb.x} y={bb.y + i * band} width={bb.w} height={band + 0.5}
+          fill={hexOf(colors[i % colors.length])} />
+      ))}
+    </g>
+  );
+}
+
 function Part({ part, selected, ids, onPointerDown, onSculptDown, onResizeDown }) {
   const g = partGeometry(part, CANVAS.px);
-  const fill = hexOf(part.color);
+  const striped = part.colorPlan?.colors?.length >= 2;
+  const fill = hexOf(striped ? part.colorPlan.colors[0] : part.color);
   const handlers = onPointerDown ? { onPointerDown: (e) => onPointerDown(e, part), style: { cursor: 'grab' } } : {};
   const isSculpt = part.shape === 'revolve';
   const bb = partBBox(part, CANVAS.px);
   const pad = 6;
+  const clipId = `${ids.shadow}-clip-${part.id}`;
   return (
     <g>
       <g {...handlers}>
         <g filter={`url(#${ids.shadow})`}>
+          {striped && <clipPath id={clipId}>{geom(g, 'clip', {})}</clipPath>}
           {geom(g, 'base', { fill })}
+          {striped && <StripeBands part={part} clipId={clipId} />}
           {geom(g, 'tex', { fill: `url(#${ids.stitch})` })}
           {geom(g, 'sheen', { fill: `url(#${ids.sheen})` })}
           {geom(g, 'shade', { fill: `url(#${ids.shade})` })}
