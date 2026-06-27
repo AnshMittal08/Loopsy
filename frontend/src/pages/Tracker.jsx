@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
-  Lightbulb, Check, Maximize2, Trash2,
+  Lightbulb, Check, Maximize2, Trash2, Globe, Lock,
 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileNav from '../components/MobileNav';
@@ -84,6 +84,23 @@ export default function Tracker() {
       if (!res.ok) throw new Error('Could not delete the project.');
       setAllPatterns((list) => (list || []).filter((p) => p.id !== id));
       showToast('Project deleted.', 'info');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleTogglePublish = async (id, currentlyPublished) => {
+    try {
+      const res = await fetch(`/api/patterns/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: !currentlyPublished }),
+      });
+      if (!res.ok) throw new Error('Could not update visibility.');
+      setAllPatterns((list) => (list || []).map((p) =>
+        p.id === id ? { ...p, publishedAt: !currentlyPublished ? new Date().toISOString() : null } : p
+      ));
+      showToast(!currentlyPublished ? 'Pattern published to community.' : 'Pattern unpublished.', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -266,13 +283,23 @@ export default function Tracker() {
                   const finished = pct >= 100;
                   return (
                     <Motion.div key={p.id} variants={{ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } }} className="group relative">
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteProject(p.id, p.title); }}
-                        aria-label={`Delete ${p.title}`}
-                        className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant opacity-0 shadow-warm backdrop-blur transition-opacity hover:text-error focus:opacity-100 group-hover:opacity-100"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePublish(p.id, Boolean(p.publishedAt)); }}
+                          aria-label={p.publishedAt ? 'Unpublish pattern' : 'Publish to community'}
+                          title={p.publishedAt ? 'Unpublish' : 'Publish to community'}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant shadow-warm backdrop-blur transition-colors hover:text-primary"
+                        >
+                          {p.publishedAt ? <Globe size={13} className="text-primary" /> : <Lock size={13} />}
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteProject(p.id, p.title); }}
+                          aria-label={`Delete ${p.title}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant shadow-warm backdrop-blur transition-colors hover:text-error"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                       <Link
                         to={`/tracker/${p.id}`}
                         className="group block h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm card-lift"

@@ -89,6 +89,21 @@ test('billing: setStripeCustomerId persists onto the subscription', async () => 
   assert.equal((await userModel.getUserWithSubscriptionById(user.id)).subscription.stripeCustomerId, 'cus_test_123');
 });
 
+test('profiles: handles are slugified and uniquified, looked up by handle', async () => {
+  const mk = (name) => userModel.createUser({
+    id: id(), email: `h_${id()}@example.com`, name, passwordHash: 'salt:hash', createdAt: now(),
+    subscription: { id: id(), plan: 'free', status: 'active', createdAt: now(), updatedAt: now() },
+  });
+  const a = await mk('Ada Lovelace');
+  const b = await mk('Ada Lovelace'); // same name → must get a distinct handle
+  const ah = (await userModel.getUserWithSubscriptionById(a.id)).handle;
+  const bh = (await userModel.getUserWithSubscriptionById(b.id)).handle;
+  assert.equal(ah, 'ada-lovelace');
+  assert.notEqual(ah, bh, 'collision resolved to a distinct handle');
+  assert.equal((await userModel.getUserByHandle('ada-lovelace')).id, a.id);
+  assert.equal(await userModel.getUserByHandle('does-not-exist'), null);
+});
+
 test('sessions: create, fetch by token, delete', async () => {
   const user = await makeUser();
   const token = crypto.randomBytes(16).toString('hex');

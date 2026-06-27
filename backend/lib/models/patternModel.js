@@ -112,4 +112,149 @@ async function deletePattern(id, userId, ctx = {}) {
   return info.changes > 0;
 }
 
-module.exports = { getAllPatterns, getPatternById, createPattern, deletePattern };
+// ── Community catalog ──────────────────────────────────────────────────────
+
+const setPublishedStmt = db.prepare(
+  `UPDATE patterns SET publishedAt = ? WHERE id = ? AND userId = ? AND deletedAt IS NULL`
+);
+
+/** Publish (publishedAt = now) or unpublish (publishedAt = null) a pattern. */
+async function setPatternPublished(id, userId, publish) {
+  const ts = publish ? new Date().toISOString() : null;
+  const info = await setPublishedStmt.run(ts, id, userId);
+  return info.changes > 0;
+}
+
+const getPublicPatternStmt = db.prepare(
+  `SELECT p.*, u.name AS authorName, u.handle AS authorHandle
+   FROM patterns p
+   JOIN users u ON u.id = p.userId
+   WHERE p.id = ? AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL`
+);
+
+async function getPublicPatternById(id) {
+  const row = await getPublicPatternStmt.get(id);
+  if (!row) return null;
+  return { ...deserializePatternRow(row), authorName: row.authorName, authorHandle: row.authorHandle };
+}
+
+const FEED_COLS =
+  `p.id, p.title, p.difficulty, p.category, p.tags, p.verified,
+   p.isAIGenerated, p.hookSize, p.yarnWeight, p.starCount, p.publishedAt,
+   p.userId, u.name AS authorName, u.handle AS authorHandle`;
+
+const communityFeedRecentStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
+   WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
+   ORDER BY p.publishedAt DESC
+   LIMIT ? OFFSET ?`
+);
+
+const communityFeedTrendingStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
+   WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
+   ORDER BY p.starCount DESC, p.publishedAt DESC
+   LIMIT ? OFFSET ?`
+);
+
+function deserializeFeedRow(r) {
+  return {
+    ...r,
+    tags: parseJsonArray(r.tags),
+    isAIGenerated: Boolean(r.isAIGenerated),
+    verified: Boolean(r.verified),
+  };
+}
+
+/** Paginated community feed of published patterns. sort: 'recent' | 'trending'. */
+async function getCommunityFeed({ limit = 24, offset = 0, sort = 'recent' } = {}) {
+  const stmt = sort === 'trending' ? communityFeedTrendingStmt : communityFeedRecentStmt;
+  const rows = await stmt.all(limit, offset);
+  return rows.map(deserializeFeedRow);
+}
+
+const userPublishedStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
+   WHERE p.userId = ? AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
+   ORDER BY p.publishedAt DESC
+   LIMIT ? OFFSET ?`
+);
+
+/** A creator's published patterns (for their public profile). */
+async function getPublishedPatternsByUser(userId, { limit = 48, offset = 0 } = {}) {
+  const rows = await userPublishedStmt.all(userId, limit, offset);
+  return rows.map(deserializeFeedRow);
+}
+
+/** Feed-card data for a set of published pattern ids (collection contents). */
+async function getPublicCardsByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(', ');
+  const stmt = db.prepare(
+    `SELECT ${FEED_COLS}
+     FROM patterns p JOIN users u ON u.id = p.userId
+     WHERE p.id IN (${placeholders}) AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL`
+  );
+  const rows = await stmt.all(...ids);
+  return rows.map(deserializeFeedRow);
+}
+
+// Stars ────────────────────────────────────────────────────────────────────
+
+const insertStarStmt = db.prepare(
+  `INSERT OR IGNORE INTO pattern_stars (userId, patternId, createdAt) VALUES (?, ?, ?)`
+);
+const deleteStarStmt = db.prepare(
+  `DELETE FROM pattern_stars WHERE userId = ? AND patternId = ?`
+);
+const incrementStarStmt = db.prepare(
+  `UPDATE patterns SET starCount = starCount + 1 WHERE id = ?`
+);
+const decrementStarStmt = db.prepare(
+  `UPDATE patterns SET starCount = MAX(0, starCount - 1) WHERE id = ?`
+);
+const getStarStmt = db.prepare(
+  `SELECT 1 FROM pattern_stars WHERE userId = ? AND patternId = ?`
+);
+const getUserStarsStmt = db.prepare(
+  `SELECT patternId FROM pattern_stars WHERE userId = ?`
+);
+
+/** Toggle a star. Returns { starred: boolean, starCount: number }. */
+async function toggleStar(patternId, userId) {
+  const existing = await getStarStmt.get(userId, patternId);
+  if (existing) {
+    await deleteStarStmt.run(userId, patternId);
+    await decrementStarStmt.run(patternId);
+    const row = await db.prepare(`SELECT starCount FROM patterns WHERE id = ?`).get(patternId);
+    return { starred: false, starCount: row?.starCount ?? 0 };
+  } else {
+    await insertStarStmt.run(userId, patternId, new Date().toISOString());
+    await incrementStarStmt.run(patternId);
+    const row = await db.prepare(`SELECT starCount FROM patterns WHERE id = ?`).get(patternId);
+    return { starred: true, starCount: row?.starCount ?? 1 };
+  }
+}
+
+/** All patternIds the user has starred (for UI hydration). */
+async function getUserStarredIds(userId) {
+  const rows = await getUserStarsStmt.all(userId);
+  return rows.map((r) => r.patternId ?? r.patterndid ?? Object.values(r)[0]);
+}
+
+module.exports = {
+  getAllPatterns,
+  getPatternById,
+  createPattern,
+  deletePattern,
+  setPatternPublished,
+  getPublicPatternById,
+  getCommunityFeed,
+  getPublishedPatternsByUser,
+  getPublicCardsByIds,
+  toggleStar,
+  getUserStarredIds,
+};

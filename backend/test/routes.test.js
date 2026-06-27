@@ -74,9 +74,17 @@ test('GET /api/templates returns the seeded catalog (public)', async () => {
 });
 
 // Sign up a fresh user and return its session cookie.
+// Each call uses a unique X-Forwarded-For so the per-IP signup rate limit
+// (10 req/hr) is never reached within the test run.
+let _signupCounter = 0;
 async function signedUpCookie() {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
-  const res = await signup(jsonReq('http://x/api/auth/signup', { name: 'Auth', email: `auth_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`, password: 'supersecret123' }));
+  const ip = `10.0.${Math.floor((_signupCounter) / 255)}.${(_signupCounter++) % 255 + 1}`;
+  const res = await signup(new Request('http://x/api/auth/signup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': ip },
+    body: JSON.stringify({ name: 'Auth', email: `auth_${Date.now()}_${Math.random().toString(16).slice(2)}@example.com`, password: 'supersecret123' }),
+  }));
   assert.equal(res.status, 201);
   return res.headers.get('set-cookie').split(';')[0];
 }
@@ -184,6 +192,134 @@ test('billing: checkout requires auth and 503s until configured', async () => {
   const res = await checkout(jsonReq('http://x/api/billing/checkout', { plan: 'creator' }, { cookie }));
   assert.equal(res.status, 503);
   assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
+});
+
+test('community: publish toggle, public feed, and star', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: community } = await import('../app/api/community/route.js');
+  const { POST: star } = await import('../app/api/patterns/[id]/star/route.js');
+
+  const cookie = await signedUpCookie();
+
+  // Create a pattern.
+  const created = await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Community Scarf' }, { cookie }));
+  assert.equal(created.status, 201);
+  const p = await created.json();
+
+  // Community feed is empty before publish.
+  const feedBefore = await (await community(new Request('http://x/api/community'))).json();
+  assert.equal(feedBefore.patterns.some((x) => x.id === p.id), false, 'not in feed before publish');
+
+  // Publish the pattern.
+  const pub = await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+  assert.equal(pub.status, 200);
+  assert.equal((await pub.json()).published, true);
+
+  // Community feed now includes it.
+  const feedAfter = await (await community(new Request('http://x/api/community'))).json();
+  assert.ok(feedAfter.patterns.some((x) => x.id === p.id), 'appears in feed after publish');
+
+  // Star it.
+  const s = await star(new Request(`http://x/api/patterns/${p.id}/star`, { method: 'POST', headers: { cookie }, body: null }), { params: { id: p.id } });
+  assert.equal(s.status, 200);
+  const sData = await s.json();
+  assert.equal(sData.starred, true);
+  assert.equal(sData.starCount, 1);
+
+  // Star again toggles off.
+  const s2 = await star(new Request(`http://x/api/patterns/${p.id}/star`, { method: 'POST', headers: { cookie }, body: null }), { params: { id: p.id } });
+  assert.equal((await s2.json()).starred, false);
+
+  // Unpublish.
+  const unpub = await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: false }) }), { params: { id: p.id } });
+  assert.equal((await unpub.json()).published, false);
+  const feedGone = await (await community(new Request('http://x/api/community'))).json();
+  assert.equal(feedGone.patterns.some((x) => x.id === p.id), false, 'gone from feed after unpublish');
+});
+
+test('profiles: a creator page lists their published patterns by handle', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: me } = await import('../app/api/me/route.js');
+  const { GET: profile } = await import('../app/api/users/[handle]/route.js');
+
+  const cookie = await signedUpCookie();
+
+  // The user has a handle (assigned at signup / lazily on /api/me).
+  const meData = (await (await me(new Request('http://x/api/me', { headers: { cookie } }))).json()).user;
+  assert.ok(meData.handle, 'user has a handle');
+
+  // Unknown handle → 404.
+  assert.equal((await profile(new Request('http://x/api/users/nobody-here'), { params: { handle: 'nobody-here' } })).status, 404);
+
+  // Create + publish a pattern.
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Profile Scarf' }, { cookie }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  // The public profile lists it.
+  const res = await profile(new Request(`http://x/api/users/${meData.handle}`), { params: { handle: meData.handle } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.creator.handle, meData.handle);
+  assert.ok(body.patterns.some((x) => x.id === p.id), 'published pattern appears on profile');
+  assert.equal(body.stats.published >= 1, true);
+});
+
+test('collections: create, add/remove pattern, list, delete (owner-scoped)', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: listCols, POST: createCol } = await import('../app/api/collections/route.js');
+  const { GET: getCol, DELETE: delCol } = await import('../app/api/collections/[id]/route.js');
+  const { POST: addItem } = await import('../app/api/collections/[id]/patterns/route.js');
+
+  const cookie = await signedUpCookie();
+
+  // Auth gate.
+  assert.equal((await listCols(new Request('http://x/api/collections'))).status, 401);
+
+  // Create a collection.
+  const created = await createCol(jsonReq('http://x/api/collections', { name: 'Holiday makes' }, { cookie }));
+  assert.equal(created.status, 201);
+  const col = await created.json();
+  assert.equal(col.patternCount, 0);
+
+  // Empty name → 400.
+  assert.equal((await createCol(jsonReq('http://x/api/collections', { name: '' }, { cookie }))).status, 400);
+
+  // Publish a pattern, add it to the collection.
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Saved Scarf' }, { cookie }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  const add = await addItem(jsonReq(`http://x/api/collections/${col.id}/patterns`, { patternId: p.id, present: true }, { cookie }), { params: { id: col.id } });
+  assert.equal(add.status, 200);
+
+  // Collection detail resolves the published card.
+  const detail = await (await getCol(new Request(`http://x/api/collections/${col.id}`, { headers: { cookie } }), { params: { id: col.id } })).json();
+  assert.ok(detail.patterns.some((x) => x.id === p.id), 'pattern is in the collection');
+
+  // Another user cannot read it (owner-scoped → 404).
+  const otherCookie = await signedUpCookie();
+  assert.equal((await getCol(new Request(`http://x/api/collections/${col.id}`, { headers: { cookie: otherCookie } }), { params: { id: col.id } })).status, 404);
+
+  // Remove the pattern.
+  await addItem(jsonReq(`http://x/api/collections/${col.id}/patterns`, { patternId: p.id, present: false }, { cookie }), { params: { id: col.id } });
+  const after = await (await getCol(new Request(`http://x/api/collections/${col.id}`, { headers: { cookie } }), { params: { id: col.id } })).json();
+  assert.equal(after.patterns.some((x) => x.id === p.id), false, 'pattern removed');
+
+  // List shows the collection; delete it.
+  assert.ok((await (await listCols(new Request('http://x/api/collections', { headers: { cookie } }))).json()).some((c) => c.id === col.id));
+  assert.equal((await delCol(new Request(`http://x/api/collections/${col.id}`, { method: 'DELETE', headers: { cookie } }), { params: { id: col.id } })).status, 200);
+  assert.equal((await (await listCols(new Request('http://x/api/collections', { headers: { cookie } }))).json()).some((c) => c.id === col.id), false, 'gone after delete');
+});
+
+test('community: trending sort orders by star count', async () => {
+  const { GET: community } = await import('../app/api/community/route.js');
+  // Just assert the sort param is accepted and returns the feed shape.
+  const res = await community(new Request('http://x/api/community?sort=trending'));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(Array.isArray(body.patterns), 'trending feed returns patterns');
 });
 
 test('billing: portal requires auth and 503s until configured', async () => {

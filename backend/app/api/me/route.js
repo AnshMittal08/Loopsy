@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, requireAuthenticatedUser } from "@/lib/auth/session";
-import { getUserWithSubscriptionById, updateUserProfile } from "@/lib/models/userModel";
+import { getUserWithSubscriptionById, updateUserProfile, assignHandleIfMissing } from "@/lib/models/userModel";
 import { validate, readJsonBody } from "@/lib/validation";
 import { updateProfileSchema } from "@/lib/validation/schemas";
 
 export async function GET(request) {
   try {
     const user = await getAuthenticatedUser(request);
+    // Self-healing: users created before handles existed get one on first load.
+    if (user && !user.handle) {
+      user.handle = await assignHandleIfMissing(user.id, user.name);
+    }
     return NextResponse.json({ user: user ?? null }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

@@ -121,7 +121,11 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 | `/create/:templateId?` | template customization, AI text + photo (Vision Studio) generation |
 | `/design` | Design Canvas — Build (shapes + Sculpt + 3D) / Draw (colourwork chart + medallion) |
 | `/d/:id` | public read-only design share page |
-| `/tracker/:patternId?` | progress tracker (no id → My Projects) |
+| `/tracker/:patternId?` | progress tracker (no id → My Projects; publish toggle per project) |
+| `/community` | community feed of published patterns (Recent / Trending sort) |
+| `/p/:id` | public read-only pattern page (star, save-to-collection) |
+| `/u/:handle` | public creator profile (their published patterns + stats) |
+| `/library` | the signed-in user's collections (saved-pattern groups) |
 
 ## Key API routes (beyond auth)
 
@@ -135,6 +139,13 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 | `POST /api/design/preview` | live, no-save compile summary for the canvas |
 | `GET/POST /api/designs`, `GET/PATCH /api/designs/:id` | persist + link + share designs |
 | `GET /api/designs/:id/og` | auto-generated Open Graph image (SVG) |
+| `GET /api/community?sort=recent\|trending` | paginated public pattern feed (+ caller's starred set) |
+| `PATCH /api/patterns/:id` | publish/unpublish toggle (owner) |
+| `POST /api/patterns/:id/star` | toggle a star on a published pattern |
+| `GET /api/patterns/:id/public` | public read-only pattern detail |
+| `GET /api/users/:handle` | public creator profile + their published patterns |
+| `GET/POST /api/collections`, `GET/DELETE /api/collections/:id`, `POST /api/collections/:id/patterns` | collections CRUD + membership |
+| `POST /api/billing/checkout`, `POST /api/billing/portal`, `POST /api/billing/webhook` | Stripe checkout, billing portal, webhook |
 
 ## Database Notes
 
@@ -155,6 +166,17 @@ Important tables now include:
 - `analytics`
 
 When adding new persistent product features, prefer incremental `ALTER TABLE` migrations inside `backend/lib/db/index.js`. **Make migrations idempotent** (swallow "duplicate column" errors) — Next build collects page data across parallel workers that all init the same DB.
+
+### Dual-driver schema changes (SQLite + Postgres)
+
+Every schema change must land in **three** places or it breaks one driver:
+1. `backend/lib/db/index.js` — idempotent `ALTER TABLE` for the boot-time SQLite path.
+2. `backend/migrations/000N_*.sql` — a new idempotent file for Postgres (`ADD COLUMN IF NOT EXISTS`); `npm run migrate` applies all files in order.
+3. `PG_KEYMAP` in `lib/db/index.js` — add a `lowercase: 'camelCase'` entry for any new camelCase column (Postgres folds unquoted identifiers to lowercase).
+
+### Ops runbook — keep it current
+
+`docs/devops/DEPLOYMENT.md` is the living source of truth for everything that must change on the live servers (Railway env, Neon migrations, Stripe/Resend config, Vercel). **Any change that needs a new env var, a migration, or other server-side action MUST be recorded under "Pending deploy actions" in that file in the same commit** — this is part of "done". Move items to "Applied history" once deployed.
 
 ## Testing
 

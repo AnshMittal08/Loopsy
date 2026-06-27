@@ -15,6 +15,10 @@ import Account from './pages/Account';
 import VerifyEmail from './pages/VerifyEmail';
 import ResetPassword from './pages/ResetPassword';
 import SearchResults from './pages/SearchResults';
+import Community from './pages/Community';
+import PublicPattern from './pages/PublicPattern';
+import CreatorProfile from './pages/CreatorProfile';
+import Library from './pages/Library';
 
 function App() {
   return (
@@ -40,6 +44,10 @@ function App() {
             <Route path="/design" element={<Design />} />
             <Route path="/d/:id" element={<DesignShare />} />
             <Route path="/tracker/:patternId?" element={<Tracker />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/p/:id" element={<PublicPattern />} />
+            <Route path="/u/:handle" element={<CreatorProfile />} />
+            <Route path="/library" element={<Library />} />
           </Routes>
         )}
       </PageTransition>
