@@ -1,104 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Star, Sparkles, Users, SearchX, Globe } from 'lucide-react';
+import { Users, SearchX, Globe } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
-import VerifiedBadge from '../components/VerifiedBadge';
-import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING } from '../lib/motionTokens';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
 
 const PAGE = 24;
 
-function PatternCard({ pattern, starred, onStar, authed }) {
-  const theme = getPatternTheme(pattern.category);
-  const Icon = theme.icon;
-  const [localStarred, setLocalStarred] = useState(starred);
-  const [localCount, setLocalCount] = useState(pattern.starCount ?? 0);
-  const [busy, setBusy] = useState(false);
-  const prevStarredRef = React.useRef(starred);
-
-  // Sync prop change when parent refreshes starredIds (deferred to avoid
-  // the react-hooks/set-state-in-effect lint rule).
-  React.useEffect(() => {
-    if (prevStarredRef.current !== starred) {
-      prevStarredRef.current = starred;
-      Promise.resolve().then(() => setLocalStarred(starred));
-    }
-  }, [starred]);
-
-  const handleStar = async (e) => {
-    e.preventDefault();
-    if (!authed) { onStar?.(); return; }
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/patterns/${pattern.id}/star`, { method: 'POST' });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setLocalStarred(data.starred);
-      setLocalCount(data.starCount);
-    } catch {
-      /* silent */
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Link
-      to={`/p/${pattern.id}`}
-      className="group relative flex flex-col rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden hover:shadow-warm-md transition-shadow"
-    >
-      <div className={`h-40 relative bg-gradient-to-br ${theme.accent} flex items-end p-4`}>
-        <div className={`absolute -top-4 -right-4 h-20 w-20 rounded-full blur-2xl opacity-60 ${theme.orb}`} />
-        <div className="rounded-full bg-surface-container-lowest/85 p-2 backdrop-blur-sm">
-          <Icon size={16} className="text-on-surface" />
-        </div>
-        <button
-          onClick={handleStar}
-          disabled={busy}
-          aria-label={localStarred ? 'Unstar' : 'Star'}
-          className="absolute top-3 right-3 rounded-full bg-surface-container-lowest/85 p-1.5 backdrop-blur-sm transition-transform hover:scale-110 disabled:opacity-60"
-        >
-          <Star
-            size={15}
-            className={localStarred ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant'}
-          />
-        </button>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-bold text-on-surface leading-snug line-clamp-2 flex-1">
-            {pattern.title}
-          </h3>
-          {pattern.verified && <VerifiedBadge size={14} />}
-        </div>
-        <p className="text-xs text-on-surface-variant">by {pattern.authorName}</p>
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <div className="flex gap-1.5 flex-wrap">
-            {pattern.difficulty && (
-              <span className="rounded-full bg-surface-container-low px-2 py-0.5 text-[10px] font-semibold text-on-surface-variant">
-                {pattern.difficulty}
-              </span>
-            )}
-            {pattern.isAIGenerated && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                <Sparkles size={9} />AI
-              </span>
-            )}
-          </div>
-          <span className="flex items-center gap-1 text-[11px] font-medium text-on-surface-variant">
-            <Star size={11} className={localStarred ? 'text-tertiary fill-tertiary' : ''} />
-            {localCount}
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
+const SORTS = [
+  { id: 'recent', label: 'Recent' },
+  { id: 'trending', label: 'Trending' },
+];
 
 export default function Community() {
   const { user } = useAuth();
@@ -108,11 +24,12 @@ export default function Community() {
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [sort, setSort] = useState('recent');
 
-  const load = useCallback(async (off = 0, replace = true) => {
+  const load = useCallback(async (off = 0, replace = true, sortBy = 'recent') => {
     try {
       if (replace) setLoading(true);
-      const res = await fetch(`/api/community?limit=${PAGE}&offset=${off}`);
+      const res = await fetch(`/api/community?limit=${PAGE}&offset=${off}&sort=${sortBy}`);
       const data = await res.json();
       const list = data.patterns ?? [];
       if (replace) {
@@ -130,7 +47,13 @@ export default function Community() {
     }
   }, [showToast]);
 
-  useEffect(() => { Promise.resolve().then(() => load(0, true)); }, [load]);
+  useEffect(() => { Promise.resolve().then(() => load(0, true, sort)); }, [load, sort]);
+
+  const handleSort = (id) => {
+    if (id === sort) return;
+    setOffset(0);
+    setSort(id);
+  };
 
   const handleNeedAuth = () => showToast('Sign in to star patterns.', 'info');
 
@@ -149,9 +72,34 @@ export default function Community() {
           <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
             Made by makers, for makers.
           </h1>
-          <p className="text-on-surface-variant max-w-xl mb-8">
+          <p className="text-on-surface-variant max-w-xl mb-6">
             Patterns published by the Loopsy community — star the ones you love and start making.
           </p>
+
+          <div className="mb-8 inline-flex rounded-full border border-outline-variant/30 bg-surface-container-lowest p-1 shadow-warm">
+            {SORTS.map((s) => {
+              const active = sort === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => handleSort(s.id)}
+                  aria-pressed={active}
+                  className={`relative rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    active ? 'text-on-primary' : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {active && (
+                    <Motion.span
+                      layoutId="community-sort-pill"
+                      className="absolute inset-0 rounded-full bg-primary"
+                      transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative">{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </Reveal>
 
         {loading && patterns.length === 0 ? (
@@ -186,7 +134,7 @@ export default function Community() {
             {hasMore && (
               <div className="mt-8 flex justify-center">
                 <Motion.button
-                  onClick={() => load(offset, false)}
+                  onClick={() => load(offset, false, sort)}
                   disabled={loading}
                   whileTap={{ scale: 0.96 }}
                   transition={SPRING.bouncy}

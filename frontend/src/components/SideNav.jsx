@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, BookOpen, User, Plus, Shapes, Search, Globe } from 'lucide-react';
+import { Compass, Sparkles, BookOpen, User, Plus, Shapes, Search, Globe, Library } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from './AuthProvider';
 import { openCommandPalette } from '../lib/commandPalette';
@@ -57,6 +57,7 @@ export default function SideNav() {
         <NavItem to="/create" icon={Sparkles} label="Create" active={isActive('/create')} />
         <NavItem to="/design" icon={Shapes} label="Design Canvas" active={isActive('/design')} />
         <NavItem to="/tracker" icon={BookOpen} label="In Progress" active={isActive('/tracker')} />
+        <NavItem to="/library" icon={Library} label="Library" active={isActive('/library')} />
         <NavItem to="/community" icon={Globe} label="Community" active={isActive('/community')} />
         <NavItem to="/account" icon={User} label="Account" active={isActive('/account')} />
       </nav>

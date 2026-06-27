@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Star, ArrowLeft, Sparkles, Globe, BookOpen } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import SaveToCollection from '../components/SaveToCollection';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
@@ -129,17 +130,32 @@ export default function PublicPattern() {
                   {pattern.verified && <VerifiedBadge size={14} />}
                 </div>
                 <h1 className="text-2xl font-bold text-on-surface leading-tight mb-1">{pattern.title}</h1>
-                <p className="text-sm text-on-surface-variant">by {pattern.authorName}</p>
+                {pattern.authorHandle ? (
+                  <p className="text-sm text-on-surface-variant">
+                    by{' '}
+                    <Link
+                      to={`/u/${pattern.authorHandle}`}
+                      className="font-medium text-on-surface hover:text-primary transition-colors"
+                    >
+                      {pattern.authorName}
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="text-sm text-on-surface-variant">by {pattern.authorName}</p>
+                )}
               </div>
-              <Motion.button
-                onClick={handleStar}
-                disabled={starring}
-                whileTap={{ scale: 0.88 }}
-                className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-container-lowest/85 px-3 py-2.5 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest disabled:opacity-60"
-              >
-                <Star size={20} className={starred ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant'} />
-                <span className="text-[11px] font-bold text-on-surface">{starCount}</span>
-              </Motion.button>
+              <div className="flex shrink-0 items-start gap-2">
+                <Motion.button
+                  onClick={handleStar}
+                  disabled={starring}
+                  whileTap={{ scale: 0.88 }}
+                  className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-container-lowest/85 px-3 py-2.5 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest disabled:opacity-60"
+                >
+                  <Star size={20} className={starred ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant'} />
+                  <span className="text-[11px] font-bold text-on-surface">{starCount}</span>
+                </Motion.button>
+                <SaveToCollection patternId={pattern.id} />
+              </div>
             </div>
           </div>
 
