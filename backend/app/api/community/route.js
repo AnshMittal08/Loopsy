@@ -12,9 +12,10 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(48, Math.max(1, Number(searchParams.get("limit") || 24)));
     const offset = Math.max(0, Number(searchParams.get("offset") || 0));
+    const sort = searchParams.get("sort") === "trending" ? "trending" : "recent";
 
     const [patterns, starredIds] = await Promise.all([
-      getCommunityFeed({ limit, offset }),
+      getCommunityFeed({ limit, offset, sort }),
       (async () => {
         const user = await getAuthenticatedUser(request);
         return user ? getUserStarredIds(user.id) : [];

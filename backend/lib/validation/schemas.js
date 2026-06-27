@@ -41,6 +41,15 @@ export const checkoutSchema = z.object({
   plan: z.enum(["maker_pro", "creator"]),
 });
 
+export const createCollectionSchema = z.object({
+  name: z.string().trim().min(1, "A collection name is required.").max(60),
+});
+
+export const collectionItemSchema = z.object({
+  patternId: z.string().trim().min(1, "patternId is required."),
+  present: z.boolean(),
+});
+
 export const createDesignSchema = z.object({
   name: z.string().trim().max(200).optional(),
   spec: z.record(z.string(), z.any()).refine((v) => v && typeof v === "object", "A design spec is required."),

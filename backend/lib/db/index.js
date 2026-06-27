@@ -20,6 +20,10 @@ const PG_KEYMAP = {
   publishedat: 'publishedAt',
   starcount: 'starCount',
   patterndid: 'patternId',
+  collectionid: 'collectionId',
+  authorname: 'authorName',
+  authorhandle: 'authorHandle',
+  patterncount: 'patternCount',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -231,6 +235,9 @@ function initializeDatabase(db) {
   const userColumns = db.prepare(`PRAGMA table_info(users)`).all();
   const existingUserColumns = new Set(userColumns.map((column) => column.name));
   addColumnIfMissing(existingUserColumns, 'emailVerified', "ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0");
+  // Community v2: public creator handle (unique slug).
+  addColumnIfMissing(existingUserColumns, 'handle', "ALTER TABLE users ADD COLUMN handle TEXT");
+  try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle)`); } catch (e) { if (!/already exists/i.test(e.message)) throw e; }
 
   const subscriptionColumns = db.prepare(`PRAGMA table_info(subscriptions)`).all();
   const existingSubscriptionColumns = new Set(subscriptionColumns.map((column) => column.name));
@@ -249,6 +256,29 @@ function initializeDatabase(db) {
       );
       CREATE INDEX IF NOT EXISTS idx_pattern_stars_pattern ON pattern_stars(patternId);
       CREATE INDEX IF NOT EXISTS idx_pattern_stars_user ON pattern_stars(userId);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+
+  // Collections: named groups of saved patterns, owned by a user.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS collections (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        name TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS collection_patterns (
+        collectionId TEXT NOT NULL,
+        patternId TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (collectionId, patternId)
+      );
+      CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(userId);
+      CREATE INDEX IF NOT EXISTS idx_collection_patterns_collection ON collection_patterns(collectionId);
     `);
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;

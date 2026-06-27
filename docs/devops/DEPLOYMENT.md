@@ -33,6 +33,13 @@ These must be applied to the live Railway/Neon/Stripe/Vercel servers. Tick when 
       (adds `patterns.publishedAt`, `patterns.starCount`, and the `pattern_stars` table).
 - [ ] No new env vars.
 
+### From `feat/community-catalog` (community v2 — profiles + collections)
+- [ ] **Neon migration**: run `npm run migrate` → applies `0005_profiles_collections.sql`
+      (adds `users.handle` + unique index, and the `collections` + `collection_patterns` tables).
+- [ ] **Handle backfill**: existing users get a unique `handle` lazily on their next
+      `GET /api/me` (self-healing — no manual backfill needed). New signups get one at creation.
+- [ ] No new env vars.
+
 > `npm run migrate` is idempotent and applies **all** pending `.sql` files in order,
 > so a single run from a host that can reach Neon covers both `0003` and `0004`.
 
@@ -106,6 +113,7 @@ npm run smoke:pg                               # optional: verify the live DB en
 | `0002_seed_templates.sql` | 22 seed templates |
 | `0003_billing.sql` | `subscriptions.stripeCustomerId` |
 | `0004_community.sql` | `patterns.publishedAt`, `patterns.starCount`, `pattern_stars` table |
+| `0005_profiles_collections.sql` | `users.handle` + unique index, `collections` + `collection_patterns` tables |
 
 **Note:** the SQLite adapter (`lib/db/index.js`) runs its own idempotent `ALTER TABLE`
 migrations at boot, so local dev needs no migrate step — but every schema change must be

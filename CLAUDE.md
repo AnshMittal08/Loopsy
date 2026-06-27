@@ -121,7 +121,11 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 | `/create/:templateId?` | template customization, AI text + photo (Vision Studio) generation |
 | `/design` | Design Canvas — Build (shapes + Sculpt + 3D) / Draw (colourwork chart + medallion) |
 | `/d/:id` | public read-only design share page |
-| `/tracker/:patternId?` | progress tracker (no id → My Projects) |
+| `/tracker/:patternId?` | progress tracker (no id → My Projects; publish toggle per project) |
+| `/community` | community feed of published patterns (Recent / Trending sort) |
+| `/p/:id` | public read-only pattern page (star, save-to-collection) |
+| `/u/:handle` | public creator profile (their published patterns + stats) |
+| `/library` | the signed-in user's collections (saved-pattern groups) |
 
 ## Key API routes (beyond auth)
 
@@ -135,6 +139,13 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 | `POST /api/design/preview` | live, no-save compile summary for the canvas |
 | `GET/POST /api/designs`, `GET/PATCH /api/designs/:id` | persist + link + share designs |
 | `GET /api/designs/:id/og` | auto-generated Open Graph image (SVG) |
+| `GET /api/community?sort=recent\|trending` | paginated public pattern feed (+ caller's starred set) |
+| `PATCH /api/patterns/:id` | publish/unpublish toggle (owner) |
+| `POST /api/patterns/:id/star` | toggle a star on a published pattern |
+| `GET /api/patterns/:id/public` | public read-only pattern detail |
+| `GET /api/users/:handle` | public creator profile + their published patterns |
+| `GET/POST /api/collections`, `GET/DELETE /api/collections/:id`, `POST /api/collections/:id/patterns` | collections CRUD + membership |
+| `POST /api/billing/checkout`, `POST /api/billing/portal`, `POST /api/billing/webhook` | Stripe checkout, billing portal, webhook |
 
 ## Database Notes
 

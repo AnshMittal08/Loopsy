@@ -126,7 +126,7 @@ async function setPatternPublished(id, userId, publish) {
 }
 
 const getPublicPatternStmt = db.prepare(
-  `SELECT p.*, u.name AS authorName
+  `SELECT p.*, u.name AS authorName, u.handle AS authorHandle
    FROM patterns p
    JOIN users u ON u.id = p.userId
    WHERE p.id = ? AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL`
@@ -135,29 +135,71 @@ const getPublicPatternStmt = db.prepare(
 async function getPublicPatternById(id) {
   const row = await getPublicPatternStmt.get(id);
   if (!row) return null;
-  return { ...deserializePatternRow(row), authorName: row.authorName };
+  return { ...deserializePatternRow(row), authorName: row.authorName, authorHandle: row.authorHandle };
 }
 
-const communityFeedStmt = db.prepare(
-  `SELECT p.id, p.title, p.difficulty, p.category, p.tags, p.verified,
-          p.isAIGenerated, p.hookSize, p.yarnWeight, p.starCount, p.publishedAt,
-          u.name AS authorName
-   FROM patterns p
-   JOIN users u ON u.id = p.userId
+const FEED_COLS =
+  `p.id, p.title, p.difficulty, p.category, p.tags, p.verified,
+   p.isAIGenerated, p.hookSize, p.yarnWeight, p.starCount, p.publishedAt,
+   p.userId, u.name AS authorName, u.handle AS authorHandle`;
+
+const communityFeedRecentStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
    WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
    ORDER BY p.publishedAt DESC
    LIMIT ? OFFSET ?`
 );
 
-/** Paginated community feed of published patterns (newest first). */
-async function getCommunityFeed({ limit = 24, offset = 0 } = {}) {
-  const rows = await communityFeedStmt.all(limit, offset);
-  return rows.map((r) => ({
+const communityFeedTrendingStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
+   WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
+   ORDER BY p.starCount DESC, p.publishedAt DESC
+   LIMIT ? OFFSET ?`
+);
+
+function deserializeFeedRow(r) {
+  return {
     ...r,
     tags: parseJsonArray(r.tags),
     isAIGenerated: Boolean(r.isAIGenerated),
     verified: Boolean(r.verified),
-  }));
+  };
+}
+
+/** Paginated community feed of published patterns. sort: 'recent' | 'trending'. */
+async function getCommunityFeed({ limit = 24, offset = 0, sort = 'recent' } = {}) {
+  const stmt = sort === 'trending' ? communityFeedTrendingStmt : communityFeedRecentStmt;
+  const rows = await stmt.all(limit, offset);
+  return rows.map(deserializeFeedRow);
+}
+
+const userPublishedStmt = db.prepare(
+  `SELECT ${FEED_COLS}
+   FROM patterns p JOIN users u ON u.id = p.userId
+   WHERE p.userId = ? AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL
+   ORDER BY p.publishedAt DESC
+   LIMIT ? OFFSET ?`
+);
+
+/** A creator's published patterns (for their public profile). */
+async function getPublishedPatternsByUser(userId, { limit = 48, offset = 0 } = {}) {
+  const rows = await userPublishedStmt.all(userId, limit, offset);
+  return rows.map(deserializeFeedRow);
+}
+
+/** Feed-card data for a set of published pattern ids (collection contents). */
+async function getPublicCardsByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(', ');
+  const stmt = db.prepare(
+    `SELECT ${FEED_COLS}
+     FROM patterns p JOIN users u ON u.id = p.userId
+     WHERE p.id IN (${placeholders}) AND p.publishedAt IS NOT NULL AND p.deletedAt IS NULL`
+  );
+  const rows = await stmt.all(...ids);
+  return rows.map(deserializeFeedRow);
 }
 
 // Stars ────────────────────────────────────────────────────────────────────
@@ -211,6 +253,8 @@ module.exports = {
   setPatternPublished,
   getPublicPatternById,
   getCommunityFeed,
+  getPublishedPatternsByUser,
+  getPublicCardsByIds,
   toggleStar,
   getUserStarredIds,
 };
