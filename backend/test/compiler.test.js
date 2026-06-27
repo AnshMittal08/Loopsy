@@ -26,6 +26,27 @@ test('compiles a multi-part amigurumi and the result verifies', () => {
   assert.equal(v.issues.length, 0, JSON.stringify(v.issues));
 });
 
+test('per-part stitch, custom assembly, and embellishments compile and verify', () => {
+  const c = compileDesignSpec({
+    name: 'Mixed', category: 'Amigurumi', yarnWeight: 'Worsted',
+    parts: [
+      { name: 'Body', shape: 'sphere', dimensions: { diameterCm: 6 }, color: 'teal', stitch: 'hdc' },
+      { name: 'Scarf', shape: 'flatPanel', dimensions: { widthCm: 2, heightCm: 12 }, color: 'cream', stitch: 'dc' },
+    ],
+    assembly: ['Wrap the scarf around the neck and tack in place.'],
+    embellishments: ['Embroider two French-knot eyes in black.'],
+  });
+  assert.ok(c.ok);
+  // The maker's assembly + embellishment text is emitted verbatim as steps.
+  assert.ok(c.steps.some((s) => /Assembly: Wrap the scarf/.test(s.instruction)));
+  assert.ok(c.steps.some((s) => /Embellishment: Embroider two French-knot/.test(s.instruction)));
+  // Different stitches render with their full names.
+  assert.ok(c.steps.some((s) => /half double crochet/.test(s.instruction)));
+  assert.ok(c.steps.some((s) => /double crochet/.test(s.instruction)));
+  // The math still verifies independently.
+  assert.equal(validatePattern(c.steps).issues.length, 0, JSON.stringify(validatePattern(c.steps).issues));
+});
+
 test('rejects an unknown shape', () => {
   const c = compileDesignSpec({ name: 'X', category: 'Custom', yarnWeight: 'DK', parts: [{ name: 'Z', shape: 'dodecahedron', dimensions: {} }] });
   assert.equal(c.ok, false);
