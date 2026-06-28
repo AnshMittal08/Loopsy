@@ -9,6 +9,7 @@
     "test": "node --import ./test/setup.mjs --test test/*.test.js",
     "backup": "node scripts/backup-db.js",
     "migrate": "node scripts/migrate.js",
+    "migrate:deploy": "node scripts/migrate.js --allow-skip",
     "smoke:pg": "node --import ./test/setup.mjs test/pg-smoke.mjs"
   },
   "dependencies": {

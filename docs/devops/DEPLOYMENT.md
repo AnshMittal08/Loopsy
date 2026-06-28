@@ -14,34 +14,43 @@
 
 ## 1. Pending deploy actions
 
-These must be applied to the live Railway/Neon/Stripe/Vercel servers. Tick when done.
+The single live checklist. Tick each box once it's applied; anything done moves
+to [Applied history](#applied-history).
 
-### From PR #34 — `feat/account-management` (billing)
-- [ ] **Neon migration**: run `npm run migrate` → applies `0003_billing.sql`
-      (adds `subscriptions.stripeCustomerId`).
-- [ ] **Railway env** (optional — billing stays dormant + honest-503 until all are set):
-  - [ ] `STRIPE_SECRET_KEY` — Stripe secret API key (`sk_test_…` / `sk_live_…`)
-  - [ ] `STRIPE_WEBHOOK_SECRET` — signing secret of the webhook endpoint (`whsec_…`)
-  - [ ] `STRIPE_PRICE_MAKER_PRO` — Stripe Price id for the Maker Pro plan (`price_…`)
-  - [ ] `STRIPE_PRICE_CREATOR` — Stripe Price id for the Creator plan (`price_…`)
-- [ ] **Stripe dashboard**: create a webhook endpoint → `https://<api>.railway.app/api/billing/webhook`
+### 🔴 Required (one-time) — let migrations auto-apply
+Migrations are now run by the **Migrate (Neon)** GitHub workflow on every push to
+`main` that touches `backend/migrations/**` (and on-demand via *Actions → Run
+workflow*). It is idempotent and additive, so re-runs are safe.
+
+- [ ] **Add the `DATABASE_URL` GitHub Actions secret** (repo → Settings → Secrets
+      and variables → Actions → New repository secret). Value = the pooled Neon
+      URL incl. `?sslmode=require`. Until this exists the workflow no-ops (stays
+      green) and nothing is applied.
+- [ ] **Trigger the first run**: once the secret is set, re-run the latest
+      *Migrate (Neon)* workflow (or push any migrations change). This applies the
+      backlog in order: `0003_billing` → `0004_community` → `0005_profiles_collections`
+      (`stripeCustomerId`; `publishedAt`/`starCount`/`pattern_stars`; `users.handle`
+      + `collections`/`collection_patterns`).
+- [ ] _(Optional manual fallback)_ from any host that can reach Neon:
+      `cd backend && DATABASE_URL=… npm run migrate` (then `npm run smoke:pg`).
+
+No manual handle backfill is needed — existing users get a unique `handle` lazily
+on their next `GET /api/me` (self-healing); new signups get one at creation.
+
+### 🟡 Optional — turn billing ON (Railway)
+Billing stays dormant + returns an honest `503` until **all four** are set:
+- [ ] `STRIPE_SECRET_KEY` (`sk_test_…` / `sk_live_…`)
+- [ ] `STRIPE_WEBHOOK_SECRET` (`whsec_…`)
+- [ ] `STRIPE_PRICE_MAKER_PRO` (`price_…`)
+- [ ] `STRIPE_PRICE_CREATOR` (`price_…`)
+- [ ] **Stripe webhook endpoint** → `https://<api>.railway.app/api/billing/webhook`
       subscribed to `checkout.session.completed`, `customer.subscription.updated`,
-      `customer.subscription.deleted`. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+      `customer.subscription.deleted`; copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
 
-### From `feat/community-catalog` (community)
-- [ ] **Neon migration**: run `npm run migrate` → applies `0004_community.sql`
-      (adds `patterns.publishedAt`, `patterns.starCount`, and the `pattern_stars` table).
-- [ ] No new env vars.
-
-### From `feat/community-catalog` (community v2 — profiles + collections)
-- [ ] **Neon migration**: run `npm run migrate` → applies `0005_profiles_collections.sql`
-      (adds `users.handle` + unique index, and the `collections` + `collection_patterns` tables).
-- [ ] **Handle backfill**: existing users get a unique `handle` lazily on their next
-      `GET /api/me` (self-healing — no manual backfill needed). New signups get one at creation.
-- [ ] No new env vars.
-
-> `npm run migrate` is idempotent and applies **all** pending `.sql` files in order,
-> so a single run from a host that can reach Neon covers both `0003` and `0004`.
+### ✅ Need nothing
+Stripes, design-craft (per-part stitch / assembly / embellishments), and the
+Learning Centre — all frontend-only or carried inside the existing design-spec
+JSON. No migration, no env.
 
 ---
 
@@ -98,14 +107,23 @@ Migrations live in `backend/migrations/`, applied in filename order by `scripts/
 **All are idempotent** (`IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` / `ON CONFLICT`), so
 re-running is always safe.
 
+**Automated (preferred).** The `.github/workflows/migrate.yml` **Migrate (Neon)** job runs
+on every push to `main` that touches `backend/migrations/**` (or `scripts/migrate.js`), and
+can be run on-demand from *Actions → Migrate (Neon) → Run workflow*. It uses the
+`DATABASE_URL` repo secret; if that secret is unset it **no-ops gracefully** (the job calls
+`npm run migrate:deploy`, i.e. `migrate.js --allow-skip`). A `concurrency` group serialises
+runs so two never race the same DB.
+
+**Manual fallback** — from any host that can reach Neon (laptop, Railway shell):
+
 ```bash
 cd backend
 DATABASE_URL=postgresql://…  npm run migrate   # or put DATABASE_URL in backend/.env (gitignored)
 npm run smoke:pg                               # optional: verify the live DB end-to-end
 ```
 
-> Run from a host that can reach Neon (your laptop, Railway shell, or CI) — **not** a
-> sandbox whose egress blocks the DB host.
+> Don't run it from a sandbox whose egress blocks the DB host (the CI runner and your
+> laptop are both fine; this dev sandbox is not).
 
 | File | Adds |
 |------|------|

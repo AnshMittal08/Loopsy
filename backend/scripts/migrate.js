@@ -28,8 +28,16 @@ function readDatabaseUrl() {
 }
 
 async function main() {
+  // --allow-skip (used by the deploy workflow): a missing DATABASE_URL is a
+  // graceful no-op rather than a failure, so the migrate job stays green on
+  // repos/forks that haven't configured the secret yet.
+  const allowSkip = process.argv.includes('--allow-skip');
   const url = readDatabaseUrl();
   if (!url) {
+    if (allowSkip) {
+      console.log('• DATABASE_URL not set — skipping migrations (nothing to apply).');
+      return;
+    }
     console.error('✗ DATABASE_URL is not set. Pass it as an env var or put it in backend/.env');
     process.exit(1);
   }
