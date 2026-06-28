@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Compass, Sparkles, Shapes, BookOpen, User, CornerDownLeft } from 'lucide-react';
+import { Search, Compass, Sparkles, Shapes, BookOpen, User, CornerDownLeft, GraduationCap } from 'lucide-react';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { OPEN_EVENT } from '../lib/commandPalette';
+import { searchGuides } from '../lib/learnContent';
 
 // Static quick-nav actions, always available.
 const ACTIONS = [
@@ -11,6 +12,7 @@ const ACTIONS = [
   { id: 'a-create', label: 'Create a pattern', to: '/create', icon: Sparkles },
   { id: 'a-design', label: 'Open the Design Canvas', to: '/design', icon: Shapes },
   { id: 'a-tracker', label: 'My projects', to: '/tracker', icon: BookOpen },
+  { id: 'a-learn', label: 'Learn to crochet', to: '/learn', icon: GraduationCap },
   { id: 'a-account', label: 'Account', to: '/account', icon: User },
 ];
 
@@ -76,11 +78,14 @@ export default function CommandPalette() {
   const ql = query.trim().toLowerCase();
   const shown = ql.length >= 2 ? results : EMPTY;
   const actions = ql ? ACTIONS.filter((a) => a.label.toLowerCase().includes(ql)) : ACTIONS;
+  // Guides are bundled client-side; search + cap them so the list stays tidy.
+  const guideHits = ql.length >= 2 ? searchGuides(ql).slice(0, 4) : [];
   const items = [
     ...actions.map((a) => ({ key: a.id, label: a.label, to: a.to, icon: a.icon })),
     ...shown.templates.map((t) => ({ key: `t-${t.id}`, label: t.name, sub: `${t.difficulty} · ${t.category}`, to: `/templates/${t.id}`, kind: 'Template' })),
     ...shown.patterns.map((p) => ({ key: `p-${p.id}`, label: p.title, to: `/tracker/${p.id}`, kind: 'Pattern' })),
     ...shown.designs.map((d) => ({ key: `d-${d.id}`, label: d.name, to: `/d/${d.id}`, kind: 'Design' })),
+    ...guideHits.map((g) => ({ key: `g-${g.slug}`, label: g.title, sub: `${g.minutes} min read`, to: `/learn/${g.slug}`, kind: 'Learn' })),
   ];
   const go = (item) => { if (item) { close(); navigate(item.to); } };
 

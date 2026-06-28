@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, GraduationCap } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { searchGuides } from '../lib/learnContent';
 
 function Group({ title, items, render }) {
   if (!items?.length) return null;
@@ -39,7 +40,9 @@ export default function SearchResults() {
   }, [q]);
 
   const submit = (e) => { e.preventDefault(); setParams(input.trim() ? { q: input.trim() } : {}); };
-  const total = results ? results.templates.length + results.patterns.length + results.designs.length : 0;
+  // Guides are bundled client-side, so they're searched here directly (no API).
+  const guideHits = searchGuides(q);
+  const total = (results ? results.templates.length + results.patterns.length + results.designs.length : 0) + guideHits.length;
 
   return (
     <div className="flex min-h-dvh bg-surface text-on-surface">
@@ -64,6 +67,18 @@ export default function SearchResults() {
           {q.trim().length >= 2 && !loading && results && total === 0 && (
             <p className="text-on-surface-variant">No matches for “{q}”. Try a different word.</p>
           )}
+
+          <Group title="Learning" items={guideHits} render={(g) => (
+            <li key={g.slug}>
+              <Link to={`/learn/${g.slug}`} className="card-lift flex items-center justify-between gap-3 rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-4 py-3 shadow-warm">
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <GraduationCap size={15} className="shrink-0 text-primary" />
+                  <span className="min-w-0"><span className="font-semibold">{g.title}</span><span className="block text-xs text-on-surface-variant">{g.category} · {g.minutes} min read</span></span>
+                </span>
+                <ArrowRight size={15} className="shrink-0 text-on-surface-variant" />
+              </Link>
+            </li>
+          )} />
 
           {results && (
             <>

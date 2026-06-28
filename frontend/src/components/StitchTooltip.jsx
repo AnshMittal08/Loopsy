@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ExternalLink, GraduationCap } from 'lucide-react';
 import { ABBREVIATIONS, expandAbbreviations } from '../lib/crochetAbbreviations';
 
 let closeCurrentTooltip = null;
@@ -129,9 +130,14 @@ function StitchTooltip({ stitchData, children }) {
             )}
 
             <div className="px-4 py-2.5 border-t border-outline-variant/10 bg-surface-container-lowest">
-              <span className="text-[11px] text-on-surface-variant/40 font-semibold cursor-default">
-                Learn more coming soon →
-              </span>
+              <Link
+                to="/learn"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant hover:text-primary transition-colors"
+              >
+                <GraduationCap size={12} />
+                Learn the basics →
+              </Link>
             </div>
           </div>
         </TooltipPortal>
