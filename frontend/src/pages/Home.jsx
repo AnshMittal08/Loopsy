@@ -11,6 +11,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import CatalogBrowser from '../components/CatalogBrowser';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING } from '../lib/motionTokens';
+import { useDocumentHead } from '../lib/useDocumentHead';
 import { useAuth } from '../components/AuthProvider';
 
 // three.js stays out of the initial bundle — the yarn ball arrives lazily.
@@ -119,6 +120,19 @@ export default function Home() {
   }, [templates]);
 
   const featuredTemplate = templates[0];
+
+  useDocumentHead({
+    title: 'Loopsy — AI-native crochet studio',
+    description:
+      'Browse curated templates, customize by skill level, or describe what you want to make and let AI generate a complete step-by-step pattern.',
+    canonicalPath: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Loopsy',
+      url: typeof window !== 'undefined' ? window.location.origin : 'https://loopsy.app',
+    },
+  });
 
   return (
     <>
