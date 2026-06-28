@@ -84,11 +84,12 @@ function StripeBands({ part, clipId }) {
   );
 }
 
-function Part({ part, selected, ids, onPointerDown, onSculptDown, onResizeDown }) {
+function Part({ part, selected, ids, onPointerDown, onSculptDown, onResizeDown, onContextMenu }) {
   const g = partGeometry(part, CANVAS.px);
   const striped = part.colorPlan?.colors?.length >= 2;
   const fill = hexOf(striped ? part.colorPlan.colors[0] : part.color);
   const handlers = onPointerDown ? { onPointerDown: (e) => onPointerDown(e, part), style: { cursor: 'grab' } } : {};
+  if (onContextMenu) handlers.onContextMenu = (e) => onContextMenu(part, e);
   const isSculpt = part.shape === 'revolve';
   const bb = partBBox(part, CANVAS.px);
   const pad = 6;
@@ -123,7 +124,7 @@ function Part({ part, selected, ids, onPointerDown, onSculptDown, onResizeDown }
   );
 }
 
-export default function CanvasStage({ parts, selectedId, onSelect, onMove, onSculpt, onResize, interactive = true, className = '' }) {
+export default function CanvasStage({ parts, selectedId, onSelect, onMove, onSculpt, onResize, onInteractionStart, onPartContextMenu, interactive = true, className = '' }) {
   const svgRef = useRef(null);
   const uid = useId().replace(/:/g, '');
   const ids = {
@@ -140,8 +141,10 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
 
   const handleDown = useCallback((e, part) => {
     if (!interactive) return;
+    if (e.button !== undefined && e.button !== 0) return; // let right-click open the context menu
     e.stopPropagation();
     onSelect?.(part.id);
+    onInteractionStart?.(); // snapshot once so the whole drag is one undo step
     const start = toCanvas(e.clientX, e.clientY);
     const dx = start.x - part.x;
     const dy = start.y - part.y;
@@ -157,13 +160,14 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }, [interactive, onSelect, onMove, toCanvas]);
+  }, [interactive, onSelect, onMove, onInteractionStart, toCanvas]);
 
   // Drag the corner handle to scale a part — direct manipulation, so resizing
   // feels like grabbing the object, not nudging a slider.
   const handleResizeDown = useCallback((e, part) => {
     if (!interactive) return;
     e.stopPropagation();
+    onInteractionStart?.(); // one undo step for the whole resize drag
     const startDims = { ...part.dims };
     const start = toCanvas(e.clientX, e.clientY);
     const startDist = Math.max(8, Math.hypot(start.x - part.x, start.y - part.y));
@@ -182,13 +186,14 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }, [interactive, onResize, toCanvas]);
+  }, [interactive, onResize, onInteractionStart, toCanvas]);
 
   // Drag a profile control point: horizontal → radius, vertical → height
   // position (endpoints stay pinned at top/bottom).
   const handleSculptDown = useCallback((e, part, index) => {
     if (!interactive) return;
     e.stopPropagation();
+    onInteractionStart?.(); // one undo step for the whole sculpt drag
     const prof = [...(part.dims?.profile || [])].sort((a, b) => a.t - b.t);
     const H = (part.dims?.heightCm || 8) * CANVAS.px;
     const isEnd = index === 0 || index === prof.length - 1;
@@ -209,7 +214,7 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  }, [interactive, onSculpt, toCanvas]);
+  }, [interactive, onSculpt, onInteractionStart, toCanvas]);
 
   return (
     <svg
@@ -257,6 +262,7 @@ export default function CanvasStage({ parts, selectedId, onSelect, onMove, onScu
           onPointerDown={interactive ? handleDown : null}
           onSculptDown={interactive ? handleSculptDown : null}
           onResizeDown={interactive ? handleResizeDown : null}
+          onContextMenu={interactive ? onPartContextMenu : null}
         />
       ))}
     </svg>
