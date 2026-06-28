@@ -1,15 +1,14 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Sparkles, Search, ArrowDown, ArrowRight, Lightbulb, GraduationCap, SearchX } from 'lucide-react';
+import { Sparkles, ArrowDown, ArrowRight, Lightbulb, GraduationCap } from 'lucide-react';
 import TopNav from '../components/TopNav';
-import { SkeletonTemplateCard } from '../components/Skeleton';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { ThreadDivider, ThreadHero, ThreadSpinner } from '../components/motion/Thread';
 import Magnetic from '../components/motion/Magnetic';
-import TiltCard from '../components/motion/TiltCard';
 import Marquee from '../components/motion/Marquee';
 import VerifiedBadge from '../components/VerifiedBadge';
+import CatalogBrowser from '../components/CatalogBrowser';
 import { getPatternTheme } from '../lib/patternThemes';
 import { SPRING } from '../lib/motionTokens';
 import { useAuth } from '../components/AuthProvider';
@@ -55,70 +54,6 @@ async function fetchJson(url) {
   return data;
 }
 
-function TemplateCardImage({ imageUrl, category, title, compact = false }) {
-  const theme = getPatternTheme(category);
-  const [imgError, setImgError] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const Icon = theme.icon;
-
-  if (imageUrl && !imgError) {
-    return (
-      <div className={`relative overflow-hidden rounded-t-2xl bg-gradient-to-br ${theme.accent} ${compact ? 'h-48' : 'h-full min-h-[320px]'}`}>
-        <img
-          src={imageUrl}
-          alt={title}
-          loading="lazy"
-          className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${imgLoaded ? 'opacity-100 scale-100 group-hover:scale-[1.06]' : 'opacity-0 scale-105'}`}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => setImgError(true)}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-lowest/90 px-2.5 py-1 text-[11px] font-semibold text-on-surface backdrop-blur-sm">
-            <Icon size={12} />
-            {category}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`relative overflow-hidden rounded-t-2xl bg-gradient-to-br ${theme.accent} ${compact ? 'h-48' : 'h-full min-h-[320px]'}`}>
-      <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full blur-2xl ${theme.orb}`} />
-      <div className="absolute inset-x-6 bottom-6 top-6 rounded-xl border border-white/50 bg-white/30 backdrop-blur-sm" />
-      <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
-        <div className="max-w-[70%] rounded-xl bg-surface-container-lowest/85 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">{category || 'Custom'}</p>
-          <h3 className="mt-0.5 text-base font-bold text-on-surface leading-snug">{title}</h3>
-        </div>
-        <div className="rounded-full bg-surface-container-lowest/85 p-2.5 shadow-warm">
-          <Icon size={18} className="text-on-surface" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }) {
-  return (
-    <Motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.06 }}
-      whileTap={{ scale: 0.92 }}
-      animate={{ scale: active ? 1.04 : 1 }}
-      transition={SPRING.bouncy}
-      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 ${
-        active
-          ? 'bg-primary text-on-primary shadow-warm'
-          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-      }`}
-    >
-      {children}
-    </Motion.button>
-  );
-}
-
 function CountUp({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -152,9 +87,6 @@ export default function Home() {
   const [recentPatterns, setRecentPatterns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState('');
-  const [difficultyFilter, setDifficultyFilter] = useState('All');
-  const [categoryFilter, setCategoryFilter] = useState('All');
 
   useEffect(() => {
     let cancelled = false;
@@ -179,24 +111,6 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const categories = useMemo(
-    () => ['All', ...new Set(templates.map((t) => t.category).filter(Boolean))],
-    [templates]
-  );
-  const difficulties = useMemo(
-    () => ['All', ...new Set(templates.map((t) => t.difficulty).filter(Boolean))],
-    [templates]
-  );
-  const filteredTemplates = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return templates.filter((t) => {
-      const matchesSearch = !query || t.name.toLowerCase().includes(query) || (t.description || '').toLowerCase().includes(query) || (t.tags || []).some((tag) => tag.toLowerCase().includes(query));
-      const matchesDifficulty = difficultyFilter === 'All' || t.difficulty === difficultyFilter;
-      const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
-      return matchesSearch && matchesDifficulty && matchesCategory;
-    });
-  }, [templates, search, difficultyFilter, categoryFilter]);
-
   const beginnerPath = useMemo(() => {
     return BEGINNER_PATH.map((bp, i) => {
       const template = templates.find((t) => t.id === bp.id);
@@ -204,7 +118,7 @@ export default function Home() {
     }).filter(Boolean);
   }, [templates]);
 
-  const featuredTemplate = filteredTemplates[0] || templates[0];
+  const featuredTemplate = templates[0];
 
   return (
     <>
@@ -336,7 +250,7 @@ export default function Home() {
         </RevealGroup>
 
         {/* ── Beginner Path ── */}
-        {!loading && !search && difficultyFilter === 'All' && categoryFilter === 'All' && beginnerPath.length >= 4 && (
+        {!loading && beginnerPath.length >= 4 && (
           <section className="mt-16">
             <Reveal>
               <div className="flex items-center gap-2.5 mb-1">
@@ -391,108 +305,10 @@ export default function Home() {
         <ThreadDivider className="mt-16" />
 
         {/* ── Discover ── */}
-        <section id="discover" className="mt-8">
-          <Reveal className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Discover</p>
-              <h2 className="font-display mt-1.5 text-3xl font-bold tracking-tight text-on-surface">Pattern library</h2>
-              <p className="mt-2 max-w-xl text-sm text-on-surface-variant leading-relaxed">
-                Filter by category or difficulty, then customize a template or let AI create something new.
-              </p>
-            </div>
-            <div className="w-full max-w-sm focus-within:max-w-md transition-all duration-300">
-              <label htmlFor="search" className="sr-only">Search patterns</label>
-              <div className="relative">
-                <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-                <input
-                  id="search"
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search patterns, tags…"
-                  className="w-full rounded-full bg-surface-container-lowest border border-outline-variant/30 pl-10 pr-4 py-2.5 text-sm text-on-surface outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all"
-                />
-              </div>
-            </div>
-          </Reveal>
-
-          <div className="mt-5 flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
-                <FilterChip key={cat} active={categoryFilter === cat} onClick={() => setCategoryFilter(cat)}>{cat}</FilterChip>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {difficulties.map((diff) => (
-                <FilterChip key={diff} active={difficultyFilter === diff} onClick={() => setDifficultyFilter(diff)}>{diff}</FilterChip>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <div className="mt-6 rounded-xl bg-error-container px-5 py-4 text-sm text-on-error-container border border-error/10">{error}</div>
-          )}
-
-          {loading && (
-            <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {[...Array(6)].map((_, i) => <SkeletonTemplateCard key={i} />)}
-            </div>
-          )}
-
-          {!loading && (
-            <RevealGroup stagger={0.05} className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredTemplates.map((template) => (
-                <RevealItem key={template.id} className="h-full">
-                  <TiltCard className="group h-full overflow-hidden rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm transition-shadow duration-300 hover:shadow-warm-lg">
-                    <TemplateCardImage
-                      imageUrl={template.imageUrl}
-                      category={template.category}
-                      title={template.name}
-                      compact
-                    />
-                    <div className="p-5">
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">{template.difficulty}</span>
-                        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-semibold text-on-secondary-container">{template.category}</span>
-                      </div>
-                      <h3 className="mt-3 font-semibold text-on-surface group-hover:text-primary transition-colors leading-snug">{template.name}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-on-surface-variant line-clamp-2">{template.description}</p>
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-on-surface-variant">
-                        <div><span className="font-semibold text-on-surface">Hook </span>{template.hookSize}</div>
-                        <div><span className="font-semibold text-on-surface">Yarn </span>{template.yarnWeight}</div>
-                        <div><span className="font-semibold text-on-surface">Time </span>{template.timeEstimate}</div>
-                        <div><span className="font-semibold text-on-surface">Size </span>{template.finishedSize}</div>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {(template.tags || []).slice(0, 4).map((tag) => (
-                          <span key={tag} className="rounded-full bg-surface-container-low px-2.5 py-0.5 text-[11px] font-medium text-on-surface-variant">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-5 flex gap-2.5">
-                        <Link to={`/create/${template.id}`} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors">
-                          Customize
-                        </Link>
-                        <Link to={`/templates/${template.id}`} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container transition-colors">
-                          Details
-                        </Link>
-                      </div>
-                    </div>
-                  </TiltCard>
-                </RevealItem>
-              ))}
-            </RevealGroup>
-          )}
-
-          {!loading && filteredTemplates.length === 0 && (
-            <div className="mt-10 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-12 text-center shadow-warm">
-              <SearchX size={36} className="text-on-surface-variant mb-3 mx-auto" />
-              <p className="font-semibold text-on-surface">No patterns matched.</p>
-              <p className="mt-1.5 text-sm text-on-surface-variant">Try a broader search or use AI generation for a custom idea.</p>
-            </div>
-          )}
-        </section>
+        {error && (
+          <div className="mt-8 rounded-xl bg-error-container px-5 py-4 text-sm text-on-error-container border border-error/10">{error}</div>
+        )}
+        <CatalogBrowser templates={templates} loading={loading} user={user} />
 
         <ThreadDivider className="mt-20" />
 
