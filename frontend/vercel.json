@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://loopsy-backend.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://loopsy-backend.up.railway.app/api/sitemap"
     }
   ],
   "headers": [
