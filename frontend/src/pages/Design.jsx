@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d, BadgeCheck, Undo2, Redo2, Keyboard } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import CanvasStage from '../components/CanvasStage';
 import ChartStudio from './ChartStudio';
@@ -9,9 +9,11 @@ import ChartStudio from './ChartStudio';
 const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import ColorPicker from '../components/ColorPicker';
 import OnboardingCard from '../components/OnboardingCard';
+import ShortcutsHint from '../components/ShortcutsHint';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
 import { BUILD_TEMPLATES } from '../lib/buildTemplates';
 import { CANVAS, deriveAssembly } from '../lib/assembly';
+import { makeSnapshot, HISTORY_LIMIT } from '../lib/designHistory';
 import { SPRING } from '../lib/motionTokens';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
@@ -50,6 +52,8 @@ export default function Design() {
   const [recents, setRecents] = useState([]);
   const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
   const [preview, setPreview] = useState(null); // live compile summary
+  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, partId } right-click menu
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Assembly: auto-derived from layout until the maker takes over. While
   // `assemblyEdited` is false we derive at render/build time (don't store);
@@ -58,25 +62,104 @@ export default function Design() {
   const [assemblyEdited, setAssemblyEdited] = useState(false);
   const [embellishments, setEmbellishments] = useState([]); // [{ id, text }]
 
+  // ── Undo / redo ───────────────────────────────────────────────────────────
+  // History is snapshots of the five undoable fields only. The LIVE design
+  // state and both stacks live in refs so undo/redo/commit (invoked from a
+  // global keydown listener and from buttons) always read FRESH values — no
+  // stale closures. `canUndo`/`canRedo` are mirrored into state so the toolbar
+  // buttons re-render when a stack becomes (non-)empty.
+  //
+  // Refs are never read or written during render (React 19 lint forbids it):
+  // `liveRef` is synced in a post-render effect, and the stacks are only touched
+  // inside event-handler callbacks below.
+  const liveRef = useRef({ name, parts, assemblySteps, assemblyEdited, embellishments });
+  const undoRef = useRef([]);
+  const redoRef = useRef([]);
+  const coalesceRef = useRef({ kind: null, at: 0 });
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    liveRef.current = { name, parts, assemblySteps, assemblyEdited, embellishments };
+  });
+
+  const syncCanFlags = useCallback(() => {
+    setCanUndo(undoRef.current.length > 0);
+    setCanRedo(redoRef.current.length > 0);
+  }, []);
+
+  // Push the CURRENT state onto the undo stack and clear redo. Call BEFORE a
+  // mutation. `coalesceKey` (+ window ms) collapses consecutive same-kind edits
+  // (a typing burst or an arrow-nudge burst) into a single undo step.
+  const commit = useCallback((coalesceKey = null, windowMs = 600) => {
+    if (coalesceKey) {
+      const last = coalesceRef.current;
+      const now = Date.now();
+      coalesceRef.current = { kind: coalesceKey, at: now };
+      if (last.kind === coalesceKey && now - last.at < windowMs) return; // same burst → skip
+    } else {
+      coalesceRef.current = { kind: null, at: 0 };
+    }
+    undoRef.current.push(makeSnapshot(liveRef.current));
+    if (undoRef.current.length > HISTORY_LIMIT) undoRef.current.shift();
+    redoRef.current = [];
+    syncCanFlags();
+  }, [syncCanFlags]);
+
+  // Restore all five undoable fields from a snapshot (deep-cloned at capture).
+  const restore = useCallback((snap) => {
+    liveRef.current = snap; // keep the live mirror in step for an immediate follow-up undo
+    setName(snap.name);
+    setParts(snap.parts);
+    setAssemblySteps(snap.assemblySteps);
+    setAssemblyEdited(snap.assemblyEdited);
+    setEmbellishments(snap.embellishments);
+    // Selection may now point at a part that no longer exists.
+    setSelectedId((cur) => (snap.parts.some((p) => p.id === cur) ? cur : null));
+    coalesceRef.current = { kind: null, at: 0 };
+  }, []);
+
+  const undo = useCallback(() => {
+    if (undoRef.current.length === 0) return;
+    redoRef.current.push(makeSnapshot(liveRef.current));
+    restore(undoRef.current.pop());
+    syncCanFlags();
+  }, [restore, syncCanFlags]);
+
+  const redo = useCallback(() => {
+    if (redoRef.current.length === 0) return;
+    undoRef.current.push(makeSnapshot(liveRef.current));
+    restore(redoRef.current.pop());
+    syncCanFlags();
+  }, [restore, syncCanFlags]);
+
   const selected = parts.find((p) => p.id === selectedId) || null;
 
   // Effective assembly steps shown in the editor: derived (live) until edited.
   const effectiveAssembly = assemblyEdited ? assemblySteps : deriveAssembly(parts);
 
   // Take over the assembly: snapshot the current derived steps, then mutate them.
-  const beginAssemblyEdit = (mutate) => {
+  // `coalesceKey` lets per-keystroke textarea edits collapse into one undo step.
+  const beginAssemblyEdit = (mutate, coalesceKey = null) => {
+    commit(coalesceKey);
     setAssemblySteps((prev) => mutate(assemblyEdited ? prev : deriveAssembly(parts)));
     if (!assemblyEdited) setAssemblyEdited(true);
   };
-  const resetAssembly = () => { setAssemblyEdited(false); setAssemblySteps([]); };
+  const resetAssembly = () => { commit(); setAssemblyEdited(false); setAssemblySteps([]); };
 
-  const updatePart = (id, patch) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  const updateDim = (id, key, value) =>
+  const updatePart = (id, patch, coalesceKey = null) => {
+    commit(coalesceKey);
+    setParts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  };
+  const updateDim = (id, key, value) => {
+    commit(`dim:${id}:${key}`); // slider drag = one undo step
     setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims: { ...p.dims, [key]: value } } : p)));
+  };
   const movePart = useCallback((id, x, y) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, x, y } : p))), []);
   const resizePart = useCallback((id, dims) => setParts((ps) => ps.map((p) => (p.id === id ? { ...p, dims } : p))), []);
 
   const addShape = (def) => {
+    commit();
     // Deterministic stagger so new shapes don't stack exactly on top.
     const n = parts.length;
     const p = {
@@ -88,6 +171,7 @@ export default function Design() {
   };
 
   const applyTemplate = (t) => {
+    commit();
     setParts(t.parts().map((p) => ({ ...p, id: nextId(), dims: JSON.parse(JSON.stringify(p.dims)) })));
     setSelectedId(null);
     setName(t.label);
@@ -104,22 +188,134 @@ export default function Design() {
   const duplicatePart = (id) => {
     const src = parts.find((p) => p.id === id);
     if (!src) return;
+    commit();
     const p = { ...src, id: nextId(), x: Math.min(CANVAS.w - 12, src.x + 30), y: Math.min(CANVAS.h - 12, src.y + 24) };
     setParts((ps) => [...ps, p]);
     setSelectedId(p.id);
   };
   const deletePart = (id) => {
+    commit();
     setParts((ps) => ps.filter((p) => p.id !== id));
     setSelectedId(null);
   };
-  const reorder = (id, dir) => setParts((ps) => {
-    const i = ps.findIndex((p) => p.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= ps.length) return ps;
-    const next = [...ps];
-    [next[i], next[j]] = [next[j], next[i]];
-    return next;
+  // Embellishment mutations (commit; edits coalesce per-row so typing is one step).
+  const addEmbellishment = () => { commit(); setEmbellishments((list) => [...list, { id: nextId(), text: '' }]); };
+  const editEmbellishment = (id, text) => { commit(`emb:${id}`); setEmbellishments((list) => list.map((x) => (x.id === id ? { ...x, text } : x))); };
+  const removeEmbellishment = (id) => { commit(); setEmbellishments((list) => list.filter((x) => x.id !== id)); };
+
+  const reorder = (id, dir) => {
+    commit();
+    setParts((ps) => {
+      const i = ps.findIndex((p) => p.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= ps.length) return ps;
+      const next = [...ps];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  // Arrow-key nudge: a burst of presses coalesces into one undo step.
+  const nudgePart = (id, dx, dy) => {
+    commit(`nudge:${id}`);
+    setParts((ps) => ps.map((p) => (p.id === id ? {
+      ...p,
+      x: Math.max(10, Math.min(CANVAS.w - 10, p.x + dx)),
+      y: Math.max(10, Math.min(CANVAS.h - 10, p.y + dy)),
+    } : p)));
+  };
+
+  // Keep the latest values the global keydown listener needs in a ref, so the
+  // listener can be attached once (no re-binding) yet never read stale state.
+  // Synced in a post-render effect (refs must not be written during render).
+  const kbdRef = useRef(null);
+  useEffect(() => {
+    kbdRef.current = {
+      mode, selectedId, undo, redo,
+      deleteSelected: () => { if (selectedId) deletePart(selectedId); },
+      duplicateSelected: () => { if (selectedId) duplicatePart(selectedId); },
+      nudge: (dx, dy) => { if (selectedId) nudgePart(selectedId, dx, dy); },
+      deselect: () => { setSelectedId(null); setCtxMenu(null); },
+    };
   });
+
+  useEffect(() => {
+    const isTyping = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    };
+    const onKey = (e) => {
+      const h = kbdRef.current;
+      if (!h) return;
+      const meta = e.metaKey || e.ctrlKey;
+      const typing = isTyping(e.target);
+
+      // Undo/redo allowed everywhere except while typing in a text field.
+      if (meta && (e.key === 'z' || e.key === 'Z')) {
+        if (typing) return;
+        e.preventDefault();
+        if (e.shiftKey) h.redo(); else h.undo();
+        return;
+      }
+      if (meta && (e.key === 'y' || e.key === 'Y')) {
+        if (typing) return;
+        e.preventDefault();
+        h.redo();
+        return;
+      }
+
+      // The rest are build-mode, not-typing canvas shortcuts.
+      if (h.mode !== 'build' || typing) return;
+
+      if (meta && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); h.duplicateSelected(); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace') { if (h.selectedId) { e.preventDefault(); h.deleteSelected(); } return; }
+      if (e.key === 'Escape') { h.deselect(); return; }
+      const step = e.shiftKey ? 10 : 2;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); h.nudge(-step, 0); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); h.nudge(step, 0); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); h.nudge(0, -step); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); h.nudge(0, step); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Right-click a part on the canvas → open the context menu at the cursor.
+  const openPartMenu = useCallback((part, e) => {
+    e.preventDefault();
+    setSelectedId(part.id);
+    const PAD = 8, MW = 168, MH = 188;
+    const x = Math.min(e.clientX, window.innerWidth - MW - PAD);
+    const y = Math.min(e.clientY, window.innerHeight - MH - PAD);
+    setCtxMenu({ x: Math.max(PAD, x), y: Math.max(PAD, y), partId: part.id });
+  }, []);
+
+  // Close the context menu on any outside click or Escape.
+  useEffect(() => {
+    if (!ctxMenu) return undefined;
+    const close = () => setCtxMenu(null);
+    const onKey = (e) => { if (e.key === 'Escape') setCtxMenu(null); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', onKey); };
+  }, [ctxMenu]);
+
+  // Scroll-to-zoom over the artboard. Attached with { passive: false } so we can
+  // preventDefault and stop the page from scrolling.
+  const artboardRef = useRef(null);
+  useEffect(() => {
+    const el = artboardRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (view !== '2d') return; // 3D view has its own zoom
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0015;
+      setZoom((z) => Math.max(0.5, Math.min(2, round1(z + delta))));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [view]);
 
   // Build the Design Spec from the canvas: parts (with layout) + assembly
   // derived from where they sit. The engine still computes every stitch.
@@ -237,7 +433,7 @@ export default function Design() {
       <div>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Part name</p>
         <div className="flex items-center gap-2">
-          <input value={selected.name} onChange={(e) => updatePart(selected.id, { name: e.target.value })}
+          <input value={selected.name} onChange={(e) => updatePart(selected.id, { name: e.target.value }, `pname:${selected.id}`)}
             className="flex-1 rounded-lg bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30" />
           <span className="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-semibold text-on-secondary-container">{shapeDef(selected.shape)?.label || selected.shape}</span>
         </div>
@@ -358,7 +554,7 @@ export default function Design() {
         title="Design it in 3 steps"
         steps={[
           { title: 'Start from a creature or add shapes', body: 'pick Teddy/Bunny/etc., or drop in balls, tubes and cones from the left.' },
-          { title: 'Shape it by hand', body: 'drag to move, grab the corner handle to resize. Watch the live “Verified math” count respond.' },
+          { title: 'Shape it by hand', body: 'drag to move, grab the corner handle to resize, right-click for options, and arrows to nudge. ⌘Z undoes anything. Watch the live “Verified math” count respond.' },
           { title: 'Generate', body: 'turn your design into an exact, stitch-by-stitch pattern — the math is computed, never guessed.' },
         ]}
       />
@@ -368,7 +564,7 @@ export default function Design() {
           <Link to="/" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" aria-label="Exit editor"><ArrowLeft size={18} /></Link>
           <span className="font-display text-base font-bold hidden sm:block">Loopsy</span>
           <span className="text-outline-variant hidden sm:block">/</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Design name"
+          <input value={name} onChange={(e) => { commit('name', 1500); setName(e.target.value); }} aria-label="Design name"
             className="w-full min-w-0 sm:w-56 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
@@ -376,6 +572,19 @@ export default function Design() {
           <div className="flex rounded-full bg-surface-container-low p-0.5">
             <button className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1.5 text-xs font-semibold text-on-primary sm:px-3" aria-label="Build 3D mode"><Shapes size={13} /><span className="hidden sm:inline">Build 3D</span></button>
             <button onClick={() => setMode('draw')} className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors sm:px-3" aria-label="Draw mode"><Grid3x3 size={13} /><span className="hidden sm:inline">Draw</span></button>
+          </div>
+          {/* Undo / redo */}
+          <div className="flex items-center rounded-full bg-surface-container-low p-0.5">
+            <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)" aria-label="Undo"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:opacity-35 disabled:hover:bg-transparent"><Undo2 size={15} /></button>
+            <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)" aria-label="Redo"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:opacity-35 disabled:hover:bg-transparent"><Redo2 size={15} /></button>
+          </div>
+          {/* Keyboard shortcuts */}
+          <div className="relative hidden sm:block">
+            <button onClick={() => setShortcutsOpen((o) => !o)} title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${shortcutsOpen ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}><Keyboard size={16} /></button>
+            <ShortcutsHint open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
           </div>
           <button onClick={shareDesign} disabled={sharing}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
@@ -460,7 +669,7 @@ export default function Design() {
                         <textarea
                           rows={1}
                           value={step}
-                          onChange={(e) => beginAssemblyEdit((steps) => steps.map((s, j) => (j === i ? e.target.value : s)))}
+                          onChange={(e) => beginAssemblyEdit((steps) => steps.map((s, j) => (j === i ? e.target.value : s)), `asm:${i}`)}
                           className="min-h-[34px] flex-1 resize-none rounded-lg bg-surface-container-low px-2 py-1.5 text-[11px] leading-snug outline-none focus:ring-2 focus:ring-primary/30"
                         />
                         <div className="flex shrink-0 flex-col gap-0.5">
@@ -486,16 +695,16 @@ export default function Design() {
                       <div key={e.id} className="flex items-start gap-1">
                         <input
                           value={e.text}
-                          onChange={(ev) => setEmbellishments((list) => list.map((x) => (x.id === e.id ? { ...x, text: ev.target.value } : x)))}
+                          onChange={(ev) => editEmbellishment(e.id, ev.target.value)}
                           placeholder="Add a finishing touch…"
                           className="flex-1 rounded-lg bg-surface-container-low px-2 py-1.5 text-[11px] leading-snug outline-none focus:ring-2 focus:ring-primary/30"
                         />
-                        <button onClick={() => setEmbellishments((list) => list.filter((x) => x.id !== e.id))}
+                        <button onClick={() => removeEmbellishment(e.id)}
                           className="flex h-[30px] w-5 shrink-0 items-center justify-center rounded text-on-surface-variant hover:text-error transition-colors" aria-label="Remove embellishment"><Minus size={11} /></button>
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => setEmbellishments((list) => [...list, { id: nextId(), text: '' }])}
+                  <button onClick={addEmbellishment}
                     className="mt-2 inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"><Plus size={12} />Add embellishment</button>
                 </div>
               </div>
@@ -504,7 +713,7 @@ export default function Design() {
         </aside>
 
         {/* Center desk + artboard */}
-        <div className="relative flex min-h-[60vh] flex-1 items-center justify-center overflow-auto p-4 md:min-h-0 md:p-8">
+        <div ref={artboardRef} className="relative flex min-h-[60vh] flex-1 items-center justify-center overflow-auto p-4 md:min-h-0 md:p-8">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle,_color-mix(in_srgb,var(--on-surface)_8%,transparent)_1px,transparent_1px)] [background-size:24px_24px]" />
           <Motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -519,7 +728,7 @@ export default function Design() {
                     <Design3DPreview parts={parts} />
                   </Suspense>
                 ) : (
-                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} onResize={resizePart} />
+                  <CanvasStage parts={parts} selectedId={selectedId} onSelect={setSelectedId} onMove={movePart} onSculpt={updateSculpt} onResize={resizePart} onInteractionStart={commit} onPartContextMenu={openPartMenu} />
                 )}
               </div>
             </div>
@@ -556,9 +765,9 @@ export default function Design() {
           {/* Zoom control (2D only) */}
           {view === '2d' && (
             <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-surface-container-lowest/90 px-2 py-1 shadow-warm backdrop-blur">
-              <button onClick={() => setZoom((z) => Math.max(0.6, round1(z - 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom out"><Minus size={14} /></button>
+              <button onClick={() => setZoom((z) => Math.max(0.5, round1(z - 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom out"><Minus size={14} /></button>
               <button onClick={() => setZoom(1)} className="min-w-[44px] text-center text-xs font-semibold tabular-nums">{Math.round(zoom * 100)}%</button>
-              <button onClick={() => setZoom((z) => Math.min(1.5, round1(z + 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom in"><Plus size={14} /></button>
+              <button onClick={() => setZoom((z) => Math.min(2, round1(z + 0.1)))} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-surface-container-low transition-colors" aria-label="Zoom in"><Plus size={14} /></button>
             </div>
           )}
         </div>
@@ -575,6 +784,27 @@ export default function Design() {
           </AnimatePresence>
         </aside>
       </div>
+
+      {/* Right-click context menu on a part */}
+      {ctxMenu && (
+        <div
+          role="menu"
+          style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+          className="fixed z-50 min-w-[160px] overflow-hidden rounded-xl border border-outline-variant/20 bg-surface-container-lowest py-1 shadow-warm-xl"
+        >
+          <button role="menuitem" onClick={() => { duplicatePart(ctxMenu.partId); setCtxMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors"><Copy size={14} className="text-on-surface-variant" />Duplicate</button>
+          <button role="menuitem" onClick={() => { reorder(ctxMenu.partId, 1); setCtxMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors"><ChevronUp size={14} className="text-on-surface-variant" />Bring forward</button>
+          <button role="menuitem" onClick={() => { reorder(ctxMenu.partId, -1); setCtxMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors"><ChevronDown size={14} className="text-on-surface-variant" />Send back</button>
+          <div className="my-1 h-px bg-outline-variant/15" />
+          <button role="menuitem" onClick={() => { deletePart(ctxMenu.partId); setCtxMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={14} />Delete</button>
+        </div>
+      )}
     </div>
   );
 }
