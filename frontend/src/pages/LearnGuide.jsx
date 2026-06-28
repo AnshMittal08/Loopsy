@@ -1,14 +1,18 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Clock, GraduationCap, Check, Bookmark, BookmarkCheck } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import { Reveal } from '../components/motion/Reveal';
 import { getGuide } from '../lib/learnContent';
 import { getAbbreviationData } from '../lib/crochetAbbreviations';
+import { useLearningProgress } from '../lib/useLearningProgress';
 
 export default function LearnGuide() {
   const { slug } = useParams();
   const guide = getGuide(slug);
+  const { readSlugs, bookmarkedSlugs, markRead, toggleBookmark } = useLearningProgress();
+  const isRead = readSlugs.has(slug);
+  const isBookmarked = bookmarkedSlugs.has(slug);
 
   if (!guide) {
     return (
@@ -52,12 +56,46 @@ export default function LearnGuide() {
               <Clock size={11} />
               {guide.minutes} min read
             </span>
+            {isRead && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-semibold text-on-secondary-container">
+                <Check size={11} />
+                Read
+              </span>
+            )}
           </div>
 
           <h1 className="font-display display-wonk text-[1.7rem] sm:text-[2.1rem] font-bold text-on-surface leading-tight mb-3">
             {guide.title}
           </h1>
-          <p className="text-on-surface-variant text-lg leading-relaxed mb-8">{guide.summary}</p>
+          <p className="text-on-surface-variant text-lg leading-relaxed mb-5">{guide.summary}</p>
+
+          <div className="mb-8 flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => markRead(slug, !isRead)}
+              aria-pressed={isRead}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-warm transition-colors ${
+                isRead
+                  ? 'bg-secondary-container text-on-secondary-container hover:bg-secondary-container/80'
+                  : 'bg-primary text-on-primary hover:bg-primary-dim'
+              }`}
+            >
+              <Check size={15} />
+              {isRead ? 'Read ✓' : 'Mark as read'}
+            </button>
+            <button
+              onClick={() => toggleBookmark(slug)}
+              aria-pressed={isBookmarked}
+              aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark this guide'}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                isBookmarked
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {isBookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+              {isBookmarked ? 'Saved' : 'Save'}
+            </button>
+          </div>
 
           <article className="space-y-7">
             {guide.sections.map((section, i) => (
