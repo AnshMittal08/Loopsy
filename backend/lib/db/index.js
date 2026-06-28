@@ -24,6 +24,8 @@ const PG_KEYMAP = {
   authorname: 'authorName',
   authorhandle: 'authorHandle',
   patterncount: 'patternCount',
+  guideslug: 'guideSlug',
+  readat: 'readAt',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -296,6 +298,24 @@ function initializeDatabase(db) {
         deletedAt TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_pattern_comments_pattern ON pattern_comments(patternId);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+
+  // Learning Centre: per-user read + bookmark state for technique guides.
+  // guideSlug is content-defined (frontend), so this just stores slug strings.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS learning_progress (
+        userId TEXT NOT NULL,
+        guideSlug TEXT NOT NULL,
+        readAt TEXT,
+        bookmarked INTEGER NOT NULL DEFAULT 0,
+        updatedAt TEXT NOT NULL,
+        PRIMARY KEY (userId, guideSlug)
+      );
+      CREATE INDEX IF NOT EXISTS idx_learning_progress_user ON learning_progress(userId);
     `);
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;

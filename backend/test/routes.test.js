@@ -393,6 +393,42 @@ test('billing: portal requires auth and 503s until configured', async () => {
   assert.equal((await res.json()).code, 'BILLING_NOT_CONFIGURED');
 });
 
+test('learning: read + bookmark progress is auth-gated and persists per user', async () => {
+  const { GET: getProg, POST: setProg } = await import('../app/api/learning/progress/route.js');
+
+  // Auth gate.
+  assert.equal((await getProg(new Request('http://x/api/learning/progress'))).status, 401);
+
+  const cookie = await signedUpCookie();
+  // Empty to start.
+  assert.deepEqual((await (await getProg(new Request('http://x/api/learning/progress', { headers: { cookie } }))).json()).items, []);
+
+  // Mark a guide read.
+  let res = await setProg(jsonReq('http://x/api/learning/progress', { slug: 'magic-ring', read: true }, { cookie }));
+  assert.equal(res.status, 200);
+  let items = (await res.json()).items;
+  const mr = items.find((i) => i.guideSlug === 'magic-ring');
+  assert.ok(mr && mr.readAt, 'magic-ring marked read');
+
+  // Bookmark a different guide; read state of the first is preserved.
+  res = await setProg(jsonReq('http://x/api/learning/progress', { slug: 'invisible-decrease', bookmarked: true }, { cookie }));
+  items = (await res.json()).items;
+  assert.equal(items.find((i) => i.guideSlug === 'invisible-decrease').bookmarked, true);
+  assert.ok(items.find((i) => i.guideSlug === 'magic-ring').readAt, 'first guide still read');
+
+  // Un-read the first guide (readAt → null), bookmark flag untouched.
+  res = await setProg(jsonReq('http://x/api/learning/progress', { slug: 'magic-ring', read: false }, { cookie }));
+  items = (await res.json()).items;
+  assert.equal(items.find((i) => i.guideSlug === 'magic-ring').readAt, null);
+
+  // Body with neither read nor bookmarked → 400.
+  assert.equal((await setProg(jsonReq('http://x/api/learning/progress', { slug: 'magic-ring' }, { cookie }))).status, 400);
+
+  // Progress is scoped per user — a fresh user sees nothing.
+  const other = await signedUpCookie();
+  assert.deepEqual((await (await getProg(new Request('http://x/api/learning/progress', { headers: { cookie: other } }))).json()).items, []);
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');
