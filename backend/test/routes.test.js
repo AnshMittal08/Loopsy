@@ -313,6 +313,68 @@ test('collections: create, add/remove pattern, list, delete (owner-scoped)', asy
   assert.equal((await (await listCols(new Request('http://x/api/collections', { headers: { cookie } }))).json()).some((c) => c.id === col.id), false, 'gone after delete');
 });
 
+test('community: comments — add, list, author + owner delete, permission gate', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: listComments, POST: addCommentRoute } = await import('../app/api/patterns/[id]/comments/route.js');
+  const { DELETE: delComment } = await import('../app/api/patterns/[id]/comments/[commentId]/route.js');
+
+  const owner = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Comment Scarf' }, { cookie: owner }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: owner }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  // Unauthenticated cannot comment.
+  assert.equal((await addCommentRoute(jsonReq(`http://x/api/patterns/${p.id}/comments`, { body: 'hi' }), { params: { id: p.id } })).status, 401);
+  // Empty body → 400.
+  assert.equal((await addCommentRoute(jsonReq(`http://x/api/patterns/${p.id}/comments`, { body: '   ' }, { cookie: owner }), { params: { id: p.id } })).status, 400);
+
+  // A visitor comments.
+  const visitor = await signedUpCookie();
+  const c = await (await addCommentRoute(jsonReq(`http://x/api/patterns/${p.id}/comments`, { body: 'Lovely pattern!' }, { cookie: visitor }), { params: { id: p.id } })).json();
+  assert.ok(c.comment.id && c.comment.authorName);
+
+  // Public list (no auth) shows it.
+  const list = await (await listComments(new Request(`http://x/api/patterns/${p.id}/comments`), { params: { id: p.id } })).json();
+  assert.ok(list.comments.some((x) => x.id === c.comment.id && x.body === 'Lovely pattern!'));
+
+  // A third party can't delete the visitor's comment.
+  const stranger = await signedUpCookie();
+  const cid = c.comment.id;
+  assert.equal((await delComment(new Request(`http://x/api/patterns/${p.id}/comments/${cid}`, { method: 'DELETE', headers: { origin, cookie: stranger } }), { params: { id: p.id, commentId: cid } })).status, 403);
+
+  // The pattern owner CAN remove it (moderation).
+  assert.equal((await delComment(new Request(`http://x/api/patterns/${p.id}/comments/${cid}`, { method: 'DELETE', headers: { origin, cookie: owner } }), { params: { id: p.id, commentId: cid } })).status, 200);
+  const after = await (await listComments(new Request(`http://x/api/patterns/${p.id}/comments`), { params: { id: p.id } })).json();
+  assert.equal(after.comments.some((x) => x.id === cid), false, 'deleted comment is gone');
+});
+
+test('community: tag filter + popular tags', async () => {
+  const { GET: community } = await import('../app/api/community/route.js');
+  const { GET: tags } = await import('../app/api/community/tags/route.js');
+  // Popular tags returns an array (possibly empty in an isolated DB).
+  const t = await (await tags(new Request('http://x/api/community/tags'))).json();
+  assert.ok(Array.isArray(t.tags));
+  // A tag filter returns the feed shape (no crash on the dynamic statement).
+  const res = await community(new Request('http://x/api/community?tag=starter'));
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray((await res.json()).patterns));
+});
+
+test('community: pattern OG image renders SVG for a published pattern', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { GET: og } = await import('../app/api/patterns/[id]/og/route.js');
+  const cookie = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'OG Scarf' }, { cookie }))).json();
+  // Unpublished → 404.
+  assert.equal((await og(new Request(`http://x/api/patterns/${p.id}/og`), { params: { id: p.id } })).status, 404);
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+  const res = await og(new Request(`http://x/api/patterns/${p.id}/og`), { params: { id: p.id } });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type') || '', /svg/);
+  assert.match(await res.text(), /Made with Loopsy/);
+});
+
 test('community: trending sort orders by star count', async () => {
   const { GET: community } = await import('../app/api/community/route.js');
   // Just assert the sort param is accepted and returns the feed shape.

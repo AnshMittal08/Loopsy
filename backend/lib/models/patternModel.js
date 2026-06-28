@@ -168,11 +168,48 @@ function deserializeFeedRow(r) {
   };
 }
 
-/** Paginated community feed of published patterns. sort: 'recent' | 'trending'. */
-async function getCommunityFeed({ limit = 24, offset = 0, sort = 'recent' } = {}) {
-  const stmt = sort === 'trending' ? communityFeedTrendingStmt : communityFeedRecentStmt;
-  const rows = await stmt.all(limit, offset);
+/**
+ * Paginated community feed of published patterns. sort: 'recent' | 'trending'.
+ * Optional `tag` filters to patterns carrying that tag (matched against the
+ * JSON tags text, cross-driver). When a tag is present we build the statement
+ * dynamically (a prepared statement per call) since the WHERE clause changes.
+ */
+async function getCommunityFeed({ limit = 24, offset = 0, sort = 'recent', tag = null } = {}) {
+  if (!tag) {
+    const stmt = sort === 'trending' ? communityFeedTrendingStmt : communityFeedRecentStmt;
+    return (await stmt.all(limit, offset)).map(deserializeFeedRow);
+  }
+  const order = sort === 'trending' ? 'p.starCount DESC, p.publishedAt DESC' : 'p.publishedAt DESC';
+  const stmt = db.prepare(
+    `SELECT ${FEED_COLS}
+     FROM patterns p JOIN users u ON u.id = p.userId
+     WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL AND LOWER(p.tags) LIKE LOWER(?)
+     ORDER BY ${order}
+     LIMIT ? OFFSET ?`
+  );
+  // Match the quoted tag inside the JSON array text, e.g. ["starter","mindful"].
+  const rows = await stmt.all(`%"${String(tag).toLowerCase()}"%`, limit, offset);
   return rows.map(deserializeFeedRow);
+}
+
+const allPublishedTagsStmt = db.prepare(
+  `SELECT tags FROM patterns WHERE publishedAt IS NOT NULL AND deletedAt IS NULL`
+);
+
+/** Most-used tags across published patterns, as [{ tag, count }] desc. */
+async function getPopularTags(limit = 20) {
+  const rows = await allPublishedTagsStmt.all();
+  const counts = new Map();
+  for (const r of rows) {
+    for (const t of parseJsonArray(r.tags)) {
+      const key = String(t).trim();
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+    .slice(0, limit);
 }
 
 const userPublishedStmt = db.prepare(
@@ -253,6 +290,7 @@ module.exports = {
   setPatternPublished,
   getPublicPatternById,
   getCommunityFeed,
+  getPopularTags,
   getPublishedPatternsByUser,
   getPublicCardsByIds,
   toggleStar,

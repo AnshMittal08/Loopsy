@@ -284,6 +284,23 @@ function initializeDatabase(db) {
     if (!/already exists/i.test(e.message)) throw e;
   }
 
+  // Community depth: threaded-flat comments on published patterns (soft-deleted).
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pattern_comments (
+        id TEXT PRIMARY KEY,
+        patternId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        body TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        deletedAt TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_pattern_comments_pattern ON pattern_comments(patternId);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+
   const initAnalytics = db.prepare(`
     INSERT OR IGNORE INTO analytics (key, value) VALUES (?, ?)
   `);
