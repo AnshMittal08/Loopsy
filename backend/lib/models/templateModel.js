@@ -1,4 +1,5 @@
 const db = require('../db');
+const { validatePattern } = require('../engine');
 
 const JSON_FIELDS = ['tags', 'materials', 'notes', 'defaultPattern'];
 
@@ -11,13 +12,34 @@ function deserialize(row) {
   return out;
 }
 
+// "Verified math" for catalog templates: a template earns the badge when the
+// validator independently re-derives its defaultPattern with zero issues over a
+// meaningful number of checkable rounds (validatePattern's own `verified` gate).
+// Computed once from defaultPattern (which the list queries don't select) and
+// cached — templates are canonical/seed-time content, so the set is stable until
+// the next seed (which clears the cache).
+let _verifiedIds = null;
+async function verifiedTemplateIds() {
+  if (_verifiedIds) return _verifiedIds;
+  const rows = await db.prepare('SELECT id, defaultPattern FROM templates').all();
+  const set = new Set();
+  for (const r of rows) {
+    let steps = r.defaultPattern;
+    if (typeof steps === 'string') { try { steps = JSON.parse(steps); } catch { steps = []; } }
+    try { if (validatePattern(steps || []).verified) set.add(r.id); } catch { /* skip */ }
+  }
+  _verifiedIds = set;
+  return set;
+}
+
 async function getAllTemplates() {
   const rows = await db.prepare(
     `SELECT id, name, description, difficulty, category, tags, imageUrl,
             hookSize, yarnWeight, timeEstimate, finishedSize, materials, notes
      FROM templates ORDER BY createdAt`
   ).all();
-  return rows.map(deserialize);
+  const verified = await verifiedTemplateIds();
+  return rows.map((r) => ({ ...deserialize(r), verified: verified.has(r.id) }));
 }
 
 async function getFilteredTemplates({ difficulty, category, search }) {
@@ -42,11 +64,16 @@ async function getFilteredTemplates({ difficulty, category, search }) {
 
   sql += ' ORDER BY createdAt';
   const rows = await db.prepare(sql).all(...params);
-  return rows.map(deserialize);
+  const verified = await verifiedTemplateIds();
+  return rows.map((r) => ({ ...deserialize(r), verified: verified.has(r.id) }));
 }
 
 async function getTemplateById(id) {
-  return deserialize(await db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
+  const t = deserialize(await db.prepare('SELECT * FROM templates WHERE id = ?').get(id));
+  if (!t) return null;
+  let ok = false;
+  try { ok = validatePattern(t.defaultPattern || []).verified; } catch { /* skip */ }
+  return { ...t, verified: ok };
 }
 
 // Templates are canonical, code-defined content (not user-editable). Seeding
@@ -78,6 +105,7 @@ function seedTemplates(templates) {
       defaultPattern = excluded.defaultPattern
   `);
 
+  _verifiedIds = null; // recompute the verified set against freshly-seeded content
   const runSeed = raw.transaction(() => {
     for (const t of templates) {
       upsert.run({

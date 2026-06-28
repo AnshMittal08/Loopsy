@@ -58,6 +58,18 @@ test('templates: seeded catalog is queryable', async () => {
   assert.ok(beginners.every((t) => t.difficulty === 'Beginner'));
 });
 
+test('templates: catalog carries an earned "verified math" flag', async () => {
+  const all = await templateModel.getAllTemplates();
+  // Every template exposes a boolean; the badge is earned by the validator, not
+  // given — so some pass and some don't (flat/lace/cluster patterns it won't vouch for).
+  assert.ok(all.every((t) => typeof t.verified === 'boolean'));
+  const verified = all.filter((t) => t.verified);
+  assert.ok(verified.length > 0 && verified.length < all.length, 'some — not all — templates are verified');
+  // Classic Scarf re-derives cleanly → verified, and the detail view agrees.
+  assert.equal(all.find((t) => t.id === 'template_001').verified, true);
+  assert.equal((await templateModel.getTemplateById('template_001')).verified, true);
+});
+
 test('users: create, lookup, verify, password change', async () => {
   const user = await makeUser();
   assert.equal(user.subscription.plan, 'free');
