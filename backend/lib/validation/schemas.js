@@ -49,6 +49,12 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1, "A comment can't be empty.").max(2000, "Comments are limited to 2000 characters."),
 });
 
+export const learningStateSchema = z.object({
+  slug: z.string().trim().min(1, "A guide slug is required.").max(120),
+  read: z.boolean().optional(),
+  bookmarked: z.boolean().optional(),
+}).refine((v) => typeof v.read === "boolean" || typeof v.bookmarked === "boolean", "Provide read or bookmarked.");
+
 export const collectionItemSchema = z.object({
   patternId: z.string().trim().min(1, "patternId is required."),
   present: z.boolean(),

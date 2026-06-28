@@ -133,6 +133,7 @@ npm run smoke:pg                               # optional: verify the live DB en
 | `0004_community.sql` | `patterns.publishedAt`, `patterns.starCount`, `pattern_stars` table |
 | `0005_profiles_collections.sql` | `users.handle` + unique index, `collections` + `collection_patterns` tables |
 | `0006_comments.sql` | `pattern_comments` table (community comments) |
+| `0007_learning.sql` | `learning_progress` table (per-user guide read + bookmark state) |
 
 **Note:** the SQLite adapter (`lib/db/index.js`) runs its own idempotent `ALTER TABLE`
 migrations at boot, so local dev needs no migrate step — but every schema change must be
