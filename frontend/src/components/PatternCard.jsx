@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Sparkles } from 'lucide-react';
 import VerifiedBadge from './VerifiedBadge';
+import TagChips from './TagChips';
 import { getPatternTheme } from '../lib/patternThemes';
 
 /**
@@ -92,6 +93,7 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
             <p className="text-xs text-on-surface-variant">by {pattern.authorName}</p>
           )
         )}
+        <TagChips tags={pattern.tags} limit={3} className="pt-1" />
         <div className="mt-auto flex items-center justify-between pt-2">
           <div className="flex gap-1.5 flex-wrap">
             {pattern.difficulty && (

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Star, ArrowLeft, Sparkles, Globe, BookOpen } from 'lucide-react';
+import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2 } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import SaveToCollection from '../components/SaveToCollection';
+import Comments from '../components/Comments';
+import TagChips from '../components/TagChips';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
@@ -59,6 +61,20 @@ export default function PublicPattern() {
       showToast('Could not star this pattern.', 'error');
     } finally {
       setStarring(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/p/${id}`;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied', 'success');
+        return;
+      }
+      throw new Error('no clipboard');
+    } catch {
+      window.prompt('Copy this link:', url);
     }
   };
 
@@ -127,7 +143,7 @@ export default function PublicPattern() {
                       <Sparkles size={10} />AI
                     </span>
                   )}
-                  {pattern.verified && <VerifiedBadge size={14} />}
+                  <VerifiedBadge pattern={pattern} compact />
                 </div>
                 <h1 className="text-2xl font-bold text-on-surface leading-tight mb-1">{pattern.title}</h1>
                 {pattern.authorHandle ? (
@@ -143,6 +159,7 @@ export default function PublicPattern() {
                 ) : (
                   <p className="text-sm text-on-surface-variant">by {pattern.authorName}</p>
                 )}
+                <TagChips tags={pattern.tags} className="mt-3" />
               </div>
               <div className="flex shrink-0 items-start gap-2">
                 <Motion.button
@@ -153,6 +170,15 @@ export default function PublicPattern() {
                 >
                   <Star size={20} className={starred ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant'} />
                   <span className="text-[11px] font-bold text-on-surface">{starCount}</span>
+                </Motion.button>
+                <Motion.button
+                  onClick={handleShare}
+                  whileTap={{ scale: 0.88 }}
+                  aria-label="Copy share link"
+                  className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-container-lowest/85 px-3 py-2.5 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
+                >
+                  <Share2 size={20} className="text-on-surface-variant" />
+                  <span className="text-[11px] font-bold text-on-surface">Share</span>
                 </Motion.button>
                 <SaveToCollection patternId={pattern.id} />
               </div>
@@ -213,6 +239,8 @@ export default function PublicPattern() {
             </Link>
           </div>
         </Reveal>
+
+        <Comments patternId={pattern.id} patternOwnerId={pattern.userId} />
       </main>
     </div>
   );

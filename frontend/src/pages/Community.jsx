@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Users, SearchX, Globe } from 'lucide-react';
+import { Users, SearchX, Globe, X, Tag } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
@@ -19,17 +19,22 @@ const SORTS = [
 export default function Community() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTag = searchParams.get('tag') || '';
   const [patterns, setPatterns] = useState([]);
   const [starredIds, setStarredIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [sort, setSort] = useState('recent');
+  const [popularTags, setPopularTags] = useState([]);
 
-  const load = useCallback(async (off = 0, replace = true, sortBy = 'recent') => {
+  const load = useCallback(async (off = 0, replace = true, sortBy = 'recent', tag = '') => {
     try {
       if (replace) setLoading(true);
-      const res = await fetch(`/api/community?limit=${PAGE}&offset=${off}&sort=${sortBy}`);
+      const params = new URLSearchParams({ limit: String(PAGE), offset: String(off), sort: sortBy });
+      if (tag) params.set('tag', tag);
+      const res = await fetch(`/api/community?${params.toString()}`);
       const data = await res.json();
       const list = data.patterns ?? [];
       if (replace) {
@@ -47,12 +52,36 @@ export default function Community() {
     }
   }, [showToast]);
 
-  useEffect(() => { Promise.resolve().then(() => load(0, true, sort)); }, [load, sort]);
+  // Feed reloads on sort or tag change (offset resets to 0).
+  useEffect(() => { Promise.resolve().then(() => load(0, true, sort, activeTag)); }, [load, sort, activeTag]);
+
+  // Popular tags load once.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/community/tags?limit=20');
+        const data = await res.json();
+        if (!cancelled) setPopularTags(Array.isArray(data.tags) ? data.tags : []);
+      } catch {
+        /* non-critical */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSort = (id) => {
     if (id === sort) return;
     setOffset(0);
     setSort(id);
+  };
+
+  const handleTag = (tag) => {
+    setOffset(0);
+    const next = new URLSearchParams(searchParams);
+    if (tag) next.set('tag', tag);
+    else next.delete('tag');
+    setSearchParams(next);
   };
 
   const handleNeedAuth = () => showToast('Sign in to star patterns.', 'info');
@@ -100,6 +129,49 @@ export default function Community() {
               );
             })}
           </div>
+
+          {popularTags.length > 0 && (
+            <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
+              <Tag size={14} className="shrink-0 text-on-surface-variant" />
+              <div className="flex flex-nowrap gap-2">
+                {popularTags.map((t) => {
+                  const active = activeTag === t.tag;
+                  return (
+                    <button
+                      key={t.tag}
+                      onClick={() => handleTag(active ? '' : t.tag)}
+                      aria-pressed={active}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        active
+                          ? 'bg-primary text-on-primary'
+                          : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                      }`}
+                    >
+                      #{t.tag}
+                      {typeof t.count === 'number' && (
+                        <span className={`ml-1.5 ${active ? 'text-on-primary/70' : 'text-on-surface-variant/60'}`}>{t.count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTag && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-bold text-on-surface">
+                Patterns tagged <span className="text-primary">#{activeTag}</span>
+              </h2>
+              <button
+                onClick={() => handleTag('')}
+                className="inline-flex items-center gap-1 rounded-full border border-outline-variant/30 px-3 py-1 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+              >
+                <X size={12} />
+                Clear
+              </button>
+            </div>
+          )}
         </Reveal>
 
         {loading && patterns.length === 0 ? (
@@ -111,10 +183,21 @@ export default function Community() {
         ) : patterns.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <SearchX size={40} className="text-on-surface-variant/40" />
-            <p className="text-on-surface-variant">No patterns published yet. Be the first!</p>
-            <Link to="/create" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors">
-              Create a pattern
-            </Link>
+            {activeTag ? (
+              <>
+                <p className="text-on-surface-variant">No patterns tagged <span className="font-semibold text-on-surface">#{activeTag}</span> yet.</p>
+                <button onClick={() => handleTag('')} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors">
+                  View all patterns
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-on-surface-variant">No patterns published yet. Be the first!</p>
+                <Link to="/create" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors">
+                  Create a pattern
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -134,7 +217,7 @@ export default function Community() {
             {hasMore && (
               <div className="mt-8 flex justify-center">
                 <Motion.button
-                  onClick={() => load(offset, false, sort)}
+                  onClick={() => load(offset, false, sort, activeTag)}
                   disabled={loading}
                   whileTap={{ scale: 0.96 }}
                   transition={SPRING.bouncy}

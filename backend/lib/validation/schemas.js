@@ -45,6 +45,10 @@ export const createCollectionSchema = z.object({
   name: z.string().trim().min(1, "A collection name is required.").max(60),
 });
 
+export const commentSchema = z.object({
+  body: z.string().trim().min(1, "A comment can't be empty.").max(2000, "Comments are limited to 2000 characters."),
+});
+
 export const collectionItemSchema = z.object({
   patternId: z.string().trim().min(1, "patternId is required."),
   present: z.boolean(),
