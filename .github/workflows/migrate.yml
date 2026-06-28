@@ -1,0 +1,40 @@
+name: Migrate (Neon)
+
+# Applies the idempotent Postgres migrations in backend/migrations/ to the
+# production database whenever main changes. Migrations are additive
+# (ADD COLUMN / CREATE TABLE IF NOT EXISTS), so re-running is always safe.
+#
+# One-time setup: add a repository secret named DATABASE_URL (the pooled Neon
+# connection string, including ?sslmode=require). Until that secret exists the
+# job no-ops gracefully (stays green) — nothing is applied.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/scripts/migrate.js'
+      - '.github/workflows/migrate.yml'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Never let two migration runs race against the same database.
+concurrency:
+  group: neon-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Apply migrations (skips if DATABASE_URL secret is unset)
+        run: npm run migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
