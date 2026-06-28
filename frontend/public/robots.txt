@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Keep crawlers out of authenticated / non-content app routes.
+Disallow: /account
+Disallow: /tracker
+Disallow: /library
+Disallow: /design
+Disallow: /search
+
+Sitemap: https://loopsy.app/sitemap.xml

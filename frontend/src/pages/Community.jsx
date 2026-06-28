@@ -6,6 +6,7 @@ import TopNav from '../components/TopNav';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { SPRING } from '../lib/motionTokens';
+import { useDocumentHead } from '../lib/useDocumentHead';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
 
@@ -85,6 +86,14 @@ export default function Community() {
   };
 
   const handleNeedAuth = () => showToast('Sign in to star patterns.', 'info');
+
+  useDocumentHead({
+    title: activeTag ? `Patterns tagged #${activeTag}` : 'Community patterns',
+    description: activeTag
+      ? `Crochet patterns tagged #${activeTag}, published by the Loopsy community.`
+      : 'Browse crochet patterns published by the Loopsy community — star the ones you love and start making.',
+    canonicalPath: '/community',
+  });
 
   return (
     <div className="min-h-dvh bg-surface">

@@ -192,6 +192,28 @@ async function getCommunityFeed({ limit = 24, offset = 0, sort = 'recent', tag =
   return rows.map(deserializeFeedRow);
 }
 
+const allPublishedIdsStmt = db.prepare(
+  `SELECT id, publishedAt FROM patterns
+   WHERE publishedAt IS NOT NULL AND deletedAt IS NULL
+   ORDER BY publishedAt DESC`
+);
+
+/** Every published pattern id + publishedAt — for the sitemap. */
+async function getAllPublishedPatternIds() {
+  return (await allPublishedIdsStmt.all()).map((r) => ({ id: r.id, publishedAt: r.publishedAt }));
+}
+
+const publishedCreatorHandlesStmt = db.prepare(
+  `SELECT DISTINCT u.handle AS handle FROM patterns p
+   JOIN users u ON u.id = p.userId
+   WHERE p.publishedAt IS NOT NULL AND p.deletedAt IS NULL AND u.handle IS NOT NULL`
+);
+
+/** Handles of creators with at least one published pattern — for the sitemap. */
+async function getPublishedCreatorHandles() {
+  return (await publishedCreatorHandlesStmt.all()).map((r) => r.handle).filter(Boolean);
+}
+
 const allPublishedTagsStmt = db.prepare(
   `SELECT tags FROM patterns WHERE publishedAt IS NOT NULL AND deletedAt IS NULL`
 );
@@ -291,6 +313,8 @@ module.exports = {
   getPublicPatternById,
   getCommunityFeed,
   getPopularTags,
+  getAllPublishedPatternIds,
+  getPublishedCreatorHandles,
   getPublishedPatternsByUser,
   getPublicCardsByIds,
   toggleStar,

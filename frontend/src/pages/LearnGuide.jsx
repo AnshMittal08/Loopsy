@@ -6,6 +6,7 @@ import { Reveal } from '../components/motion/Reveal';
 import { getGuide } from '../lib/learnContent';
 import { getAbbreviationData } from '../lib/crochetAbbreviations';
 import { useLearningProgress } from '../lib/useLearningProgress';
+import { useDocumentHead } from '../lib/useDocumentHead';
 
 export default function LearnGuide() {
   const { slug } = useParams();
@@ -13,6 +14,24 @@ export default function LearnGuide() {
   const { readSlugs, bookmarkedSlugs, markRead, toggleBookmark } = useLearningProgress();
   const isRead = readSlugs.has(slug);
   const isBookmarked = bookmarkedSlugs.has(slug);
+
+  useDocumentHead(
+    guide
+      ? {
+          title: guide.title,
+          description: guide.summary,
+          canonicalPath: `/learn/${slug}`,
+          type: 'article',
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            headline: guide.title,
+            description: guide.summary,
+            articleSection: guide.category,
+          },
+        }
+      : {},
+  );
 
   if (!guide) {
     return (

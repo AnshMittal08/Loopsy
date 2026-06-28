@@ -5,6 +5,7 @@ import TopNav from '../components/TopNav';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
+import { useDocumentHead } from '../lib/useDocumentHead';
 import { formatMonthYear } from '../lib/formatDate';
 
 export default function CreatorProfile() {
@@ -44,6 +45,28 @@ export default function CreatorProfile() {
     })();
     return () => { cancelled = true; };
   }, [handle, user]);
+
+  const creator = data?.creator;
+  const stats = data?.stats || {};
+  useDocumentHead(
+    creator
+      ? {
+          title: `${creator.name} (@${creator.handle})`,
+          description: `${stats.published ?? 0} published patterns · ${stats.totalStars ?? 0} stars on Loopsy.`,
+          canonicalPath: `/u/${handle}`,
+          type: 'profile',
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'ProfilePage',
+            mainEntity: {
+              '@type': 'Person',
+              name: creator.name,
+              alternateName: `@${creator.handle}`,
+            },
+          },
+        }
+      : {},
+  );
 
   if (loading) {
     return (
@@ -85,7 +108,7 @@ export default function CreatorProfile() {
     );
   }
 
-  const { creator, patterns = [], stats = {} } = data;
+  const { patterns = [] } = data;
   const initial = (creator.name || creator.handle || '?').slice(0, 1).toUpperCase();
 
   return (

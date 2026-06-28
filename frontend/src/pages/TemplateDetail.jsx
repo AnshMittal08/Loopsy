@@ -9,6 +9,7 @@ import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import Magnetic from '../components/motion/Magnetic';
 import { getPatternTheme } from '../lib/patternThemes';
 import { expandAbbreviations } from '../lib/crochetAbbreviations';
+import { useDocumentHead } from '../lib/useDocumentHead';
 import { SPRING } from '../lib/motionTokens';
 
 async function fetchJson(url) {
@@ -51,6 +52,22 @@ export default function TemplateDetail() {
 
   const theme = getPatternTheme(template?.category);
   const ThemeIcon = theme.icon;
+
+  useDocumentHead(
+    template
+      ? {
+          title: template.name,
+          description: (template.description || '').trim(),
+          canonicalPath: `/templates/${templateId}`,
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'HowTo',
+            name: template.name,
+            description: (template.description || '').trim(),
+          },
+        }
+      : {},
+  );
 
   if (loading) {
     return (

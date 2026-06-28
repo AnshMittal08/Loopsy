@@ -429,6 +429,27 @@ test('learning: read + bookmark progress is auth-gated and persists per user', a
   assert.deepEqual((await (await getProg(new Request('http://x/api/learning/progress', { headers: { cookie: other } }))).json()).items, []);
 });
 
+test('seo: sitemap.xml lists static routes, templates, and published patterns', async () => {
+  const { GET: sitemap } = await import('../app/api/sitemap/route.js');
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+
+  // Publish a pattern so it should appear in the sitemap.
+  const cookie = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Sitemap Scarf' }, { cookie }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  const res = await sitemap();
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type') || '', /xml/);
+  const xml = await res.text();
+  // FRONTEND_URL is pinned to http://localhost:5173 in this suite.
+  assert.match(xml, /<loc>http:\/\/localhost:5173\/<\/loc>/, 'home route present');
+  assert.match(xml, /\/templates\/template_001</, 'a template url present');
+  assert.match(xml, new RegExp(`/p/${p.id}<`), 'the published pattern is listed');
+  assert.match(xml, /\/learn\/magic-ring</, 'a learn guide is listed');
+});
+
 test('input validation: malformed auth bodies are rejected with 400', async () => {
   const { POST: signup } = await import('../app/api/auth/signup/route.js');
   const { POST: login } = await import('../app/api/auth/login/route.js');

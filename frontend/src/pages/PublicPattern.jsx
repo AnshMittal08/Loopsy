@@ -9,8 +9,50 @@ import TagChips from '../components/TagChips';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { getPatternTheme } from '../lib/patternThemes';
+import { useDocumentHead } from '../lib/useDocumentHead';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
+
+function usePatternHead(pattern, id) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const head = pattern
+    ? (() => {
+        const authorName = pattern.authorName || 'a maker';
+        const parts = [pattern.difficulty, pattern.category, 'crochet pattern'].filter(Boolean);
+        const description = `${parts.join(' ')} by ${authorName}.`.replace(/\s+/g, ' ').trim();
+        const steps = (Array.isArray(pattern.steps) ? pattern.steps : [])
+          .map((s) => s.instruction || s.text || (typeof s === 'string' ? s : ''))
+          .filter(Boolean)
+          .slice(0, 30)
+          .map((text) => ({ '@type': 'HowToStep', text }));
+        const jsonLd = {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: pattern.title,
+          description,
+          ...(pattern.authorName
+            ? {
+                author: {
+                  '@type': 'Person',
+                  name: pattern.authorName,
+                  ...(pattern.authorHandle ? { alternateName: `@${pattern.authorHandle}` } : {}),
+                },
+              }
+            : {}),
+          ...(steps.length ? { step: steps } : {}),
+        };
+        return {
+          title: pattern.title,
+          description,
+          canonicalPath: `/p/${id}`,
+          image: `${origin}/api/patterns/${id}/og`,
+          type: 'article',
+          jsonLd,
+        };
+      })()
+    : {};
+  useDocumentHead(head);
+}
 
 export default function PublicPattern() {
   const { id } = useParams();
@@ -77,6 +119,8 @@ export default function PublicPattern() {
       window.prompt('Copy this link:', url);
     }
   };
+
+  usePatternHead(pattern, id);
 
   const theme = pattern ? getPatternTheme(pattern.category) : getPatternTheme(null);
   const Icon = theme.icon;
