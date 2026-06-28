@@ -126,6 +126,8 @@ Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 | `/p/:id` | public read-only pattern page (star, save-to-collection) |
 | `/u/:handle` | public creator profile (their published patterns + stats) |
 | `/library` | the signed-in user's collections (saved-pattern groups) |
+| `/learn` | Learning Centre — guided beginner path, technique guides, stitch glossary |
+| `/learn/:slug` | a single technique guide article |
 
 ## Key API routes (beyond auth)
 
