@@ -1,5 +1,6 @@
 const db = require('../db');
 const { validatePattern } = require('../engine');
+const { buildGeneratedTemplates } = require('./generatedTemplates');
 
 const JSON_FIELDS = ['tags', 'materials', 'notes', 'defaultPattern'];
 
@@ -698,7 +699,9 @@ const TEMPLATE_SEED = [
 ];
 
 // Seed templates on module load for SQLite (canonical content lives in code).
-// On Postgres, templates are seeded by the migration step instead.
-if (db.sqlite) seedTemplates(TEMPLATE_SEED);
+// The hand-authored seed + the engine-generated catalog are seeded together.
+// On Postgres, templates are seeded by the migration step instead
+// (0002_seed_templates.sql + 0008_seed_generated_templates.sql).
+if (db.sqlite) seedTemplates([...TEMPLATE_SEED, ...buildGeneratedTemplates()]);
 
 module.exports = { getAllTemplates, getFilteredTemplates, getTemplateById };

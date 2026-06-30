@@ -32,5 +32,5 @@ test('at least the known-good templates earn the Verified badge', async () => {
     const steps = (t.defaultPattern || []).map((instruction, i) => ({ row: i + 1, instruction }));
     if (validatePattern(steps).verified) verified += 1;
   }
-  assert.ok(verified >= 7, `expected ≥7 verified templates, got ${verified}`);
+  assert.ok(verified >= 30, `expected ≥30 verified templates, got ${verified}`);
 });
