@@ -51,8 +51,10 @@ async function makeUser() {
 
 test('templates: seeded catalog is queryable', async () => {
   const all = await templateModel.getAllTemplates();
-  assert.equal(all.length, 22);
+  // 22 hand-authored seed + 30 engine-generated templates.
+  assert.equal(all.length, 52);
   assert.equal((await templateModel.getTemplateById('template_001')).name, 'Classic Scarf');
+  assert.equal((await templateModel.getTemplateById('template_101')).name, 'Bouncy Juggling Ball');
   const beginners = await templateModel.getFilteredTemplates({ difficulty: 'Beginner' });
   assert.ok(beginners.length > 0);
   assert.ok(beginners.every((t) => t.difficulty === 'Beginner'));
