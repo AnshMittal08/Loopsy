@@ -21,6 +21,10 @@ import CreatorProfile from './pages/CreatorProfile';
 import Library from './pages/Library';
 import LearningCentre from './pages/LearningCentre';
 import LearnGuide from './pages/LearnGuide';
+import About from './pages/About';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -52,6 +56,10 @@ function App() {
             <Route path="/p/:id" element={<PublicPattern />} />
             <Route path="/u/:handle" element={<CreatorProfile />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         )}
       </PageTransition>

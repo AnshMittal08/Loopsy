@@ -8,6 +8,7 @@ import ChartStudio from './ChartStudio';
 
 const Design3DPreview = lazy(() => import('../components/three/Design3DPreview'));
 import ColorPicker from '../components/ColorPicker';
+import CopyLinkDialog from '../components/CopyLinkDialog';
 import OnboardingCard from '../components/OnboardingCard';
 import ShortcutsHint from '../components/ShortcutsHint';
 import { SHAPE_KIT, DIM_LABEL, shapeDef } from '../lib/shapeKit';
@@ -48,6 +49,7 @@ export default function Design() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [sharing, setSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState(null); // in-app copy dialog when clipboard is unavailable
   const [shareMsg, setShareMsg] = useState(null);
   const [recents, setRecents] = useState([]);
   const addRecent = (hex) => setRecents((r) => [hex, ...r.filter((x) => x !== hex)].slice(0, 8));
@@ -368,7 +370,7 @@ export default function Design() {
       if (!res.ok) throw new Error(design.error || 'Could not create share link');
       const url = `${window.location.origin}/d/${design.id}`;
       try { await navigator.clipboard.writeText(url); setShareMsg('Link copied!'); }
-      catch { setShareMsg('Link ready'); window.prompt('Share this design:', url); }
+      catch { setShareMsg('Link ready'); setShareUrl(url); }
       setTimeout(() => setShareMsg(null), 2500);
     } catch (e) { setError(e.message); }
     finally { setSharing(false); }
@@ -585,6 +587,7 @@ export default function Design() {
             <button onClick={() => setShortcutsOpen((o) => !o)} title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
               className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${shortcutsOpen ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}><Keyboard size={16} /></button>
             <ShortcutsHint open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+            {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this design" onClose={() => setShareUrl(null)} />}
           </div>
           <button onClick={shareDesign} disabled={sharing}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">

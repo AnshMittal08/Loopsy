@@ -1,20 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Compass, Sparkles, Shapes, BookOpen, User, CornerDownLeft, GraduationCap } from 'lucide-react';
+import { Search, CornerDownLeft } from 'lucide-react';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { OPEN_EVENT } from '../lib/commandPalette';
 import { searchGuides } from '../lib/learnContent';
+import { NAV_DESTINATIONS } from '../lib/navigation';
 
-// Static quick-nav actions, always available.
-const ACTIONS = [
-  { id: 'a-explore', label: 'Explore templates', to: '/', icon: Compass },
-  { id: 'a-create', label: 'Create a pattern', to: '/create', icon: Sparkles },
-  { id: 'a-design', label: 'Open the Design Canvas', to: '/design', icon: Shapes },
-  { id: 'a-tracker', label: 'My projects', to: '/tracker', icon: BookOpen },
-  { id: 'a-learn', label: 'Learn to crochet', to: '/learn', icon: GraduationCap },
-  { id: 'a-account', label: 'Account', to: '/account', icon: User },
-];
+// Quick-nav actions: every destination, sourced from the single nav config.
+const ACTIONS = NAV_DESTINATIONS.map((d) => ({ id: `a-${d.to}`, label: d.label, to: d.to, icon: d.icon }));
 
 const EMPTY = { templates: [], patterns: [], designs: [] };
 

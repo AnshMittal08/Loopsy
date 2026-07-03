@@ -44,19 +44,27 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ showToast, dismiss }}>
       {children}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none">
+      {/* Live region so assistive tech announces feedback; errors are assertive. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none"
+      >
         {toasts.map((toast) => {
           const Icon = ICONS[toast.type] || Info;
           return (
             <div
               key={toast.id}
+              role={toast.type === 'error' ? 'alert' : undefined}
+              aria-live={toast.type === 'error' ? 'assertive' : undefined}
               className={`pointer-events-auto flex items-center gap-3 rounded-xl px-5 py-3 shadow-lg text-sm font-medium max-w-sm animate-[toastIn_0.3s_ease-out] ${STYLES[toast.type] || STYLES.info}`}
             >
               <Icon size={17} className="shrink-0" />
               <p className="flex-1 min-w-0">{toast.message}</p>
               <button
                 onClick={() => dismiss(toast.id)}
-                className="shrink-0 opacity-70 hover:opacity-100"
+                aria-label="Dismiss notification"
+                className="shrink-0 opacity-70 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current rounded"
               >
                 <X size={14} />
               </button>

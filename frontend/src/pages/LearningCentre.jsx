@@ -13,6 +13,7 @@ import {
   BookmarkCheck,
 } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import {
   GUIDES,
@@ -431,6 +432,7 @@ export default function LearningCentre() {
           )}
         </Reveal>
       </main>
+      <Footer />
     </div>
   );
 }

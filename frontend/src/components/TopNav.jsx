@@ -7,19 +7,15 @@ import ThemeToggle from './ThemeToggle';
 import Magnetic from './motion/Magnetic';
 import { useAuth } from './AuthProvider';
 import { openCommandPalette } from '../lib/commandPalette';
+import { navFor, isNavActive } from '../lib/navigation';
 
-const LINKS = [
-  { to: '/', label: 'Explore' },
-  { to: '/create', label: 'Create' },
-  { to: '/tracker', label: 'Projects' },
-  { to: '/account', label: 'Account' },
-];
+const LINKS = navFor('inTopNav');
 
 export default function TopNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const location = useLocation();
-  const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const isActive = (path) => isNavActive(location.pathname, path);
 
   return (
     <nav className="fixed top-0 w-full z-50 glass-panel border-b border-outline-variant/20">

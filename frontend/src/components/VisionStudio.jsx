@@ -5,6 +5,7 @@ import {
   Upload, Camera, X, Sparkles, ShieldCheck, ImagePlus, AlertCircle, Pencil, Trash2,
 } from 'lucide-react';
 import { ThreadSpinner } from './motion/Thread';
+import ConfirmDialog from './ConfirmDialog';
 import Magnetic from './motion/Magnetic';
 import { SPRING, fadeRise, staggerChildren } from '../lib/motionTokens';
 
@@ -298,6 +299,19 @@ export default function VisionStudio({ onCompile, disabled }) {
   const [error, setError] = useState(null);
   const [trialUsed, setTrialUsed] = useState(false);
 
+  // UX-11: never spend the one lifetime free analysis on an accidental click.
+  const [confirmAnalyze, setConfirmAnalyze] = useState(false);
+  const requestAnalyze = async () => {
+    try {
+      const res = await fetch('/api/usage');
+      if (res.ok) {
+        const u = await res.json();
+        if (u?.vision?.mode === 'trial') { setConfirmAnalyze(true); return; }
+      }
+    } catch { /* usage unknown — proceed; the server still enforces limits */ }
+    analyze();
+  };
+
   const analyze = async () => {
     setAnalyzing(true);
     setError(null);
@@ -381,10 +395,20 @@ export default function VisionStudio({ onCompile, disabled }) {
                 Works best on amigurumi and simple round or flat pieces against a plain background. We analyze the photo to draft an editable design — your image isn't stored.
               </p>
             </div>
+            {confirmAnalyze && (
+              <ConfirmDialog
+                title="Use your free Vision analysis?"
+                body="Your free plan includes one lifetime photo analysis. Once spent it can't be redone — make sure the photo is clear and well-lit. Compiling the pattern afterwards is free."
+                confirmLabel="Analyze photo"
+                danger={false}
+                onConfirm={() => { setConfirmAnalyze(false); analyze(); }}
+                onCancel={() => setConfirmAnalyze(false)}
+              />
+            )}
             <div className="mt-6 flex justify-end">
               <Magnetic>
                 <button
-                  onClick={analyze}
+                  onClick={requestAnalyze}
                   disabled={images.length === 0}
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm disabled:opacity-50 disabled:cursor-not-allowed"
                 >

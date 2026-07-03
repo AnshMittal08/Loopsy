@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2 } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import SaveToCollection from '../components/SaveToCollection';
 import Comments from '../components/Comments';
+import CopyLinkDialog from '../components/CopyLinkDialog';
 import TagChips from '../components/TagChips';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -106,6 +108,7 @@ export default function PublicPattern() {
     }
   };
 
+  const [shareUrl, setShareUrl] = useState(null);
   const handleShare = async () => {
     const url = `${window.location.origin}/p/${id}`;
     try {
@@ -116,7 +119,26 @@ export default function PublicPattern() {
       }
       throw new Error('no clipboard');
     } catch {
-      window.prompt('Copy this link:', url);
+      setShareUrl(url); // clipboard unavailable → in-app copy dialog
+    }
+  };
+
+  const navigate = useNavigate();
+  const [importing, setImporting] = useState(false);
+  // Copy this published pattern into the caller's own projects, then open it.
+  const handleTrackThis = async () => {
+    if (!user) { showToast('Sign in to save this pattern to your projects.', 'info'); navigate('/account'); return; }
+    setImporting(true);
+    try {
+      const res = await fetch(`/api/patterns/${id}/import`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not save this pattern.');
+      showToast('Added to your projects — happy making!', 'success');
+      navigate(`/tracker/${data.pattern.id}`);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -159,6 +181,7 @@ export default function PublicPattern() {
   return (
     <div className="min-h-dvh bg-surface">
       <TopNav />
+      {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this pattern" onClose={() => setShareUrl(null)} />}
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-10 pb-20 md:px-10 outline-none">
         <Reveal>
@@ -274,9 +297,13 @@ export default function PublicPattern() {
 
           {/* CTA */}
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to={`/tracker`} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors">
-              Track this in My Projects
-            </Link>
+            <button
+              onClick={handleTrackThis}
+              disabled={importing}
+              className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors disabled:opacity-60"
+            >
+              {importing ? 'Adding to your projects…' : 'Track this in My Projects'}
+            </button>
             <Link to="/community" className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
               <Globe size={14} />
               More from community
@@ -286,6 +313,7 @@ export default function PublicPattern() {
 
         <Comments patternId={pattern.id} patternOwnerId={pattern.userId} />
       </main>
+      <Footer />
     </div>
   );
 }

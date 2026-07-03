@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion, useReducedMotion } from 'motion/react';
 import { Lock, BookMarked, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import SideNav from '../components/SideNav';
+import MobileHeader from '../components/MobileHeader';
 import { Reveal } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
@@ -143,9 +144,10 @@ export default function Account() {
 
   return (
     <div className="flex min-h-dvh bg-surface">
+      <MobileHeader />
       <SideNav />
 
-      <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 px-5 pt-20 pb-28 md:pt-10 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
         <div className="mx-auto max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-3">Account</p>
           <h1 className="font-display display-wonk text-[1.9rem] sm:text-[2.4rem] font-bold text-on-surface leading-tight mb-2">
@@ -277,7 +279,7 @@ export default function Account() {
                       <PlanCard
                         name="Maker Pro"
                         price="$9/mo"
-                        features={['30 AI generations', 'Unlimited tutor', 'PDF export']}
+                        features={['30 AI generations', 'Unlimited tutor', 'Vision Studio photo \u2192 pattern']}
                         highlight={false}
                         plan="maker_pro"
                         onUpgrade={handleUpgrade}

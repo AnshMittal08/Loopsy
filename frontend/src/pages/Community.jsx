@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Users, SearchX, Globe, X, Tag } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { SPRING } from '../lib/motionTokens';
@@ -251,6 +252,7 @@ export default function Community() {
           </Reveal>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

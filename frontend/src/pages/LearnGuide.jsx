@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, GraduationCap, Check, Bookmark, BookmarkCheck } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import { Reveal } from '../components/motion/Reveal';
 import { getGuide } from '../lib/learnContent';
 import { getAbbreviationData } from '../lib/crochetAbbreviations';
@@ -172,6 +173,7 @@ export default function LearnGuide() {
           )}
         </Reveal>
       </main>
+      <Footer />
     </div>
   );
 }

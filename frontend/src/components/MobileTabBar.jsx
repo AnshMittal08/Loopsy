@@ -1,15 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, Globe, BookOpen, User } from 'lucide-react';
+import { navFor, isNavActive } from '../lib/navigation';
 
-const TABS = [
-  { to: '/', icon: Compass, label: 'Explore' },
-  { to: '/create', icon: Sparkles, label: 'Create' },
-  { to: '/community', icon: Globe, label: 'Community' },
-  { to: '/tracker', icon: BookOpen, label: 'Projects' },
-  { to: '/account', icon: User, label: 'Account' },
-];
+const TABS = navFor('inTabBar');
 
 // Native-app-style bottom navigation for phones. Renders only below `md`.
 // The full-screen Design editor and public share pages own the whole
@@ -23,7 +17,7 @@ export default function MobileTabBar() {
     pathname === '/reset-password'
   ) return null;
 
-  const isActive = (to) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
+  const isActive = (to) => isNavActive(pathname, to);
 
   return (
     <nav

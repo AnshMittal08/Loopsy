@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox } from 'lucide-react';
+import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox, Star } from 'lucide-react';
 import SideNav from '../components/SideNav';
+import MobileHeader from '../components/MobileHeader';
+import ConfirmDialog from '../components/ConfirmDialog';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
@@ -18,6 +20,7 @@ export default function Library() {
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [starred, setStarred] = useState(null); // null = loading
 
   const loadCollections = useCallback(async () => {
     try {
@@ -35,6 +38,22 @@ export default function Library() {
     if (!user) return;
     Promise.resolve().then(loadCollections);
   }, [user, loadCollections]);
+
+  // Starred patterns — the star action's destination.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/patterns/starred');
+        const data = await res.json();
+        if (!cancelled) setStarred(Array.isArray(data.patterns) ? data.patterns : []);
+      } catch {
+        if (!cancelled) setStarred([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Load detail when a collection is selected.
   useEffect(() => {
@@ -78,8 +97,11 @@ export default function Library() {
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete the collection “${name}”? This can't be undone.`)) return;
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
+  const handleDelete = async () => {
+    const { id } = confirmDelete || {};
+    setConfirmDelete(null);
+    if (!id) return;
     try {
       const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -94,8 +116,9 @@ export default function Library() {
   if (authLoading) {
     return (
       <div className="flex min-h-dvh bg-surface">
+        <MobileHeader />
         <SideNav />
-        <main className="flex-1 px-5 py-10 sm:px-6 md:px-10 lg:px-16">
+        <main className="flex-1 px-5 pt-20 pb-10 md:pt-10 sm:px-6 md:px-10 lg:px-16">
           <div className="max-w-4xl mx-auto space-y-4">
             <div className="h-8 w-48 rounded-lg shimmer" />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -126,8 +149,18 @@ export default function Library() {
 
   return (
     <div className="flex min-h-dvh bg-surface">
+      <MobileHeader />
+      {confirmDelete && (
+        <ConfirmDialog
+          title={`Delete "${confirmDelete.name}"?`}
+          body="The collection is removed for good. The patterns inside it are not deleted."
+          confirmLabel="Delete"
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       <SideNav />
-      <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 px-5 pt-20 pb-28 md:pt-10 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
         <div className="max-w-4xl mx-auto">
           <AnimatePresence mode="wait">
             {selected ? (
@@ -167,7 +200,7 @@ export default function Library() {
                         </p>
                       </div>
                       <button
-                        onClick={() => handleDelete(detail.collection.id, detail.collection.name)}
+                        onClick={() => setConfirmDelete({ id: detail.collection.id, name: detail.collection.name })}
                         aria-label="Delete collection"
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-container-lowest border border-outline-variant/20 text-on-surface-variant shadow-warm transition-colors hover:text-error"
                       >
@@ -255,7 +288,7 @@ export default function Library() {
                       <RevealItem key={c.id}>
                         <div className="group relative">
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(c.id, c.name); }}
+                            onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: c.id, name: c.name }); }}
                             aria-label={`Delete ${c.name}`}
                             className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant shadow-warm backdrop-blur opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all hover:text-error"
                           >
@@ -280,6 +313,35 @@ export default function Library() {
                     ))}
                   </RevealGroup>
                 )}
+
+                {/* ── Starred patterns ─────────────────────── */}
+                <div className="mt-12">
+                  <div className="mb-5 flex items-center gap-2">
+                    <Star size={16} className="text-tertiary" />
+                    <h2 className="font-display text-lg font-bold text-on-surface">Starred patterns</h2>
+                  </div>
+                  {starred === null ? (
+                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {[1, 2, 3].map((i) => <div key={i} className="h-64 rounded-2xl shimmer" />)}
+                    </div>
+                  ) : starred.length === 0 ? (
+                    <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-8 text-center">
+                      <p className="text-sm text-on-surface-variant">
+                        Nothing starred yet — tap the <Star size={12} className="inline -mt-0.5" /> on any{' '}
+                        <Link to="/community" className="font-semibold text-primary hover:underline">community pattern</Link>{' '}
+                        and it will land here.
+                      </p>
+                    </div>
+                  ) : (
+                    <RevealGroup className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {starred.map((p) => (
+                        <RevealItem key={p.id}>
+                          <PatternCard pattern={p} starred authed={Boolean(user)} />
+                        </RevealItem>
+                      ))}
+                    </RevealGroup>
+                  )}
+                </div>
               </Motion.div>
             )}
           </AnimatePresence>

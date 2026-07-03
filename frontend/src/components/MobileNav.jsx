@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, BookOpen, User, X, Shapes } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useFocusTrap } from '../lib/useFocusTrap';
+import { openCommandPalette } from '../lib/commandPalette';
+import { NAV_DESTINATIONS, isNavActive } from '../lib/navigation';
 
 function NavItem({ to, icon, label, active }) {
   const Icon = icon;
@@ -33,7 +35,7 @@ function NavItem({ to, icon, label, active }) {
 function MobileNavContent({ onClose }) {
   const { user } = useAuth();
   const location = useLocation();
-  const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const isActive = (path) => isNavActive(location.pathname, path);
   const prevPathname = useRef(location.pathname);
   const trapRef = useFocusTrap(true);
 
@@ -78,12 +80,17 @@ function MobileNavContent({ onClose }) {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          <NavItem to="/" icon={Compass} label="Explore" active={isActive('/')} />
-          <NavItem to="/create" icon={Sparkles} label="Create" active={isActive('/create')} />
-          <NavItem to="/design" icon={Shapes} label="Design Canvas" active={isActive('/design')} />
-          <NavItem to="/tracker" icon={BookOpen} label="In Progress" active={isActive('/tracker')} />
-          <NavItem to="/account" icon={User} label="Account" active={isActive('/account')} />
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          {NAV_DESTINATIONS.map((d) => (
+            <NavItem key={d.to} to={d.to} icon={d.icon} label={d.label} active={isActive(d.to)} />
+          ))}
+          <button
+            onClick={() => { onClose(); openCommandPalette(); }}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+          >
+            <Search size={18} className="shrink-0" strokeWidth={2} />
+            <span>Search</span>
+          </button>
         </nav>
 
         <div className="px-4 py-5 border-t border-outline-variant/20 space-y-3">
