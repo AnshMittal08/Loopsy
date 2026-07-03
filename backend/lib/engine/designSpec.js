@@ -26,6 +26,13 @@ const SUPPORTED_SHAPES = [
   'hatCrown',
   'grannySquare',
   'revolve',
+  // E1 expansion — flat motifs + tapered forms
+  'flatCircle',
+  'flatHexagon',
+  'taperedTube',
+  'triangle',
+  'star',
+  'heart',
 ];
 
 const SUPPORTED_STITCHES = ['sc', 'hdc', 'dc'];
@@ -40,6 +47,12 @@ const REQUIRED_DIMENSIONS = {
   hatCrown: [], // size keyword, defaulted
   grannySquare: [], // sideCm or rounds, defaulted
   revolve: ['heightCm'], // plus a profile array (validated specially)
+  flatCircle: ['diameterCm'],
+  flatHexagon: ['diameterCm'],
+  taperedTube: ['bottomDiameterCm', 'topDiameterCm', 'heightCm'],
+  triangle: ['baseCm'],
+  star: ['sizeCm'],
+  heart: ['widthCm'],
 };
 
 /**

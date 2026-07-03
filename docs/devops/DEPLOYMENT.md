@@ -134,7 +134,7 @@ npm run smoke:pg                               # optional: verify the live DB en
 | `0005_profiles_collections.sql` | `users.handle` + unique index, `collections` + `collection_patterns` tables |
 | `0006_comments.sql` | `pattern_comments` table (community comments) |
 | `0007_learning.sql` | `learning_progress` table (per-user guide read + bookmark state) |
-| `0008_seed_generated_templates.sql` | 30 engine-generated catalog templates (**generated file** — `node scripts/gen-template-migration.js`) |
+| `0008_seed_generated_templates.sql` | 36 engine-generated catalog templates (**generated file** — `node scripts/gen-template-migration.js`) |
 
 **Note:** the SQLite adapter (`lib/db/index.js`) runs its own idempotent `ALTER TABLE`
 migrations at boot, so local dev needs no migrate step — but every schema change must be

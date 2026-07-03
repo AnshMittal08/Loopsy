@@ -477,6 +477,206 @@ function grannySquare({ sideCm, rounds: roundsWanted }, gauge) {
   };
 }
 
+// ─── E1 expansion: flat motifs + tapered forms ──────────────────────────────
+
+/**
+ * Flat circle (coaster / appliqué base / rug): a disc worked in the round that
+ * stays flat — +6 evenly-spaced increases every round, one round per row-height
+ * of radius. Fully validator-checkable (canonical increase idioms only).
+ */
+function flatCircle({ diameterCm }, gauge, stitch = 'sc') {
+  const rounds = Math.max(2, Math.round((diameterCm / 2) / rowHeightCm(gauge, stitch)));
+  const rows = [magicRingRow(6, stitch)];
+  let count = 6;
+  for (let r = 2; r <= rounds; r++) {
+    rows.push(r === 2 ? incAllRow(count, stitch) : spacedIncRow(count, 6, stitch));
+    count = rows[rows.length - 1].count;
+  }
+  rows.push(noteRow('Finishing', 'Slip stitch to the next stitch for a smooth edge. Fasten off and weave in ends. Block flat if the disc cups.'));
+  return { shape: 'flatCircle', worked: 'rounds', rows: labelRounds(rows), maxStitchCount: count, finalCount: count };
+}
+
+/**
+ * Flat hexagon: identical stitch math to the flat circle (+6 per round), but
+ * the increases are STACKED at the same six points every round so corners form.
+ */
+function flatHexagon({ diameterCm }, gauge, stitch = 'sc') {
+  const base = flatCircle({ diameterCm }, gauge, stitch);
+  const rows = [
+    noteRow('Technique', 'Work exactly as written, but place each round\'s increases directly on top of the previous round\'s increases — stacking them at the same six points turns the disc into a hexagon with crisp corners.'),
+    ...base.rows,
+  ];
+  return { ...base, shape: 'flatHexagon', rows };
+}
+
+/**
+ * Tapered tube (frustum): a limb/horn/planter that starts at one diameter and
+ * ends at another. Disc base (when closed), then the +/-6 shaping rounds are
+ * distributed evenly across the height. Canonical idioms — fully checkable.
+ */
+function taperedTube({ bottomDiameterCm, topDiameterCm, heightCm, closedBottom = true }, gauge, stitch = 'sc') {
+  const bottomSts = roundToMultiple(Math.PI * bottomDiameterCm * gauge.stsPerCm, 6, 12);
+  const topSts = roundToMultiple(Math.PI * topDiameterCm * gauge.stsPerCm, 6, 6);
+  const heightRounds = Math.max(1, Math.round(heightCm / rowHeightCm(gauge, stitch)));
+
+  const rows = [];
+  let count;
+  if (closedBottom) {
+    rows.push(magicRingRow(6, stitch));
+    count = 6;
+    for (let i = 2; i <= bottomSts / 6; i++) {
+      rows.push(i === 2 ? incAllRow(count, stitch) : spacedIncRow(count, 6, stitch));
+      count = rows[rows.length - 1].count;
+    }
+  } else {
+    count = bottomSts;
+    rows.push({
+      instruction: `Chain ${bottomSts}. Join with a slip stitch to the first chain to form a ring, being careful not to twist. ${cap(stitchName(stitch))} in each chain around. (${bottomSts} stitches)`,
+      count: bottomSts,
+      rounds: 1,
+    });
+  }
+
+  // Distribute the shaping rounds (±6 sts each) evenly across the wall height.
+  const shapingSteps = Math.abs(topSts - count) / 6;
+  const dir = topSts > count ? 1 : -1;
+  const shapeAt = new Set();
+  for (let i = 1; i <= shapingSteps; i++) {
+    shapeAt.add(Math.max(1, Math.round((i * heightRounds) / (shapingSteps + 1))));
+  }
+  let evenBuffer = 0;
+  const flushEven = () => {
+    if (evenBuffer > 0) { rows.push(evenRow(count, stitch, evenBuffer)); evenBuffer = 0; }
+  };
+  for (let r = 1; r <= heightRounds; r++) {
+    if (shapeAt.has(r) && count !== topSts) {
+      flushEven();
+      rows.push(dir > 0 ? spacedIncRow(count, 6, stitch) : spacedDecRow(count, 6, stitch));
+      count = rows[rows.length - 1].count;
+    } else {
+      evenBuffer += 1;
+    }
+  }
+  while (count !== topSts) { // guarantee the top circumference even if rounding starved us
+    flushEven();
+    rows.push(dir > 0 ? spacedIncRow(count, 6, stitch) : spacedDecRow(count, 6, stitch));
+    count = rows[rows.length - 1].count;
+  }
+  flushEven();
+  rows.push(noteRow('Finishing', 'Fasten off leaving a long tail for sewing.'));
+
+  return { shape: 'taperedTube', worked: 'rounds', rows: labelRounds(rows), maxStitchCount: Math.max(bottomSts, topSts), finalCount: count };
+}
+
+/**
+ * Flat triangle worked in rows from the base up: one edge decrease per row
+ * until a single stitch remains at the apex. Counts are declared every row;
+ * edge decreases aren't the bracketed idiom, so the validator skips (never
+ * mis-flags) those rows — the shape ships honest but only partially checkable.
+ */
+function triangle({ baseCm }, gauge, stitch = 'sc') {
+  const sts = Math.max(3, Math.round(baseCm * gauge.stsPerCm));
+  const name = stitchName(stitch);
+  const rows = [];
+  rows.push({ label: 'Foundation', instruction: `Chain ${sts + 1}. (${sts + 1} chains)`, count: sts + 1, rounds: 0 });
+  rows.push({
+    instruction: `${cap(name)} in the 2nd chain from the hook and in each chain across. (${sts} stitches) Chain 1, turn.`,
+    count: sts,
+    rounds: 1,
+  });
+  for (let c = sts - 1; c >= 1; c--) {
+    rows.push({
+      instruction: c > 1
+        ? `${cap(name)} 2 together, then ${name} in each stitch across. (${c} stitches) Chain 1, turn.`
+        : `${cap(name)} 2 together — 1 stitch remains at the apex. (1 stitch)`,
+      count: c,
+      rounds: 1,
+    });
+  }
+  rows.push(noteRow('Finishing', 'Fasten off and weave in ends. For a crisper edge, work one round of single crochet around all three sides.'));
+
+  let at = 1;
+  const labeled = rows.map((row) => {
+    if (row.rounds === 0) return row;
+    const label = `Row ${at}`;
+    at += row.rounds;
+    return { ...row, label };
+  });
+  return { shape: 'triangle', worked: 'rows', rows: labeled, maxStitchCount: sts, finalCount: 1 };
+}
+
+/**
+ * Five-point star: a checkable flat-circle centre, then the five points worked
+ * back and forth over equal segments of the final round. Point rows use edge
+ * decreases (skipped, never mis-flagged, by the validator).
+ */
+function star({ sizeCm }, gauge, stitch = 'sc') {
+  const big = sizeCm >= 8;
+  const rows = [magicRingRow(10, stitch)];
+  let count = 10;
+  rows.push(incAllRow(count, stitch)); // 20
+  count = 20;
+  if (big) {
+    rows.push(spacedIncRow(count, 10, stitch)); // 30
+    count = 30;
+  }
+  const per = count / 5;
+  rows.push(
+    noteRow(
+      'Points',
+      `Make 5 points: working over the next ${per} stitches only, turn and work back and forth — ${stitchName(stitch)} across, working the first 2 stitches together on every row, until 1 stitch remains. Fasten off that point, rejoin yarn in the next unworked stitch of the centre round, and repeat for the remaining points.`
+    )
+  );
+  rows.push(noteRow('Finishing', 'Weave in all ends, then block the star flat so the points lie sharp.'));
+  return { shape: 'star', worked: 'rounds', rows: labelRounds(rows), maxStitchCount: count, finalCount: count };
+}
+
+/**
+ * Flat heart worked in rows from the bottom point up: +2 per row (one increase
+ * at each edge) to full width, a straight body, then two separately-worked
+ * lobes. Edge increases aren't the bracketed idiom → validator skips those
+ * rows; the counts are still declared honestly on every row.
+ */
+function heart({ widthCm }, gauge, stitch = 'sc') {
+  const target = Math.max(6, roundToMultiple(Math.round(widthCm * gauge.stsPerCm), 2));
+  const name = stitchName(stitch);
+  const rows = [];
+  rows.push({
+    label: 'Row 1',
+    instruction: `Chain 2. Work 2 ${name} in the 2nd chain from the hook. (2 stitches) Chain 1, turn.`,
+    count: 2,
+    rounds: 1,
+  });
+  let count = 2;
+  let at = 2;
+  while (count < target) {
+    count += 2;
+    rows.push({
+      label: `Row ${at}`,
+      instruction: `2 ${name} in the first stitch, ${name} in each stitch across to the last stitch, 2 ${name} in the last stitch. (${count} stitches) Chain 1, turn.`,
+      count,
+      rounds: 1,
+    });
+    at += 1;
+  }
+  const bodyRows = Math.max(1, Math.round(count / 4));
+  rows.push({
+    label: bodyRows > 1 ? `Rows ${at}–${at + bodyRows - 1}` : `Row ${at}`,
+    instruction: `${cap(name)} in each stitch across. (${count} stitches) Chain 1, turn.`,
+    count,
+    rounds: bodyRows,
+  });
+  const lobe = count / 2;
+  rows.push(
+    noteRow(
+      'Lobes',
+      `First lobe: working over the first ${lobe} stitches only, work 2 rows of ${name}, working the 2 edge stitches together on each row, then fasten off. Second lobe: rejoin yarn in the next unworked stitch and repeat. This rounds the two bumps of the heart.`
+    )
+  );
+  rows.push(noteRow('Finishing', 'Work one round of single crochet around the whole edge to smooth the silhouette, easing around the point and the dip between lobes. Fasten off and weave in ends.'));
+  return { shape: 'heart', worked: 'rows', rows, maxStitchCount: count, finalCount: count };
+}
+
 const { revolve } = require('./revolve');
 
 const SHAPE_GENERATORS = {
@@ -489,6 +689,12 @@ const SHAPE_GENERATORS = {
   hatCrown,
   grannySquare,
   revolve,
+  flatCircle,
+  flatHexagon,
+  taperedTube,
+  triangle,
+  star,
+  heart,
 };
 
 module.exports = {
@@ -503,4 +709,10 @@ module.exports = {
   hatCrown,
   grannySquare,
   revolve,
+  flatCircle,
+  flatHexagon,
+  taperedTube,
+  triangle,
+  star,
+  heart,
 };

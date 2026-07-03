@@ -69,14 +69,18 @@ const DESIGN_SPEC_TOOL = {
             shape: { type: "string", enum: SUPPORTED_SHAPES },
             dimensions: {
               type: "object",
-              description: "Real-world finished dimensions in cm. sphere/hemisphere: diameterCm. ellipsoid: diameterCm (widest cross-section) + heightCm (long axis). tube: heightCm + diameterCm or circumferenceCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. grannySquare: sideCm. hatCrown: size keyword instead.",
+              description: "Real-world finished dimensions in cm. sphere/hemisphere/flatCircle/flatHexagon: diameterCm. ellipsoid: diameterCm (widest cross-section) + heightCm (long axis). tube: heightCm + diameterCm or circumferenceCm. taperedTube: bottomDiameterCm + topDiameterCm + heightCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. triangle: baseCm. star: sizeCm. heart: widthCm. grannySquare: sideCm. hatCrown: size keyword instead.",
               properties: {
                 diameterCm: { type: "number" },
                 heightCm: { type: "number" },
                 widthCm: { type: "number" },
                 baseDiameterCm: { type: "number" },
+                bottomDiameterCm: { type: "number" },
+                topDiameterCm: { type: "number" },
                 circumferenceCm: { type: "number" },
                 sideCm: { type: "number" },
+                baseCm: { type: "number" },
+                sizeCm: { type: "number" },
                 size: { type: "string", enum: Object.keys(HAT_SIZES), description: "hatCrown only" },
               },
             },
@@ -112,7 +116,7 @@ async function parseDesignIntent(prompt, difficulty) {
         type: "text",
         text: `You are the intent parser for a crochet pattern compiler. You translate a maker's request into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
 
-Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). When a part is striped or color-cycled (e.g. "red and white striped scarf", "rainbow hat"), set its colorPlan with the colors in order and a sensible stripeRounds (commonly 2) instead of a single color — simple horizontal stripes ARE feasible. Be honest with the "feasible" flag: garments with shaping, lace charts, and intarsia/tapestry picture colorwork are NOT feasible.`,
+Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes and taperedTubes (arms, legs, tails, horns) and flat panels (ears). Flat motifs are available too: flatCircle (coasters, bases, cheeks), flatHexagon (trivets, motifs), triangle (bunting, kerchiefs), star and heart (appliqués, ornaments) — use them for decorations, appliqué details, and 2D projects. When a part is striped or color-cycled (e.g. "red and white striped scarf", "rainbow hat"), set its colorPlan with the colors in order and a sensible stripeRounds (commonly 2) instead of a single color — simple horizontal stripes ARE feasible. Be honest with the "feasible" flag: garments with shaping, lace charts, and intarsia/tapestry picture colorwork are NOT feasible.`,
         cache_control: { type: "ephemeral" },
       },
     ],
