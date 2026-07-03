@@ -384,6 +384,34 @@ test('community: trending sort orders by star count', async () => {
   assert.ok(Array.isArray(body.patterns), 'trending feed returns patterns');
 });
 
+test('community: importing a published pattern copies it into my projects', async () => {
+  const { POST: createPattern, GET: listPatterns } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { POST: importPattern } = await import('../app/api/patterns/[id]/import/route.js');
+
+  // Author publishes a pattern.
+  const author = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Importable Scarf' }, { cookie: author }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: author }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  // Unauthenticated → 401.
+  assert.equal((await importPattern(jsonReq(`http://x/api/patterns/${p.id}/import`, {}), { params: { id: p.id } })).status, 401);
+
+  // A maker imports it: gets their OWN private copy.
+  const maker = await signedUpCookie();
+  const res = await importPattern(jsonReq(`http://x/api/patterns/${p.id}/import`, {}, { cookie: maker }), { params: { id: p.id } });
+  assert.equal(res.status, 201);
+  const copy = (await res.json()).pattern;
+  assert.notEqual(copy.id, p.id, 'a new pattern id');
+  assert.equal(copy.title, 'Importable Scarf');
+
+  const mine = await (await listPatterns(new Request('http://x/api/patterns', { headers: { cookie: maker } }))).json();
+  assert.ok(mine.some((x) => x.id === copy.id), 'the copy appears in the maker\'s projects');
+
+  // Unpublished/unknown source → 404.
+  assert.equal((await importPattern(jsonReq('http://x/api/patterns/nope/import', {}, { cookie: maker }), { params: { id: 'nope' } })).status, 404);
+});
+
 test('billing: portal requires auth and 503s until configured', async () => {
   const { POST: portal } = await import('../app/api/billing/portal/route.js');
   assert.equal((await portal(jsonReq('http://x/api/billing/portal', {}))).status, 401);
