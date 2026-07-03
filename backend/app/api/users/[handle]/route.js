@@ -18,7 +18,7 @@ export async function GET(_request, { params }) {
     const totalStars = patterns.reduce((sum, p) => sum + (p.starCount || 0), 0);
 
     return NextResponse.json({
-      creator: { name: creator.name, handle: creator.handle, createdAt: creator.createdAt },
+      creator: { name: creator.name, handle: creator.handle, bio: creator.bio ?? null, createdAt: creator.createdAt },
       patterns,
       stats: { published: patterns.length, totalStars },
     }, { status: 200 });

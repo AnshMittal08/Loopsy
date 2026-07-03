@@ -436,6 +436,48 @@ test('patterns: owner can edit content; the verified badge stays honest', async 
   assert.equal((await edit({ title: '', steps: [] })).status, 400);
 });
 
+test('wave4: reports, collection rename, bio, and a never-empty community feed', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { POST: report } = await import('../app/api/reports/route.js');
+  const { POST: createCol } = await import('../app/api/collections/route.js');
+  const { PATCH: renameCol } = await import('../app/api/collections/[id]/route.js');
+  const { PATCH: patchMe } = await import('../app/api/me/route.js');
+  const { GET: profile } = await import('../app/api/users/[handle]/route.js');
+  const { GET: me } = await import('../app/api/me/route.js');
+  const { GET: community } = await import('../app/api/community/route.js');
+
+  const cookie = await signedUpCookie();
+
+  // Cold-start: even with zero published patterns the feed carries catalog cards.
+  const feed = await (await community(new Request('http://x/api/community'))).json();
+  assert.ok(Array.isArray(feed.catalog) && feed.catalog.length > 0, 'catalog seeding present');
+  assert.ok(feed.catalog.every((c) => c.isTemplate && c.verified), 'seeded cards are labeled verified templates');
+
+  // Reports: auth-gated; 404 for unknown resource; files + dedupes on a real one.
+  assert.equal((await report(jsonReq('http://x/api/reports', { resourceType: 'pattern', resourceId: 'nope', reason: 'spam' }))).status, 401);
+  assert.equal((await report(jsonReq('http://x/api/reports', { resourceType: 'pattern', resourceId: 'nope', reason: 'spam' }, { cookie }))).status, 404);
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Reportable' }, { cookie }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+  assert.equal((await report(jsonReq('http://x/api/reports', { resourceType: 'pattern', resourceId: p.id, reason: 'other', detail: 'test' }, { cookie }))).status, 201);
+  assert.equal((await report(jsonReq('http://x/api/reports', { resourceType: 'pattern', resourceId: p.id, reason: 'other' }, { cookie }))).status, 201, 'duplicate is acknowledged');
+  assert.equal((await report(jsonReq('http://x/api/reports', { resourceType: 'pattern', resourceId: p.id, reason: 'nonsense' }, { cookie }))).status, 400);
+
+  // Collection rename (owner-only).
+  const col = await (await createCol(jsonReq('http://x/api/collections', { name: 'Old name' }, { cookie }))).json();
+  const renamed = await renameCol(jsonReq(`http://x/api/collections/${col.id}`, { name: 'New name' }, { cookie }), { params: { id: col.id } });
+  assert.equal(renamed.status, 200);
+  assert.equal((await renamed.json()).name, 'New name');
+  const stranger = await signedUpCookie();
+  assert.equal((await renameCol(jsonReq(`http://x/api/collections/${col.id}`, { name: 'Hijack' }, { cookie: stranger }), { params: { id: col.id } })).status, 404);
+
+  // Bio round-trips to the public profile.
+  await patchMe(new Request('http://x/api/me', { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ name: 'Bio Maker', bio: 'I crochet tiny bees.' }) }));
+  const handle = (await (await me(new Request('http://x/api/me', { headers: { cookie } }))).json()).user.handle;
+  const prof = await (await profile(new Request(`http://x/api/users/${handle}`), { params: { handle } })).json();
+  assert.equal(prof.creator.bio, 'I crochet tiny bees.');
+});
+
 test('designs: save-in-place lifecycle — create, PUT update, owner-gate, delete', async () => {
   const { POST: createDesign } = await import('../app/api/designs/route.js');
   const { GET: getDesign, PUT: putDesign, DELETE: delDesign } = await import('../app/api/designs/[id]/route.js');

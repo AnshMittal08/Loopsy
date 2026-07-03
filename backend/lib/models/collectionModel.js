@@ -77,7 +77,15 @@ async function setPatternInCollection(collectionId, patternId, present) {
   return true;
 }
 
+const renameStmt = db.prepare(`UPDATE collections SET name = ?, updatedAt = ? WHERE id = ? AND userId = ?`);
+
+async function renameCollection(id, userId, name) {
+  const info = await renameStmt.run(name, new Date().toISOString(), id, userId);
+  return info.changes > 0;
+}
+
 module.exports = {
+  renameCollection,
   createCollection,
   getUserCollections,
   getCollectionById,

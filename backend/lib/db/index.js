@@ -26,6 +26,8 @@ const PG_KEYMAP = {
   patterncount: 'patternCount',
   guideslug: 'guideSlug',
   readat: 'readAt',
+  reporterid: 'reporterId',
+  resourcetype: 'resourceType',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -303,6 +305,27 @@ function initializeDatabase(db) {
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;
   }
+
+  // Wave 4: UGC abuse reports (open/resolved) + creator bio.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporterId TEXT NOT NULL,
+        resourceType TEXT NOT NULL,
+        resourceId TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        detail TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_resource ON reports(resourceType, resourceId);
+      CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+  addColumnIfMissing(existingUserColumns, 'bio', "ALTER TABLE users ADD COLUMN bio TEXT");
 
   // Learning Centre: per-user read + bookmark state for technique guides.
   // guideSlug is content-defined (frontend), so this just stores slug strings.

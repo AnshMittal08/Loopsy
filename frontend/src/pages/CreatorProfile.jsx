@@ -127,6 +127,9 @@ export default function CreatorProfile() {
                 {creator.name}
               </h1>
               <p className="text-sm text-on-surface-variant">@{creator.handle}</p>
+              {creator.bio && (
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-on-surface">{creator.bio}</p>
+              )}
               {creator.createdAt && (
                 <p className="text-xs text-on-surface-variant mt-0.5">Joined {formatMonthYear(creator.createdAt)}</p>
               )}

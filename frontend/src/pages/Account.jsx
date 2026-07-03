@@ -23,6 +23,7 @@ export default function Account() {
   const [openingPortal, setOpeningPortal] = useState(false);
   const nameRef = useRef(null);
   const skillRef = useRef(null);
+  const bioRef = useRef(null);
 
   const handleManageBilling = async () => {
     setOpeningPortal(true);
@@ -80,10 +81,11 @@ export default function Account() {
   const handleSaveProfile = async () => {
     const name = nameRef.current?.value.trim();
     const skillLevel = skillRef.current?.value;
+    const bio = bioRef.current?.value.trim().slice(0, 280);
     if (!name) { showToast('Name is required.', 'error'); return; }
     setSavingProfile(true);
     try {
-      const res = await fetch('/api/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, skillLevel }) });
+      const res = await fetch('/api/me', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, skillLevel, bio }) });
       if (!res.ok) throw new Error('Could not save your profile.');
       await refreshSession?.();
       showToast('Profile updated.', 'success');
@@ -227,6 +229,10 @@ export default function Account() {
                   <div>
                     <label htmlFor="profile-name" className="block text-sm font-semibold mb-1.5">Name</label>
                     <input id="profile-name" ref={nameRef} defaultValue={user.name} className="w-full rounded-xl bg-surface-container-low px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="profile-bio" className="block text-sm font-semibold mb-1.5">Bio <span className="font-normal text-on-surface-variant">(shows on your public profile)</span></label>
+                    <textarea id="profile-bio" ref={bioRef} defaultValue={user.bio || ''} maxLength={280} rows={2} placeholder="Tell other makers what you love to crochet…" className="w-full resize-y rounded-xl bg-surface-container-low px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25" />
                   </div>
                   <div>
                     <label htmlFor="profile-skill" className="block text-sm font-semibold mb-1.5">Skill level</label>

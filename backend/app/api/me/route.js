@@ -31,7 +31,7 @@ export async function PATCH(request) {
     const { data, response: invalid } = validate(updateProfileSchema, await readJsonBody(request));
     if (invalid) return invalid;
 
-    await updateUserProfile(user.id, { name: data.name, skillLevel: data.skillLevel ?? user.skillLevel ?? "beginner" });
+    await updateUserProfile(user.id, { name: data.name, skillLevel: data.skillLevel ?? user.skillLevel ?? "beginner", bio: data.bio ?? user.bio ?? null });
     const updated = await getUserWithSubscriptionById(user.id);
     return NextResponse.json({ user: updated }, { status: 200 });
   } catch (error) {
