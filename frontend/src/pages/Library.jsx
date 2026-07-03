@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox } from 'lucide-react';
+import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox, Star } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileHeader from '../components/MobileHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -20,6 +20,7 @@ export default function Library() {
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [starred, setStarred] = useState(null); // null = loading
 
   const loadCollections = useCallback(async () => {
     try {
@@ -37,6 +38,22 @@ export default function Library() {
     if (!user) return;
     Promise.resolve().then(loadCollections);
   }, [user, loadCollections]);
+
+  // Starred patterns — the star action's destination.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/patterns/starred');
+        const data = await res.json();
+        if (!cancelled) setStarred(Array.isArray(data.patterns) ? data.patterns : []);
+      } catch {
+        if (!cancelled) setStarred([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Load detail when a collection is selected.
   useEffect(() => {
@@ -296,6 +313,35 @@ export default function Library() {
                     ))}
                   </RevealGroup>
                 )}
+
+                {/* ── Starred patterns ─────────────────────── */}
+                <div className="mt-12">
+                  <div className="mb-5 flex items-center gap-2">
+                    <Star size={16} className="text-tertiary" />
+                    <h2 className="font-display text-lg font-bold text-on-surface">Starred patterns</h2>
+                  </div>
+                  {starred === null ? (
+                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {[1, 2, 3].map((i) => <div key={i} className="h-64 rounded-2xl shimmer" />)}
+                    </div>
+                  ) : starred.length === 0 ? (
+                    <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-8 text-center">
+                      <p className="text-sm text-on-surface-variant">
+                        Nothing starred yet — tap the <Star size={12} className="inline -mt-0.5" /> on any{' '}
+                        <Link to="/community" className="font-semibold text-primary hover:underline">community pattern</Link>{' '}
+                        and it will land here.
+                      </p>
+                    </div>
+                  ) : (
+                    <RevealGroup className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {starred.map((p) => (
+                        <RevealItem key={p.id}>
+                          <PatternCard pattern={p} starred authed={Boolean(user)} />
+                        </RevealItem>
+                      ))}
+                    </RevealGroup>
+                  )}
+                </div>
               </Motion.div>
             )}
           </AnimatePresence>

@@ -279,7 +279,7 @@ export default function Account() {
                       <PlanCard
                         name="Maker Pro"
                         price="$9/mo"
-                        features={['30 AI generations', 'Unlimited tutor', 'PDF export']}
+                        features={['30 AI generations', 'Unlimited tutor', 'Vision Studio photo \u2192 pattern']}
                         highlight={false}
                         plan="maker_pro"
                         onUpgrade={handleUpgrade}

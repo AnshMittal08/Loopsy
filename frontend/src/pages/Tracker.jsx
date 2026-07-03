@@ -3,12 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
-  Lightbulb, Check, Maximize2, Trash2, Globe, Lock,
+  Lightbulb, Check, Maximize2, Trash2, Globe, Lock, Printer,
 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileHeader from '../components/MobileHeader';
 import MobileNav from '../components/MobileNav';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PrintablePattern from '../components/PrintablePattern';
 import { SkeletonTrackerLayout } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { getPatternTheme } from '../lib/patternThemes';
@@ -365,7 +366,9 @@ export default function Tracker() {
   const completedCount = steps.filter((_, i) => progress?.steps?.[i]?.completed ?? false).length;
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-surface text-on-surface">
+    <>
+    <PrintablePattern pattern={pattern} steps={steps} />
+    <div className="flex h-dvh overflow-hidden bg-surface text-on-surface print:hidden">
       <SideNav />
 
       <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col h-full overflow-y-auto outline-none">
@@ -459,6 +462,14 @@ export default function Tracker() {
                     <Maximize2 size={14} />
                     Crochet Mode
                   </Motion.button>
+                  <button
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 px-5 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                    title="Print or save this pattern as a PDF"
+                  >
+                    <Printer size={14} />
+                    Print / PDF
+                  </button>
                 </div>
               </div>
             </Motion.section>
@@ -740,5 +751,6 @@ export default function Tracker() {
         difficulty={pattern.difficulty}
       />
     </div>
+    </>
   );
 }

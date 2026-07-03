@@ -384,6 +384,25 @@ test('community: trending sort orders by star count', async () => {
   assert.ok(Array.isArray(body.patterns), 'trending feed returns patterns');
 });
 
+test('community: starred patterns have a destination (GET /api/patterns/starred)', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
+  const { POST: star } = await import('../app/api/patterns/[id]/star/route.js');
+  const { GET: starred } = await import('../app/api/patterns/starred/route.js');
+
+  assert.equal((await starred(new Request('http://x/api/patterns/starred'))).status, 401);
+
+  const author = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Starrable Scarf' }, { cookie: author }))).json();
+  await patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: author }, body: JSON.stringify({ published: true }) }), { params: { id: p.id } });
+
+  const fan = await signedUpCookie();
+  assert.deepEqual((await (await starred(new Request('http://x/api/patterns/starred', { headers: { cookie: fan } }))).json()).patterns, []);
+  await star(new Request(`http://x/api/patterns/${p.id}/star`, { method: 'POST', headers: { cookie: fan } }), { params: { id: p.id } });
+  const mine = (await (await starred(new Request('http://x/api/patterns/starred', { headers: { cookie: fan } }))).json()).patterns;
+  assert.ok(mine.some((x) => x.id === p.id), 'the starred pattern appears');
+});
+
 test('community: importing a published pattern copies it into my projects', async () => {
   const { POST: createPattern, GET: listPatterns } = await import('../app/api/patterns/route.js');
   const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');
