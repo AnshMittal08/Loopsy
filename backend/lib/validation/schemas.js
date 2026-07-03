@@ -49,6 +49,16 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1, "A comment can't be empty.").max(2000, "Comments are limited to 2000 characters."),
 });
 
+export const patternEditSchema = z.object({
+  title: z.string().trim().min(1, "A title is required.").max(160),
+  steps: z.array(z.object({
+    row: z.number().int().positive().optional(),
+    instruction: z.string().trim().min(1).max(2000),
+  })).min(1, "A pattern needs at least one step.").max(400),
+  notes: z.array(z.string().trim().max(1000)).max(40).optional(),
+  materials: z.array(z.string().trim().max(200)).max(40).optional(),
+});
+
 export const learningStateSchema = z.object({
   slug: z.string().trim().min(1, "A guide slug is required.").max(120),
   read: z.boolean().optional(),

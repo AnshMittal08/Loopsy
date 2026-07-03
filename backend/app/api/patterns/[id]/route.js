@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getPatternById, deletePattern, setPatternPublished } from "@/lib/models/patternModel";
+import { getPatternById, deletePattern, setPatternPublished, updatePatternContent } from "@/lib/models/patternModel";
+import { validatePattern } from "@/lib/engine";
+import { validate } from "@/lib/validation";
+import { patternEditSchema } from "@/lib/validation/schemas";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { clientIp } from "@/lib/auth/request";
 
@@ -68,15 +71,38 @@ export async function PATCH(request, { params }) {
     if (response) return response;
 
     const body = await request.json().catch(() => ({}));
-    if (typeof body.published !== "boolean") {
-      return NextResponse.json({ error: "published (boolean) is required." }, { status: 400 });
+
+    // Publish/unpublish toggle.
+    if (typeof body.published === "boolean") {
+      const changed = await setPatternPublished(params.id, user.id, body.published);
+      if (!changed) {
+        return NextResponse.json({ error: "Pattern not found." }, { status: 404 });
+      }
+      return NextResponse.json({ published: body.published }, { status: 200 });
     }
 
-    const changed = await setPatternPublished(params.id, user.id, body.published);
-    if (!changed) {
+    // Content edit (title / steps / notes / materials) — owner only. The
+    // verified badge stays HONEST: it is re-earned only if the validator
+    // re-derives the edited steps cleanly; otherwise it is cleared.
+    const { data, response: invalid } = validate(patternEditSchema, body);
+    if (invalid) return invalid;
+
+    const existing = await getPatternById(params.id, user.id);
+    if (!existing) {
       return NextResponse.json({ error: "Pattern not found." }, { status: 404 });
     }
-    return NextResponse.json({ published: body.published }, { status: 200 });
+
+    const steps = data.steps.map((s, i) => ({ row: i + 1, instruction: s.instruction }));
+    const verified = !existing.isExperimental && validatePattern(steps).verified;
+    await updatePatternContent(params.id, user.id, {
+      title: data.title,
+      steps,
+      notes: data.notes ?? existing.notes,
+      materials: data.materials ?? existing.materials,
+      verified,
+    });
+    const updated = await getPatternById(params.id, user.id);
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: "Failed to update pattern.", details: error.message }, { status: 500 });
   }

@@ -64,7 +64,7 @@ async function createProgress(record) {
 }
 
 // Atomic toggle: read-modify-write in a single transaction to prevent races.
-async function toggleStepAtomic(id, userId, stepIndex) {
+async function toggleStepAtomic(id, userId, stepIndex, desired) {
   return db.withTransaction(async (tx) => {
     const row = await tx.prepare('SELECT * FROM progress WHERE id = ? AND userId = ?').get(id, userId);
     if (!row) return null;
@@ -72,7 +72,10 @@ async function toggleStepAtomic(id, userId, stepIndex) {
     const steps = parseSteps(row.steps);
     if (stepIndex < 0 || stepIndex >= steps.length) return null;
 
-    steps[stepIndex] = { ...steps[stepIndex], completed: !steps[stepIndex].completed };
+    // With an explicit `desired` state the write is IDEMPOTENT — an offline
+    // client can safely replay a queued check-off without double-flipping.
+    const next = typeof desired === 'boolean' ? desired : !steps[stepIndex].completed;
+    steps[stepIndex] = { ...steps[stepIndex], completed: next };
 
     const completedCount = steps.filter((s) => s.completed).length;
     const progressPercentage = Math.round((completedCount / row.totalSteps) * 100);
@@ -86,9 +89,18 @@ async function toggleStepAtomic(id, userId, stepIndex) {
       totalSteps: row.totalSteps,
       steps,
       progressPercentage,
+      notes: row.notes ?? null,
       createdAt: row.createdAt,
     };
   });
+}
+
+const setNotesStmt = db.prepare('UPDATE progress SET notes = ? WHERE id = ? AND userId = ?');
+
+/** Save the maker's own project notes ("used a 4.5mm here", "gift for mum"). */
+async function updateNotes(id, userId, notes) {
+  const info = await setNotesStmt.run(notes ?? '', id, userId);
+  return info.changes > 0;
 }
 
 // Idempotent: returns existing progress for this pattern if one exists, otherwise creates new
@@ -129,4 +141,4 @@ async function updateProgress(id, userId, updates) {
   };
 }
 
-module.exports = { getProgressById, getProgressByPatternId, getProgressSummaryForUser, createProgress, getOrCreateProgress, toggleStepAtomic, updateProgress };
+module.exports = { getProgressById, getProgressByPatternId, getProgressSummaryForUser, createProgress, getOrCreateProgress, toggleStepAtomic, updateNotes, updateProgress };
