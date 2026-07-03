@@ -120,6 +120,24 @@ const RECIPES = [
       part('Body', 'ellipsoid', { diameterCm: 14, heightCm: 11 }, { color: 'marigold' }),
       part('Stalk', 'tube', { diameterCm: 3, heightCm: 5 }, { color: 'chocolate' }),
     ], { assembly: ['Stuff the body and sew the stalk to the centre top.'], embellishments: ['Wrap yarn vertically around the body and pull snug to form ribs.'] }) },
+
+  // ----- E1 shapes showcase: flat motifs + tapered forms -----
+  { id: 'template_131', name: 'Ring Coaster Set', description: 'Flat discs worked in the round with concentric colour rings — the engine writes every colour change. Make four for a set.', difficulty: 'Beginner', category: 'Accessory', tags: ['coaster', 'quick', 'stripes'], yarnWeight: 'Worsted', timeEstimate: '1–2 hrs',
+    spec: spec('Accessory', 'Worsted', [part('Coaster', 'flatCircle', { diameterCm: 11 }, { quantity: 4, colorPlan: { colors: ['teal', 'cream'], stripeRounds: 2 } })]) },
+  { id: 'template_132', name: 'Honeycomb Trivet', description: 'A flat hexagon with crisp stacked-increase corners — a sturdy, geometric trivet for the kitchen table.', difficulty: 'Beginner', category: 'Home Decor', tags: ['hexagon', 'kitchen', 'geometric'], yarnWeight: 'Bulky', timeEstimate: '1–2 hrs',
+    spec: spec('Home Decor', 'Bulky', [part('Trivet', 'flatHexagon', { diameterCm: 18 }, { color: 'marigold' })]) },
+  { id: 'template_133', name: 'Party Bunting', description: 'A string of flat triangles, each decreased one stitch per row to a sharp point. Join them on a long chain for instant festivity.', difficulty: 'Beginner', category: 'Home Decor', tags: ['bunting', 'party', 'set'], yarnWeight: 'Worsted', timeEstimate: '2–3 hrs',
+    spec: spec('Home Decor', 'Worsted', [part('Pennant', 'triangle', { baseCm: 12 }, { quantity: 5, color: 'coral' })], { assembly: ['Crochet a long chain and slip stitch across the base of each pennant, spacing them evenly along it.'] }) },
+  { id: 'template_134', name: 'Star Ornament', description: 'A five-point star worked from a round centre with each point shaped in short rows. Hang it, gift it, garland it.', difficulty: 'Intermediate', category: 'Home Decor', tags: ['star', 'ornament', 'seasonal'], yarnWeight: 'DK', timeEstimate: '1–2 hrs',
+    spec: spec('Home Decor', 'DK', [part('Star', 'star', { sizeCm: 10 }, { color: 'marigold' })], { embellishments: ['Add a chain loop to one point for hanging.'] }) },
+  { id: 'template_135', name: 'Heart Appliqué Trio', description: 'Three flat hearts grown two stitches a row from the point up — sized for sewing onto bags, beanies, and cards.', difficulty: 'Beginner', category: 'Accessory', tags: ['heart', 'appliqué', 'gift'], yarnWeight: 'DK', timeEstimate: '1–2 hrs',
+    spec: spec('Accessory', 'DK', [part('Heart', 'heart', { widthCm: 7 }, { quantity: 3, color: 'rose' })]) },
+  { id: 'template_136', name: 'Woodland Gnome', description: 'A cone body, a tapered-tube hat that narrows to its tip, and a little sphere nose — a shelf-sitter with real shaping.', difficulty: 'Intermediate', category: 'Amigurumi', tags: ['gnome', 'woodland', 'decor'], yarnWeight: 'DK', timeEstimate: '3–4 hrs',
+    spec: spec('Amigurumi', 'DK', [
+      part('Body', 'cone', { baseDiameterCm: 8, heightCm: 9 }, { color: 'grey' }),
+      part('Hat', 'taperedTube', { bottomDiameterCm: 7, topDiameterCm: 1.5, heightCm: 10 }, { color: 'rust' }),
+      part('Nose', 'sphere', { diameterCm: 2.5 }, { color: 'cream' }),
+    ], { assembly: ['Stuff the body lightly and the hat barely at all.', 'Sew the hat over the top third of the body, letting it slouch.', 'Sew the nose just below the hat brim.'], embellishments: ['Add a yarn-wisp beard below the nose with loose strands.'] }) },
 ];
 
 let _cache = null;

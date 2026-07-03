@@ -93,6 +93,31 @@ function computeExpectedCount(text, prev) {
   const shaped = evalShaping(t, prev);
   if (shaped != null) return shaped;
 
+  // Row-edge shaping (flat pieces worked in rows — triangles, hearts, wings).
+  // These must be derived BEFORE the even-row fallback, which would otherwise
+  // match the "…in each stitch across" tail and mis-expect an unchanged count.
+  if (prev != null && !/repeat/.test(t) && !/\[/.test(t)) {
+    // Halving round: "Sc 2 together around." — every pair merged → prev / 2
+    // (only derivable when the running count is even).
+    if (new RegExp(`${STITCH_WORDS}\\s+2\\s+together\\s+around\\b`).test(t)) {
+      return prev % 2 === 0 ? prev / 2 : null;
+    }
+    // Edge decrease: "Sc 2 together, then sc in each stitch across." → prev − 1.
+    // Compiled steps carry a "Part — Row N: " prefix, so anchor at the start OR
+    // immediately after that label colon. Never matches the "around" form above.
+    if (new RegExp(`(?:^|:\\s+)${STITCH_WORDS}\\s+2\\s+together\\b(?!\\s+around)`).test(t)) {
+      return prev - 1;
+    }
+    // Double edge increase:
+    // "2 sc in the first stitch, sc across to the last stitch, 2 sc in the last stitch." → prev + 2
+    if (
+      new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+the\\s+first\\s+stitch`).test(t) &&
+      new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+the\\s+last\\s+stitch`).test(t)
+    ) {
+      return prev + 2;
+    }
+  }
+
   // Even round/row: "single crochet in each stitch around/across",
   // "single crochet across", "repeat the same row"
   if (

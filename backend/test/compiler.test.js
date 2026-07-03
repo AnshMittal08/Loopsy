@@ -101,6 +101,25 @@ test('a striped part inserts colour-change notes and lists every colour in mater
   assert.ok(c.steps.some((s) => /starting in .+ yarn/.test(s.instruction)));
 });
 
+test('E1 shapes compile with part-label prefixes and still verify (0 issues)', () => {
+  // Compiled steps are prefixed "Part — Row N: …" — the validator must derive
+  // through that prefix. This locks the seam a raw-generator test can't see.
+  const c = compileDesignSpec({
+    name: 'Motif Sampler', category: 'Accessory', yarnWeight: 'DK',
+    parts: [
+      { name: 'Coaster', shape: 'flatCircle', dimensions: { diameterCm: 10 } },
+      { name: 'Tile', shape: 'flatHexagon', dimensions: { diameterCm: 12 } },
+      { name: 'Horn', shape: 'taperedTube', dimensions: { bottomDiameterCm: 5, topDiameterCm: 1.5, heightCm: 8 } },
+      { name: 'Pennant', shape: 'triangle', dimensions: { baseCm: 10 } },
+      { name: 'Star', shape: 'star', dimensions: { sizeCm: 9 } },
+      { name: 'Heart', shape: 'heart', dimensions: { widthCm: 6 } },
+    ],
+  });
+  assert.ok(c.ok, JSON.stringify(c.errors));
+  const v = validatePattern(c.steps);
+  assert.equal(v.issues.length, 0, JSON.stringify(v.issues));
+});
+
 test('colorName maps hex to readable names and passes palette names through', () => {
   assert.equal(colorName('#c4622d'), 'rust');
   assert.equal(colorName('#1fa39a'), 'teal');

@@ -45,7 +45,7 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 - `lib/engine/` - the deterministic geometry engine. Stitch counts are **computed, never guessed**:
   - `gauge.js` - stitches/rows per cm by yarn weight + hook
   - `distribute.js` - even increase/decrease distribution for any delta across a round (exhaustively tested)
-  - `shapes.js` - shape generators (sphere, ellipsoid, hemisphere, tube, cone, flatPanel, hatCrown, grannySquare)
+  - `shapes.js` - shape generators (sphere, ellipsoid, hemisphere, tube, cone, flatPanel, hatCrown, grannySquare; E1: flatCircle, flatHexagon, taperedTube, triangle, star, heart)
   - `revolve.js` - profile curve → amigurumi worked in rounds (the "Sculpt" engine)
   - `chart.js` - colourwork: `compileChart` (flat rows) + `compileMedallion` (worked in the round)
   - `colorName.js` - map any hex to a readable yarn name for patterns
