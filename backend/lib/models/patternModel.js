@@ -112,6 +112,29 @@ async function deletePattern(id, userId, ctx = {}) {
   return info.changes > 0;
 }
 
+/**
+ * Owner edit of a pattern's content: title, steps, notes, materials. The AI got
+ * one row wrong? The maker can fix it — but edits clear the verified badge
+ * unless the validator re-proves the edited steps (checked in the route).
+ */
+const updateContentStmt = db.prepare(
+  `UPDATE patterns SET title = ?, steps = ?, notes = ?, materials = ?, verified = ?
+   WHERE id = ? AND userId = ? AND deletedAt IS NULL`
+);
+
+async function updatePatternContent(id, userId, { title, steps, notes, materials, verified }) {
+  const info = await updateContentStmt.run(
+    title,
+    JSON.stringify(steps ?? []),
+    JSON.stringify(notes ?? []),
+    JSON.stringify(materials ?? []),
+    verified ? 1 : 0,
+    id,
+    userId
+  );
+  return info.changes > 0;
+}
+
 // ── Community catalog ──────────────────────────────────────────────────────
 
 const setPublishedStmt = db.prepare(
@@ -309,6 +332,7 @@ module.exports = {
   getPatternById,
   createPattern,
   deletePattern,
+  updatePatternContent,
   setPatternPublished,
   getPublicPatternById,
   getCommunityFeed,

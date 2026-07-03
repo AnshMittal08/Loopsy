@@ -229,6 +229,7 @@ function initializeDatabase(db) {
   const progressColumns = db.prepare(`PRAGMA table_info(progress)`).all();
   const existingProgressColumns = new Set(progressColumns.map((column) => column.name));
   addColumnIfMissing(existingProgressColumns, 'userId', "ALTER TABLE progress ADD COLUMN userId TEXT");
+  addColumnIfMissing(existingProgressColumns, 'notes', "ALTER TABLE progress ADD COLUMN notes TEXT");
 
   const designColumns = db.prepare(`PRAGMA table_info(designs)`).all();
   const existingDesignColumns = new Set(designColumns.map((column) => column.name));

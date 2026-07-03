@@ -213,6 +213,24 @@ export default function Create() {
   const [streamSteps, setStreamSteps] = useState([]);
   const [result, setResult] = useState(null);
   const [actionError, setActionError] = useState(null);
+
+  // Quota at the point of action — no more surprise 429s after typing a prompt.
+  const [quota, setQuota] = useState(null);
+  useEffect(() => {
+    if (!user) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/usage');
+        const u = await res.json();
+        if (!cancelled && u?.limits) setQuota(u);
+      } catch { /* non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+  const genLeft = quota == null || quota.limits?.generations == null
+    ? null // unknown or unlimited
+    : Math.max(0, quota.limits.generations - (quota.used?.generations ?? 0));
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const [templateMode, setTemplateMode] = useState('template');
   const mode = hasTemplateRoute ? templateMode : 'ai';
@@ -414,6 +432,7 @@ export default function Create() {
   };
 
   const generateButton = (onClick, disabled, label) => (
+    <div className="flex flex-col items-start gap-1.5">
     <Magnetic>
       <Motion.button
         onClick={onClick}
@@ -431,6 +450,14 @@ export default function Create() {
         {isGenerating ? 'Spinning up your pattern…' : 'Generate Pattern'}
       </Motion.button>
     </Magnetic>
+    {genLeft != null && (
+      <p className={`text-xs ${genLeft === 0 ? 'font-semibold text-error' : 'text-on-surface-variant'}`}>
+        {genLeft === 0
+          ? <>No generations left this month — <Link to="/account" className="underline">view plans</Link></>
+          : `${genLeft} AI generation${genLeft === 1 ? '' : 's'} left this month`}
+      </p>
+    )}
+    </div>
   );
 
   return (

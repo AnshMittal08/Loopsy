@@ -384,6 +384,58 @@ test('community: trending sort orders by star count', async () => {
   assert.ok(Array.isArray(body.patterns), 'trending feed returns patterns');
 });
 
+test('progress: explicit desired state is idempotent (offline replay) + notes save', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { POST: createProgress } = await import('../app/api/progress/route.js');
+  const { PATCH: patchProgress } = await import('../app/api/progress/[id]/route.js');
+
+  const cookie = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Offline Scarf' }, { cookie }))).json();
+  const prog = await (await createProgress(jsonReq('http://x/api/progress', { patternId: p.id }, { cookie }))).json();
+
+  const patch = (body) => patchProgress(new Request(`http://x/api/progress/${prog.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) }), { params: { id: prog.id } });
+
+  // Replaying the same desired state twice must not double-flip.
+  const a = await (await patch({ stepIndex: 0, completed: true })).json();
+  assert.equal(a.steps[0].completed, true);
+  const b = await (await patch({ stepIndex: 0, completed: true })).json();
+  assert.equal(b.steps[0].completed, true, 'replay is idempotent');
+  assert.equal(a.progressPercentage, b.progressPercentage);
+
+  // Bare toggle still works (back-compat).
+  const c = await (await patch({ stepIndex: 0 })).json();
+  assert.equal(c.steps[0].completed, false);
+
+  // Notes-only update round-trips.
+  const d = await (await patch({ notes: 'Used a 4.5mm hook on rounds 3–6.' })).json();
+  assert.equal(d.notes, 'Used a 4.5mm hook on rounds 3–6.');
+});
+
+test('patterns: owner can edit content; the verified badge stays honest', async () => {
+  const { POST: createPattern } = await import('../app/api/patterns/route.js');
+  const { PATCH: patchPattern, GET: getPattern } = await import('../app/api/patterns/[id]/route.js');
+
+  const cookie = await signedUpCookie();
+  const p = await (await createPattern(jsonReq('http://x/api/patterns', { templateId: 'template_001', title: 'Editable Scarf' }, { cookie }))).json();
+  const before = await (await getPattern(new Request(`http://x/api/patterns/${p.id}`, { headers: { cookie } }), { params: { id: p.id } })).json();
+  assert.equal(before.verified, true, 'template_001 starts verified');
+
+  const edit = (body) => patchPattern(new Request(`http://x/api/patterns/${p.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) }), { params: { id: p.id } });
+
+  // A faithful edit (title change, steps unchanged) keeps the badge.
+  const kept = await (await edit({ title: 'My Renamed Scarf', steps: before.steps.map((s) => ({ instruction: s.instruction })) })).json();
+  assert.equal(kept.title, 'My Renamed Scarf');
+  assert.equal(kept.verified, true, 'unchanged math keeps the badge');
+
+  // Corrupting a stitch count clears the badge (validator re-check).
+  const corrupted = before.steps.map((s) => ({ instruction: s.instruction.replace('(20 single crochet)', '(21 single crochet)') }));
+  const cleared = await (await edit({ title: 'My Renamed Scarf', steps: corrupted })).json();
+  assert.equal(cleared.verified, false, 'a lied count clears the badge');
+
+  // Invalid body → 400.
+  assert.equal((await edit({ title: '', steps: [] })).status, 400);
+});
+
 test('designs: save-in-place lifecycle — create, PUT update, owner-gate, delete', async () => {
   const { POST: createDesign } = await import('../app/api/designs/route.js');
   const { GET: getDesign, PUT: putDesign, DELETE: delDesign } = await import('../app/api/designs/[id]/route.js');

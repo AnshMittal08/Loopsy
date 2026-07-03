@@ -3,13 +3,15 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Menu, BookOpen, ArrowRight, Inbox, Palette, Scaling, Sparkles,
-  Lightbulb, Check, Maximize2, Trash2, Globe, Lock, Printer,
+  Lightbulb, Check, Maximize2, Trash2, Globe, Lock, Printer, Pencil,
 } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileHeader from '../components/MobileHeader';
 import MobileNav from '../components/MobileNav';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PrintablePattern from '../components/PrintablePattern';
+import CopyLinkDialog from '../components/CopyLinkDialog';
+import PatternEditor from '../components/PatternEditor';
 import { SkeletonTrackerLayout } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { getPatternTheme } from '../lib/patternThemes';
@@ -112,6 +114,61 @@ export default function Tracker() {
       showToast(err.message, 'error');
     }
   };
+  // Maker's own project notes — debounced PATCH { notes } to the progress record.
+  const [myNotes, setMyNotes] = useState('');
+  const [notesSaved, setNotesSaved] = useState(true);
+  const notesTimer = useRef(null);
+  useEffect(() => {
+    const v = progress?.notes;
+    if (typeof v === 'string') Promise.resolve().then(() => setMyNotes(v));
+  }, [progress?.id, progress?.notes]);
+  const handleNotesChange = (value) => {
+    setMyNotes(value);
+    setNotesSaved(false);
+    clearTimeout(notesTimer.current);
+    notesTimer.current = setTimeout(async () => {
+      try {
+        await fetchJson(`/api/progress/${progress.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: value }),
+        });
+        setNotesSaved(true);
+      } catch {
+        showToast('Could not save your notes — they stay on this screen, try again shortly.', 'error');
+      }
+    }, 800);
+  };
+
+  const [editing, setEditing] = useState(false); // pattern editor modal
+
+  // Finish-screen actions: publish THIS pattern, then share its public link.
+  const [finishShareUrl, setFinishShareUrl] = useState(null);
+  const handlePublishThis = async () => {
+    if (!pattern || pattern.publishedAt) return;
+    try {
+      const res = await fetch(`/api/patterns/${pattern.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: true }),
+      });
+      if (!res.ok) throw new Error('Could not publish.');
+      setPattern((cur) => (cur ? { ...cur, publishedAt: new Date().toISOString() } : cur));
+      showToast('Published to the community — congrats, maker!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+  const handleShareFinished = async () => {
+    const url = `${window.location.origin}/p/${pattern.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Share link copied.', 'success');
+    } catch {
+      setFinishShareUrl(url);
+    }
+  };
+
   const theme = getPatternTheme(pattern?.category);
   const ThemeIcon = theme.icon;
 
@@ -192,24 +249,76 @@ export default function Tracker() {
     lastPctRef.current = pct;
   }, [progress?.progressPercentage, reduceMotion]);
 
+  // ── Offline-resilient progress ──────────────────────────────────────────
+  // Check-offs apply OPTIMISTICALLY and, when the network fails, queue as
+  // explicit desired states (idempotent on the server) in localStorage.
+  // The queue replays when the connection returns or on the next interval.
+  const QUEUE_KEY = 'loopsy:progress:queue';
+  const offlineToastRef = useRef(false);
+  const readQueue = () => { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } };
+  const writeQueue = (q) => { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch { /* full */ } };
+
+  const flushQueue = useCallback(async () => {
+    let q = readQueue();
+    if (q.length === 0) return;
+    for (const item of [...q]) {
+      try {
+        const updated = await fetchJson(`/api/progress/${item.progressId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stepIndex: item.stepIndex, completed: item.completed }),
+        });
+        q = q.filter((x) => x !== item);
+        writeQueue(q);
+        setProgress((cur) => (cur && cur.id === updated.id ? { ...updated, notes: cur.notes ?? updated.notes } : cur));
+      } catch {
+        return; // still offline — try again on the next signal
+      }
+    }
+    offlineToastRef.current = false;
+    showToast('You’re back online — progress synced.', 'success');
+  }, [showToast]);
+
+  useEffect(() => {
+    const onOnline = () => { flushQueue(); };
+    window.addEventListener('online', onOnline);
+    const t = setInterval(() => { if (readQueue().length) flushQueue(); }, 15000);
+    return () => { window.removeEventListener('online', onOnline); clearInterval(t); };
+  }, [flushQueue]);
+
   const toggleStep = async (stepIndex) => {
     if (!progress) return;
     const oldPct = progress.progressPercentage ?? 0;
+
+    // Optimistic local update — the couch/plane case must never lose a row.
+    const nextSteps = progress.steps.map((st, i) => (i === stepIndex ? { ...st, completed: !st.completed } : st));
+    const completedCount = nextSteps.filter((st) => st.completed).length;
+    const newPct = Math.round((completedCount / progress.totalSteps) * 100);
+    const desired = nextSteps[stepIndex].completed;
+    setProgress((cur) => (cur ? { ...cur, steps: nextSteps, progressPercentage: newPct } : cur));
+
+    const milestone = MILESTONES.find((m) => oldPct < m.at && newPct >= m.at);
+    if (milestone) {
+      fireConfetti({ count: milestone.at === 100 ? 160 : 80 });
+      showToast(milestone.message, 'success');
+    }
+
     try {
       const updated = await fetchJson(`/api/progress/${progress.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepIndex }),
+        body: JSON.stringify({ stepIndex, completed: desired }),
       });
-      setProgress(updated);
-      const newPct = updated.progressPercentage ?? 0;
-      const milestone = MILESTONES.find((m) => oldPct < m.at && newPct >= m.at);
-      if (milestone) {
-        fireConfetti({ count: milestone.at === 100 ? 160 : 80 });
-        showToast(milestone.message, 'success');
-      }
+      setProgress((cur) => (cur ? { ...updated, notes: cur.notes ?? updated.notes } : updated));
     } catch {
-      showToast('Failed to save step progress. Please try again.', 'error');
+      // Queue the DESIRED state (replay-safe) and keep the optimistic UI.
+      const q = readQueue().filter((x) => !(x.progressId === progress.id && x.stepIndex === stepIndex));
+      q.push({ progressId: progress.id, stepIndex, completed: desired });
+      writeQueue(q);
+      if (!offlineToastRef.current) {
+        offlineToastRef.current = true;
+        showToast('Offline — progress saved on this device and will sync automatically.', 'info');
+      }
     }
   };
 
@@ -368,6 +477,8 @@ export default function Tracker() {
   return (
     <>
     <PrintablePattern pattern={pattern} steps={steps} />
+    {finishShareUrl && <CopyLinkDialog url={finishShareUrl} title="Share your finished make" onClose={() => setFinishShareUrl(null)} />}
+    {editing && <PatternEditor pattern={pattern} onSaved={(p) => setPattern(p)} onClose={() => setEditing(false)} />}
     <div className="flex h-dvh overflow-hidden bg-surface text-on-surface print:hidden">
       <SideNav />
 
@@ -386,10 +497,28 @@ export default function Tracker() {
           <div className="flex flex-wrap items-start justify-between gap-5 mb-6">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary mb-1.5">Project Studio</p>
-              <h1 className="font-display display-wonk text-2xl md:text-3xl font-bold text-on-surface leading-tight">{pattern.title}</h1>
+              <h1 className="font-display display-wonk text-2xl md:text-3xl font-bold text-on-surface leading-tight">
+                {pattern.title}
+                <button
+                  onClick={() => setEditing(true)}
+                  aria-label="Edit pattern"
+                  title="Edit the title or fix a step"
+                  className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full align-middle text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+                >
+                  <Pencil size={14} />
+                </button>
+              </h1>
               <p className="text-sm text-on-surface-variant mt-1">
                 {pattern.category || 'Custom'} · {pattern.difficulty}
                 <VerifiedBadge pattern={pattern} className="ml-2 align-text-bottom" />
+                {pattern.isExperimental && (
+                  <span
+                    className="ml-2 rounded-full bg-tertiary-container px-2 py-0.5 text-xs font-semibold text-on-tertiary-container"
+                    title="Written freeform by AI — stitch counts could not be independently verified"
+                  >
+                    Experimental
+                  </span>
+                )}
                 {pattern.isFallback && (
                   <span className="ml-2 rounded-full bg-error-container px-2 py-0.5 text-xs font-semibold text-on-error-container">
                     AI fallback
@@ -480,14 +609,38 @@ export default function Tracker() {
               className="relative overflow-hidden rounded-2xl border border-secondary/30 bg-secondary-container/40 shadow-warm-lg p-6 md:p-7 mb-6 text-center"
             >
               <p className="font-display text-xl md:text-2xl font-bold text-on-surface">Finished! You made this. 🎉</p>
-              <p className="mt-1.5 text-sm text-on-surface-variant">Every row checked — take the victory lap.</p>
-              <button
-                onClick={() => fireConfetti({ count: 160 })}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-on-secondary hover:opacity-90 transition-opacity"
-              >
-                <Sparkles size={15} />
-                Celebrate again
-              </button>
+              <p className="mt-1.5 text-sm text-on-surface-variant">Every row checked — take the victory lap, then share the make.</p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                <button
+                  onClick={handlePublishThis}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm"
+                >
+                  <Globe size={15} />
+                  {pattern.publishedAt ? 'Published ✓' : 'Publish to community'}
+                </button>
+                {pattern.publishedAt && (
+                  <button
+                    onClick={handleShareFinished}
+                    className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                  >
+                    Share link
+                  </button>
+                )}
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                >
+                  <ArrowRight size={15} />
+                  Make your next thing
+                </Link>
+                <button
+                  onClick={() => fireConfetti({ count: 160 })}
+                  className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-4 py-2.5 text-sm font-semibold text-secondary hover:bg-secondary-container/40 transition-colors"
+                >
+                  <Sparkles size={15} />
+                  Celebrate
+                </button>
+              </div>
             </Motion.section>
           )}
 
@@ -710,6 +863,17 @@ export default function Tracker() {
               {/* Notes + tags */}
               {panelTab === 'notes' && (
                 <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">My project notes</p>
+                    <textarea
+                      value={myNotes}
+                      onChange={(e) => handleNotesChange(e.target.value)}
+                      placeholder="Your own notes — hook changes, yarn substitutions, who it's for…"
+                      rows={4}
+                      className="w-full resize-y rounded-xl bg-surface-container-low px-4 py-3 text-sm leading-relaxed text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary/25"
+                    />
+                    <p className="mt-1 text-[10px] text-on-surface-variant">{notesSaved ? 'Saved ✓' : 'Saves automatically'}</p>
+                  </div>
                   {(pattern.notes || []).length === 0 && (pattern.tags || []).length === 0 && (
                     <p className="text-sm text-on-surface-variant">No maker notes for this pattern.</p>
                   )}

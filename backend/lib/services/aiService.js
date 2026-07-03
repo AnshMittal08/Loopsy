@@ -286,6 +286,17 @@ async function humanizeCompiledPattern(prompt, difficulty, compiled) {
  * both produce identically-verified output. `sourcePrompt` is a short label
  * stored as the prompt summary and fed to the humanizer/metadata inference.
  */
+/**
+ * Professional patterns disclose their gauge assumption — ours is computed by
+ * the engine, so we state it (and the tension caveat) on every compiled pattern.
+ */
+function gaugeNote(gauge) {
+  if (!gauge) return "Gauge: check your tension against the finished size before starting.";
+  const sts = Math.round(gauge.stsPer10Cm);
+  const rows = Math.round(gauge.rowsPer10Cm);
+  return `Gauge: ${sts} stitches \u00d7 ${rows} rows = 10 cm in single crochet with a ${gauge.hook} hook${gauge.tight ? " (worked tightly for amigurumi)" : ""}. Your tension may vary \u2014 finished dimensions are approximate.`;
+}
+
 async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () => {} }) {
   if (!spec || spec.feasible === false) return null;
 
@@ -333,7 +344,10 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
     yarnWeight: compiled.yarnWeight,
     timeEstimate: presentation?.timeEstimate || inferTimeEstimate(difficulty, category),
     finishedSize: compiled.finishedSize,
-    notes: presentation?.notes?.length ? presentation.notes : inferNotes(category),
+    notes: [
+      gaugeNote(compiled.gauge),
+      ...(presentation?.notes?.length ? presentation.notes : inferNotes(category)),
+    ],
     steps: compiled.steps.map(({ row, instruction }) => ({ row, instruction })),
     verified: true,
     isExperimental: false,
