@@ -12,6 +12,7 @@ export default function MobileTabBar() {
   const { pathname } = useLocation();
   if (
     pathname === '/design' ||
+    pathname.startsWith('/design/') ||
     pathname.startsWith('/d/') ||
     pathname === '/verify-email' ||
     pathname === '/reset-password'
