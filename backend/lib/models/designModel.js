@@ -39,4 +39,19 @@ async function linkPattern(id, patternId) {
   await setPatternStmt.run(patternId, new Date().toISOString(), id);
 }
 
-module.exports = { createDesign, getDesignById, getDesignsForUser, linkPattern };
+const updateStmt = db.prepare(`UPDATE designs SET name = ?, spec = ?, updatedAt = ? WHERE id = ? AND deletedAt IS NULL`);
+
+/** Save a design in place (name + spec) — the "reopen and keep editing" path. */
+async function updateDesign(id, { name, spec }) {
+  await updateStmt.run(name || 'Untitled design', JSON.stringify(spec ?? {}), new Date().toISOString(), id);
+  return deserialize(await getByIdStmt.get(id));
+}
+
+const softDeleteStmt = db.prepare(`UPDATE designs SET deletedAt = ? WHERE id = ? AND deletedAt IS NULL`);
+
+async function deleteDesign(id) {
+  const info = await softDeleteStmt.run(new Date().toISOString(), id);
+  return info.changes > 0;
+}
+
+module.exports = { createDesign, getDesignById, getDesignsForUser, linkPattern, updateDesign, deleteDesign };

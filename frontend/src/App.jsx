@@ -25,6 +25,7 @@ import About from './pages/About';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import NotFound from './pages/NotFound';
+import MyDesigns from './pages/MyDesigns';
 
 function App() {
   return (
@@ -47,7 +48,8 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/create/:templateId?" element={<Create />} />
-            <Route path="/design" element={<Design />} />
+            <Route path="/design/:id?" element={<Design />} />
+            <Route path="/designs" element={<MyDesigns />} />
             <Route path="/d/:id" element={<DesignShare />} />
             <Route path="/tracker/:patternId?" element={<Tracker />} />
             <Route path="/community" element={<Community />} />

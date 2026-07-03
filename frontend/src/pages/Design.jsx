@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d, BadgeCheck, Undo2, Redo2, Keyboard } from 'lucide-react';
+import { ArrowLeft, Lock, Sparkles, Check, Share2, Plus, Trash2, Copy, ChevronUp, ChevronDown, Shapes, SlidersHorizontal, Minus, Smile, Grid3x3, Box, Square, Rotate3d, BadgeCheck, Undo2, Redo2, Keyboard, Save, FolderOpen } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import CanvasStage from '../components/CanvasStage';
 import ChartStudio from './ChartStudio';
@@ -18,6 +18,8 @@ import { makeSnapshot, HISTORY_LIMIT } from '../lib/designHistory';
 import { SPRING } from '../lib/motionTokens';
 import { readGenerationStream } from '../lib/generationStream';
 import { fireConfetti } from '../lib/confetti';
+import { DRAFT_KEY, partsFromSpec, readDraft, writeDraft } from '../lib/designHydrate';
+import { useToast } from '../components/Toast';
 import { useAuth } from '../components/AuthProvider';
 
 let uid = 0;
@@ -35,6 +37,14 @@ function starterParts() {
 export default function Design() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { id: routeDesignId } = useParams();
+  const { showToast } = useToast();
+
+  // Persistence: the saved design this canvas edits (null = unsaved draft).
+  const [designId, setDesignId] = useState(routeDesignId || null);
+  const [saving, setSaving] = useState(false);
+  const hydratedRef = useRef(false);   // gate autosave until initial load is done
+  const skipLoadRef = useRef(null);    // avoid re-fetch right after save→navigate
 
   const [name, setName] = useState('My Design');
   const [parts, setParts] = useState(starterParts);
@@ -134,6 +144,75 @@ export default function Design() {
     restore(redoRef.current.pop());
     syncCanFlags();
   }, [restore, syncCanFlags]);
+
+  // Apply five undoable fields from a draft/spec source, resetting history.
+  const applyDesignState = ({ name: n, parts: ps, assemblySteps: as, assemblyEdited: ae, embellishments: em }) => {
+    setName(n || 'My Design');
+    setParts(ps || []);
+    setAssemblySteps(as || []);
+    setAssemblyEdited(Boolean(ae));
+    setEmbellishments(em || []);
+    setSelectedId(null);
+    undoRef.current = [];
+    redoRef.current = [];
+    syncCanFlags();
+  };
+
+  // Initial hydration: open a saved design (/design/:id), or restore the
+  // localStorage draft on a fresh canvas. Runs once auth has resolved.
+  useEffect(() => {
+    if (authLoading || !user) return undefined;
+    let cancelled = false;
+    (async () => {
+      if (routeDesignId && skipLoadRef.current === routeDesignId) {
+        skipLoadRef.current = null;
+        hydratedRef.current = true;
+        return;
+      }
+      const draft = readDraft();
+      if (routeDesignId) {
+        try {
+          const res = await fetch(`/api/designs/${routeDesignId}`);
+          const d = await res.json();
+          if (cancelled) return;
+          if (!res.ok) throw new Error(d.error || 'Design not found');
+          if (d.userId && d.userId !== user.id) { navigate(`/d/${routeDesignId}`, { replace: true }); return; }
+          if (draft && draft.designId === routeDesignId && draft.at > Date.parse(d.updatedAt || 0)) {
+            applyDesignState(draft);
+            showToast('Restored unsaved changes to this design.', 'info');
+          } else {
+            const spec = d.spec || {};
+            applyDesignState({
+              name: d.name,
+              parts: partsFromSpec(spec),
+              assemblySteps: Array.isArray(spec.assembly) && spec.assembly.length ? spec.assembly : [],
+              assemblyEdited: Array.isArray(spec.assembly) && spec.assembly.length > 0,
+              embellishments: (spec.embellishments || []).map((text) => ({ id: nextId(), text })),
+            });
+          }
+          setDesignId(routeDesignId);
+        } catch (e) {
+          if (!cancelled) { showToast(e.message, 'error'); navigate('/designs', { replace: true }); return; }
+        }
+      } else if (draft && !draft.designId && draft.parts.length > 0) {
+        applyDesignState(draft);
+        showToast('Restored your unsaved draft.', 'info');
+      }
+      if (!cancelled) hydratedRef.current = true;
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeDesignId, user, authLoading]);
+
+  // Autosave: debounce the five undoable fields into localStorage so a refresh
+  // or crash never loses work. Server saves happen via the Save button.
+  useEffect(() => {
+    if (!hydratedRef.current) return undefined;
+    const t = setTimeout(() => {
+      writeDraft({ designId, name, parts, assemblySteps, assemblyEdited, embellishments });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [designId, name, parts, assemblySteps, assemblyEdited, embellishments]);
 
   const selected = parts.find((p) => p.id === selectedId) || null;
 
@@ -253,6 +332,9 @@ export default function Design() {
       const meta = e.metaKey || e.ctrlKey;
       const typing = isTyping(e.target);
 
+      // In draw mode ChartStudio owns all shortcuts (it has its own history).
+      if (h.mode !== 'build') return;
+
       // Undo/redo allowed everywhere except while typing in a text field.
       if (meta && (e.key === 'z' || e.key === 'Z')) {
         if (typing) return;
@@ -359,16 +441,46 @@ export default function Design() {
     return () => clearTimeout(id);
   }, [buildSpec, mode, parts.length]);
 
+  // Save the design: PUT in place when it already exists, POST once when new
+  // (then adopt the id so every later save updates the same record — no more
+  // duplicate designs). Returns the design id, or null on failure.
+  const saveDesign = async () => {
+    if (parts.length === 0) { setError('Add at least one shape before saving.'); return null; }
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(designId ? `/api/designs/${designId}` : '/api/designs', {
+        method: designId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name || 'My Design', spec: buildSpec() }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Could not save the design');
+      if (!designId) {
+        skipLoadRef.current = d.id;
+        setDesignId(d.id);
+        navigate(`/design/${d.id}`, { replace: true });
+      }
+      writeDraft({ designId: d.id, name, parts, assemblySteps, assemblyEdited, embellishments });
+      return d.id;
+    } catch (e) {
+      setError(e.message);
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    const id = await saveDesign();
+    if (id) showToast('Design saved.', 'success');
+  };
+
   const shareDesign = async () => {
     setSharing(true); setError(null);
     try {
-      const res = await fetch('/api/designs', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, spec: buildSpec() }),
-      });
-      const design = await res.json();
-      if (!res.ok) throw new Error(design.error || 'Could not create share link');
-      const url = `${window.location.origin}/d/${design.id}`;
+      const id = await saveDesign(); // share always reflects the current state
+      if (!id) return;
+      const url = `${window.location.origin}/d/${id}`;
       try { await navigator.clipboard.writeText(url); setShareMsg('Link copied!'); }
       catch { setShareMsg('Link ready'); setShareUrl(url); }
       setTimeout(() => setShareMsg(null), 2500);
@@ -393,11 +505,9 @@ export default function Design() {
         pattern = await res.json();
         if (!res.ok) throw new Error(pattern.error || 'Failed to compile the design');
       }
-      fetch('/api/designs', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, spec }),
-      }).then((r) => r.ok && r.json()).then((d) => {
-        if (d?.id) fetch(`/api/designs/${d.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patternId: pattern.id }) });
+      // Persist THIS design (in place when saved) and link the compiled pattern.
+      saveDesign().then((sid) => {
+        if (sid) fetch(`/api/designs/${sid}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patternId: pattern.id }) }).catch(() => {});
       }).catch(() => {});
       const progressRes = await fetch('/api/progress', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patternId: pattern.id }),
@@ -589,6 +699,14 @@ export default function Design() {
             <ShortcutsHint open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
             {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this design" onClose={() => setShareUrl(null)} />}
           </div>
+          <Link to="/designs" title="My designs" aria-label="My designs"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            <FolderOpen size={16} />
+          </Link>
+          <button onClick={handleSave} disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
+            <Save size={14} /><span className="hidden sm:inline">{saving ? 'Saving…' : designId ? 'Save' : 'Save design'}</span>
+          </button>
           <button onClick={shareDesign} disabled={sharing}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 px-3 py-2 text-xs font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-50">
             {shareMsg ? <Check size={14} className="text-secondary" /> : <Share2 size={14} />}<span className="hidden sm:inline">{shareMsg || 'Share'}</span>

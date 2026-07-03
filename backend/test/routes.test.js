@@ -384,6 +384,31 @@ test('community: trending sort orders by star count', async () => {
   assert.ok(Array.isArray(body.patterns), 'trending feed returns patterns');
 });
 
+test('designs: save-in-place lifecycle — create, PUT update, owner-gate, delete', async () => {
+  const { POST: createDesign } = await import('../app/api/designs/route.js');
+  const { GET: getDesign, PUT: putDesign, DELETE: delDesign } = await import('../app/api/designs/[id]/route.js');
+
+  const owner = await signedUpCookie();
+  const created = await (await createDesign(jsonReq('http://x/api/designs', { name: 'Bear v1', spec: { parts: [{ shape: 'sphere' }] } }, { cookie: owner }))).json();
+
+  // Owner updates name + spec IN PLACE (no duplicate record).
+  const put = await putDesign(jsonReq(`http://x/api/designs/${created.id}`, { name: 'Bear v2', spec: { parts: [{ shape: 'sphere' }, { shape: 'cone' }] } }, { cookie: owner, 'x-http-method-override': 'PUT' }), { params: { id: created.id } });
+  assert.equal(put.status, 200);
+  const updated = await put.json();
+  assert.equal(updated.id, created.id, 'same record');
+  assert.equal(updated.name, 'Bear v2');
+  assert.equal(updated.spec.parts.length, 2);
+
+  // A stranger cannot update or delete it.
+  const stranger = await signedUpCookie();
+  assert.equal((await putDesign(jsonReq(`http://x/api/designs/${created.id}`, { name: 'X', spec: {} }, { cookie: stranger }), { params: { id: created.id } })).status, 403);
+  assert.equal((await delDesign(new Request(`http://x/api/designs/${created.id}`, { method: 'DELETE', headers: { cookie: stranger } }), { params: { id: created.id } })).status, 403);
+
+  // Owner deletes; the design disappears from reads.
+  assert.equal((await delDesign(new Request(`http://x/api/designs/${created.id}`, { method: 'DELETE', headers: { cookie: owner } }), { params: { id: created.id } })).status, 200);
+  assert.equal((await getDesign(new Request(`http://x/api/designs/${created.id}`), { params: { id: created.id } })).status, 404);
+});
+
 test('community: starred patterns have a destination (GET /api/patterns/starred)', async () => {
   const { POST: createPattern } = await import('../app/api/patterns/route.js');
   const { PATCH: patchPattern } = await import('../app/api/patterns/[id]/route.js');

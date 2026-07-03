@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3, Square } from 'lucide-react';
+import { ArrowLeft, Sparkles, Paintbrush, Eraser, PaintBucket, Pipette, FlipHorizontal2, Circle, CircleDot, Star, Trash2, Shapes, Grid3x3, Square, Undo2, Redo2 } from 'lucide-react';
 import { ThreadSpinner } from '../components/motion/Thread';
 import OnboardingCard from '../components/OnboardingCard';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { hexOf } from '../lib/yarnColors';
 import ColorPicker from '../components/ColorPicker';
 import { PRESETS } from '../lib/chartPresets';
@@ -81,12 +82,65 @@ export default function ChartStudio({ onMode }) {
   const [error, setError] = useState(null);
   const painting = useRef(false);
 
+  // ── Undo / redo ── snapshots of { grid, size }; one step per paint stroke.
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const syncHist = () => { setCanUndo(undoStack.current.length > 0); setCanRedo(redoStack.current.length > 0); };
+  const pushHistory = () => {
+    undoStack.current.push({ grid: grid.map((r) => [...r]), size });
+    if (undoStack.current.length > 50) undoStack.current.shift();
+    redoStack.current = [];
+    syncHist();
+  };
+  const undo = () => {
+    const snap = undoStack.current.pop();
+    if (!snap) return;
+    redoStack.current.push({ grid: grid.map((r) => [...r]), size });
+    setGrid(snap.grid); setSize(snap.size);
+    syncHist();
+  };
+  const redo = () => {
+    const snap = redoStack.current.pop();
+    if (!snap) return;
+    undoStack.current.push({ grid: grid.map((r) => [...r]), size });
+    setGrid(snap.grid); setSize(snap.size);
+    syncHist();
+  };
+  // Keyboard ⌘Z / ⌘⇧Z — the listener reads fresh closures through a ref.
+  const histRef = useRef(null);
+  useEffect(() => { histRef.current = { undo, redo }; });
+  useEffect(() => {
+    const onKey = (e) => {
+      const el = e.target;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) histRef.current?.redo(); else histRef.current?.undo();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        histRef.current?.redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Destructive actions (clear, resize) confirm when the canvas has content.
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'clear' } | { type: 'resize', n }
+
   const rows = grid.length, cols = grid[0].length;
   const usedColors = useMemo(() => [...new Set(grid.flat())], [grid]);
 
-  const resize = (n) => { setSize(n); setGrid(makeGrid(n, n)); };
+  const hasContent = useMemo(() => grid.some((row) => row.some((c) => c !== BG)), [grid]);
+
+  const doResize = (n) => { pushHistory(); setSize(n); setGrid(makeGrid(n, n)); };
+  const resize = (n) => { if (hasContent) setConfirmAction({ type: 'resize', n }); else doResize(n); };
+  const doClear = () => { pushHistory(); setGrid(makeGrid(cols, rows)); };
 
   const applyPreset = (p) => {
+    pushHistory();
     setGrid(p.build(cols, rows));
     if (p.construction) setConstruction(p.construction);
     setName(p.label === 'Cap shield' ? 'Captain America Shield' : p.label);
@@ -150,6 +204,21 @@ export default function ChartStudio({ onMode }) {
             className="w-full min-w-0 sm:w-52 rounded-md bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:bg-surface-container-low focus:bg-surface-container-low focus:ring-2 focus:ring-primary/30 transition-colors" />
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
+          <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)" aria-label="Undo"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-35 disabled:hover:bg-transparent"><Undo2 size={15} /></button>
+          <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)" aria-label="Redo"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-35 disabled:hover:bg-transparent"><Redo2 size={15} /></button>
+          {confirmAction && (
+            <ConfirmDialog
+              title={confirmAction.type === 'clear' ? 'Clear the whole chart?' : `Resize to ${confirmAction.n}×${confirmAction.n}?`}
+              body={confirmAction.type === 'clear'
+                ? 'Every painted cell is wiped. You can undo this.'
+                : 'Resizing starts a fresh grid — your current drawing is wiped. You can undo this.'}
+              confirmLabel={confirmAction.type === 'clear' ? 'Clear' : 'Resize'}
+              onConfirm={() => { const a = confirmAction; setConfirmAction(null); if (a.type === 'clear') doClear(); else doResize(a.n); }}
+              onCancel={() => setConfirmAction(null)}
+            />
+          )}
           {/* Build / Draw mode toggle */}
           <div className="flex rounded-full bg-surface-container-low p-0.5">
             <button onClick={() => onMode('build')} className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors sm:px-3" aria-label="Build 3D mode"><Shapes size={13} /><span className="hidden sm:inline">Build 3D</span></button>
@@ -202,11 +271,11 @@ export default function ChartStudio({ onMode }) {
 
           <p className="mb-2 mt-4 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Stamps</p>
           <div className="grid grid-cols-3 gap-1.5">
-            <button onClick={() => setGrid((g) => stampCircle(g, color, false))} className="flex flex-col items-center gap-0.5 rounded-lg border border-outline-variant/20 py-2 text-[10px] font-semibold hover:bg-surface-container-low transition-colors"><Circle size={16} />Disc</button>
-            <button onClick={() => setGrid((g) => stampCircle(g, color, true))} className="flex flex-col items-center gap-0.5 rounded-lg border border-outline-variant/20 py-2 text-[10px] font-semibold hover:bg-surface-container-low transition-colors"><CircleDot size={16} />Ring</button>
+            <button onClick={() => { pushHistory(); setGrid((g) => stampCircle(g, color, false)); }} className="flex flex-col items-center gap-0.5 rounded-lg border border-outline-variant/20 py-2 text-[10px] font-semibold hover:bg-surface-container-low transition-colors"><Circle size={16} />Disc</button>
+            <button onClick={() => { pushHistory(); setGrid((g) => stampCircle(g, color, true)); }} className="flex flex-col items-center gap-0.5 rounded-lg border border-outline-variant/20 py-2 text-[10px] font-semibold hover:bg-surface-container-low transition-colors"><CircleDot size={16} />Ring</button>
             <button onClick={() => setGrid((g) => stampStar(g, color))} className="flex flex-col items-center gap-0.5 rounded-lg border border-outline-variant/20 py-2 text-[10px] font-semibold hover:bg-surface-container-low transition-colors"><Star size={16} />Star</button>
           </div>
-          <button onClick={() => setGrid(makeGrid(cols, rows))} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-error/30 px-2.5 py-2 text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={13} />Clear all</button>
+          <button onClick={() => (hasContent ? setConfirmAction({ type: 'clear' }) : doClear())} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-error/30 px-2.5 py-2 text-xs font-semibold text-error hover:bg-error-container/40 transition-colors"><Trash2 size={13} />Clear all</button>
         </aside>
 
         {/* Center: the pixel grid */}
@@ -225,7 +294,7 @@ export default function ChartStudio({ onMode }) {
                 style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                 {grid.map((row, r) => row.map((cell, c) => (
                   <button key={`${r}-${c}`} aria-label={`cell ${r},${c}`}
-                    onPointerDown={() => { painting.current = true; paintCell(r, c); }}
+                    onPointerDown={() => { if (!painting.current && tool !== 'pick') pushHistory(); painting.current = true; paintCell(r, c); }}
                     onPointerEnter={() => { if (painting.current) paintCell(r, c); }}
                     style={{ backgroundColor: hexOf(cell) }} />
                 )))}
