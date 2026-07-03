@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Trash2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useToast } from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import { formatRelativeTime } from '../lib/formatDate';
 
 const MAX_LEN = 2000;
@@ -60,8 +61,9 @@ export default function Comments({ patternId, patternOwnerId }) {
     }
   }, [body, submitting, patternId, showToast]);
 
+  const [confirmDelete, setConfirmDelete] = useState(null); // commentId
   const handleDelete = useCallback(async (commentId) => {
-    if (!window.confirm('Delete this comment?')) return;
+    setConfirmDelete(null);
     try {
       const res = await fetch(`/api/patterns/${patternId}/comments/${commentId}`, {
         method: 'DELETE',
@@ -78,6 +80,15 @@ export default function Comments({ patternId, patternOwnerId }) {
 
   return (
     <section className="mt-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6">
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete this comment?"
+          body="It will be removed from the discussion."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       <div className="flex items-center gap-2 mb-5">
         <MessageCircle size={16} className="text-primary" />
         <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-primary">
@@ -150,7 +161,7 @@ export default function Comments({ patternId, patternOwnerId }) {
                   </div>
                   {canDelete && (
                     <button
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => setConfirmDelete(c.id)}
                       aria-label="Delete comment"
                       className="shrink-0 rounded-lg p-1 text-on-surface-variant/60 hover:bg-error-container hover:text-on-error-container transition-colors"
                     >

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { UserX, Star, Sparkles } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import PatternCard from '../components/PatternCard';
 import { Reveal, RevealGroup, RevealItem } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
@@ -164,6 +165,7 @@ export default function CreatorProfile() {
           </RevealGroup>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

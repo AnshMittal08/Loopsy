@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Compass, Sparkles, BookOpen, User, Plus, Shapes, Search, Globe, Library, GraduationCap } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from './AuthProvider';
 import { openCommandPalette } from '../lib/commandPalette';
+import { navFor, isNavActive } from '../lib/navigation';
 
 function NavItem({ to, icon, label, active }) {
   const Icon = icon;
@@ -30,10 +31,12 @@ function NavItem({ to, icon, label, active }) {
   );
 }
 
+const [EXPLORE, ...REST_DESTINATIONS] = navFor('inSideNav');
+
 export default function SideNav() {
   const location = useLocation();
   const { user } = useAuth();
-  const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const isActive = (path) => isNavActive(location.pathname, path);
 
   return (
     <aside className="hidden md:flex flex-col h-full bg-surface-container-lowest border-r border-outline-variant/25 w-[220px] shrink-0 sticky left-0 top-0">
@@ -45,7 +48,7 @@ export default function SideNav() {
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5">
-        <NavItem to="/" icon={Compass} label="Explore" active={isActive('/')} />
+        <NavItem to={EXPLORE.to} icon={EXPLORE.icon} label={EXPLORE.label} active={isActive(EXPLORE.to)} />
         <button
           onClick={openCommandPalette}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
@@ -54,13 +57,9 @@ export default function SideNav() {
           <span>Search</span>
           <kbd className="ml-auto rounded border border-outline-variant/30 px-1.5 py-0.5 text-[10px]">⌘K</kbd>
         </button>
-        <NavItem to="/create" icon={Sparkles} label="Create" active={isActive('/create')} />
-        <NavItem to="/design" icon={Shapes} label="Design Canvas" active={isActive('/design')} />
-        <NavItem to="/tracker" icon={BookOpen} label="In Progress" active={isActive('/tracker')} />
-        <NavItem to="/library" icon={Library} label="Library" active={isActive('/library')} />
-        <NavItem to="/community" icon={Globe} label="Community" active={isActive('/community')} />
-        <NavItem to="/learn" icon={GraduationCap} label="Learn" active={isActive('/learn')} />
-        <NavItem to="/account" icon={User} label="Account" active={isActive('/account')} />
+        {REST_DESTINATIONS.map((d) => (
+          <NavItem key={d.to} to={d.to} icon={d.icon} label={d.label} active={isActive(d.to)} />
+        ))}
       </nav>
 
       <div className="px-3 pb-5 space-y-3">

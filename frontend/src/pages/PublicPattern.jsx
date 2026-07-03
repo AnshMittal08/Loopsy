@@ -3,8 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2 } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import Footer from '../components/Footer';
 import SaveToCollection from '../components/SaveToCollection';
 import Comments from '../components/Comments';
+import CopyLinkDialog from '../components/CopyLinkDialog';
 import TagChips from '../components/TagChips';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -106,6 +108,7 @@ export default function PublicPattern() {
     }
   };
 
+  const [shareUrl, setShareUrl] = useState(null);
   const handleShare = async () => {
     const url = `${window.location.origin}/p/${id}`;
     try {
@@ -116,7 +119,7 @@ export default function PublicPattern() {
       }
       throw new Error('no clipboard');
     } catch {
-      window.prompt('Copy this link:', url);
+      setShareUrl(url); // clipboard unavailable → in-app copy dialog
     }
   };
 
@@ -159,6 +162,7 @@ export default function PublicPattern() {
   return (
     <div className="min-h-dvh bg-surface">
       <TopNav />
+      {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this pattern" onClose={() => setShareUrl(null)} />}
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-10 pb-20 md:px-10 outline-none">
         <Reveal>
@@ -286,6 +290,7 @@ export default function PublicPattern() {
 
         <Comments patternId={pattern.id} patternOwnerId={pattern.userId} />
       </main>
+      <Footer />
     </div>
   );
 }

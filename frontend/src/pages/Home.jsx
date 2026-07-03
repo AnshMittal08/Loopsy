@@ -405,6 +405,12 @@ export default function Home() {
                   <span key={c} className={`h-2 w-2 rounded-full ${c}`} />
                 ))}
               </div>
+              <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-on-surface-variant">
+                <Link to="/about" className="hover:text-on-surface transition-colors">About</Link>
+                <Link to="/terms" className="hover:text-on-surface transition-colors">Terms</Link>
+                <Link to="/privacy" className="hover:text-on-surface transition-colors">Privacy</Link>
+                <a href="mailto:hello@loopsy.app" className="hover:text-on-surface transition-colors">Contact</a>
+              </nav>
               <p className="text-xs text-on-surface-variant/70">© {new Date().getFullYear()} Loopsy</p>
             </div>
           </Reveal>

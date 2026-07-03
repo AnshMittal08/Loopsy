@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, ArrowRight, GraduationCap } from 'lucide-react';
 import SideNav from '../components/SideNav';
+import MobileHeader from '../components/MobileHeader';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { searchGuides } from '../lib/learnContent';
 
@@ -46,8 +47,9 @@ export default function SearchResults() {
 
   return (
     <div className="flex min-h-dvh bg-surface text-on-surface">
+      <MobileHeader />
       <SideNav />
-      <main id="main-content" tabIndex={-1} className="flex-1 px-5 py-10 pb-28 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 px-5 pt-20 pb-28 md:pt-10 sm:px-6 md:px-10 md:pb-10 lg:px-16 outline-none">
         <div className="mx-auto max-w-3xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Search</p>
           <h1 className="font-display display-wonk mb-6 text-[1.9rem] font-bold leading-tight sm:text-[2.4rem]">Find anything you've made.</h1>
