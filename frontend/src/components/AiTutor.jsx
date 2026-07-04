@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { Sparkles, X, Send } from 'lucide-react';
 
 async function fetchJson(url, options) {
@@ -189,7 +190,14 @@ export default function AiTutor({ patternId, currentStepIndex, patternTitle }) {
 
             {/* Error */}
             {error && (
-              <p className="text-xs text-red-400 px-1">{error}</p>
+              <div className="px-1 space-y-1">
+                <p className="text-xs text-error">{error}</p>
+                {/limit|quota|upgrade|plan/i.test(error) && (
+                  <Link to="/account" className="inline-block text-xs font-semibold text-primary hover:underline">
+                    View plans →
+                  </Link>
+                )}
+              </div>
             )}
 
             <div ref={messagesEndRef} />

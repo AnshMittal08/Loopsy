@@ -80,7 +80,7 @@ function FacetChip({ active, count, disabled, onClick, children }) {
       {children}
       <span
         className={`text-[11px] font-semibold tabular-nums ${
-          active ? 'text-on-primary/75' : 'text-on-surface-variant/55'
+          active ? 'text-on-primary/85' : 'text-on-surface-variant/80'
         }`}
       >
         {count}
@@ -406,7 +406,7 @@ export default function CatalogBrowser({ templates = [], loading = false, user =
             >
               <BadgeCheck size={15} aria-hidden="true" />
               Verified math only
-              <span className={`text-[11px] tabular-nums ${verifiedOnly ? 'text-on-secondary-container/70' : 'text-on-surface-variant/55'}`}>
+              <span className={`text-[11px] tabular-nums ${verifiedOnly ? 'text-on-secondary-container/85' : 'text-on-surface-variant/80'}`}>
                 {counts.verified}
               </span>
             </Motion.button>

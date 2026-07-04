@@ -72,7 +72,7 @@ export default function TopNav() {
               to={user ? '/create' : '/account'}
               className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors shadow-warm"
             >
-              {user ? 'Start Project' : 'Sign In'}
+              {user ? 'Start a project' : 'Sign in'}
             </Link>
           </Magnetic>
         </div>

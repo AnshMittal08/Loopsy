@@ -500,3 +500,64 @@ input[type="checkbox"]:checked {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Modern UI polish layer ──────────────────────────────────────────────── */
+
+/* Smooth in-page scrolling (killed by the reduced-motion block above), and
+   anchor targets never hide under the fixed 69px top bar. */
+html {
+  scroll-behavior: smooth;
+}
+:target,
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Visible keyboard focus EVERYWHERE — one consistent ring, only for keyboard
+   (pointer clicks stay clean). Individual components may still add their own. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Slim, token-coloured scrollbars for internal panels and the page itself. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--on-surface) 22%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--on-surface) 22%, transparent);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--on-surface) 36%, transparent);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Horizontal chip/card rails: hidden scrollbar + snap + no scroll chaining. */
+.scroll-rail {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-rail::-webkit-scrollbar {
+  display: none;
+}
+.scroll-rail > * {
+  scroll-snap-align: start;
+}
+
+/* Overlays/drawers: their inner scroll must not chain to the page behind. */
+[role='dialog'] .overflow-y-auto,
+[role='alertdialog'] .overflow-y-auto {
+  overscroll-behavior: contain;
+}

@@ -102,7 +102,7 @@ export default function Community() {
     <div className="min-h-dvh bg-surface">
       <TopNav />
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 pt-24 pb-10 md:px-10 outline-none">
         <Reveal>
           <div className="flex items-center gap-3 mb-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
@@ -143,7 +143,7 @@ export default function Community() {
           </div>
 
           {popularTags.length > 0 && (
-            <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="scroll-rail mb-6 flex items-center gap-2 pb-1">
               <Tag size={14} className="shrink-0 text-on-surface-variant" />
               <div className="flex flex-nowrap gap-2">
                 {popularTags.map((t) => {
@@ -161,7 +161,7 @@ export default function Community() {
                     >
                       #{t.tag}
                       {typeof t.count === 'number' && (
-                        <span className={`ml-1.5 ${active ? 'text-on-primary/70' : 'text-on-surface-variant/60'}`}>{t.count}</span>
+                        <span className={`ml-1.5 ${active ? 'text-on-primary/80' : 'text-on-surface-variant'}`}>{t.count}</span>
                       )}
                     </button>
                   );

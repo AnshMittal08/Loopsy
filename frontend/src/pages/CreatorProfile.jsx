@@ -73,7 +73,7 @@ export default function CreatorProfile() {
     return (
       <div className="min-h-dvh bg-surface">
         <TopNav />
-        <main className="mx-auto max-w-6xl px-5 py-10 md:px-10">
+        <main className="mx-auto max-w-6xl px-5 pt-24 pb-10 md:px-10">
           <div className="mb-8 flex items-center gap-4">
             <div className="h-16 w-16 rounded-full shimmer" />
             <div className="space-y-2">
@@ -116,7 +116,7 @@ export default function CreatorProfile() {
     <div className="min-h-dvh bg-surface">
       <TopNav />
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 pt-24 pb-10 md:px-10 outline-none">
         <Reveal>
           <div className="flex flex-wrap items-center gap-5 mb-8">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary text-2xl font-bold shadow-warm">

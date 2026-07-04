@@ -134,7 +134,7 @@ export default function LearningCentre() {
     <div className="min-h-dvh bg-surface">
       <TopNav />
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 py-10 pb-20 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-5 pt-24 pb-20 md:px-10 outline-none">
         <Reveal>
           <div className="flex items-center gap-3 mb-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">

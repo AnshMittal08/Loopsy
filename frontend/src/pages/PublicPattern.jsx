@@ -153,7 +153,7 @@ export default function PublicPattern() {
     return (
       <div className="min-h-dvh bg-surface">
         <TopNav />
-        <main className="mx-auto max-w-3xl px-5 py-10 md:px-10">
+        <main className="mx-auto max-w-3xl px-5 pt-24 pb-10 md:px-10">
           <div className="h-8 w-48 rounded-lg shimmer mb-6" />
           <div className="h-64 rounded-2xl shimmer mb-6" />
           <div className="space-y-3">
@@ -168,7 +168,7 @@ export default function PublicPattern() {
     return (
       <div className="min-h-dvh bg-surface">
         <TopNav />
-        <main className="mx-auto max-w-3xl px-5 py-20 text-center md:px-10">
+        <main className="mx-auto max-w-3xl px-5 pt-28 pb-20 text-center md:px-10">
           <p className="text-on-surface-variant mb-4">This pattern doesn't exist or hasn't been published.</p>
           <Link to="/community" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm">
             Browse community
@@ -186,7 +186,7 @@ export default function PublicPattern() {
       {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this pattern" onClose={() => setShareUrl(null)} />}
       {reporting && <ReportDialog resourceType="pattern" resourceId={id} onClose={() => setReporting(false)} />}
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-10 pb-20 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 pt-24 pb-20 md:px-10 outline-none">
         <Reveal>
           <Link to="/community" className="inline-flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface mb-6 transition-colors">
             <ArrowLeft size={13} />

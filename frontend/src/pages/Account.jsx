@@ -17,6 +17,7 @@ export default function Account() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [usage, setUsage] = useState(null);
+  const [usageError, setUsageError] = useState(false);
   const [resending, setResending] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [upgradingPlan, setUpgradingPlan] = useState(null);
@@ -96,9 +97,20 @@ export default function Account() {
     }
   };
 
+  const loadUsage = async () => {
+    setUsageError(false);
+    try {
+      const res = await fetch('/api/usage');
+      if (!res.ok) throw new Error('usage fetch failed');
+      setUsage(await res.json());
+    } catch {
+      setUsageError(true);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-    fetch('/api/usage').then((r) => r.json()).then(setUsage).catch(() => {});
+    Promise.resolve().then(() => loadUsage());
   }, [user]);
 
   const handleChange = (field) => (e) => {
@@ -251,7 +263,17 @@ export default function Account() {
               {/* Usage */}
               <Reveal delay={0.08} className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6 md:p-8">
                 <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-primary mb-5">Usage this month</h3>
-                {usage === null ? (
+                {usage === null && usageError ? (
+                  <div className="flex flex-col items-start gap-3 rounded-xl bg-surface-container-low p-4">
+                    <p className="text-sm text-on-surface-variant">Couldn’t load your usage right now.</p>
+                    <button
+                      onClick={loadUsage}
+                      className="rounded-full border border-outline-variant/30 px-4 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : usage === null ? (
                   <div className="space-y-3">
                     <div className="h-16 rounded-xl shimmer" />
                     <div className="h-16 rounded-xl shimmer" />
