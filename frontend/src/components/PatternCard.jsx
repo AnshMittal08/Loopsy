@@ -44,11 +44,11 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
     }
   };
 
+  // The card is a <div> with a "stretched" title link (after:inset-0) so the
+  // whole card is clickable without nesting <a> tags — the author link, tag
+  // chips, and star button sit above it on z-10.
   return (
-    <Link
-      to={`/p/${pattern.id}`}
-      className="group relative flex flex-col rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden hover:shadow-warm-md transition-shadow"
-    >
+    <div className="group relative flex flex-col rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden hover:shadow-warm-md transition-shadow">
       <div className={`h-40 relative bg-gradient-to-br ${theme.accent} flex items-end p-4`}>
         <div className={`absolute -top-4 -right-4 h-20 w-20 rounded-full blur-2xl opacity-60 ${theme.orb}`} />
         <div className="rounded-full bg-surface-container-lowest/85 p-2 backdrop-blur-sm">
@@ -59,7 +59,7 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
             onClick={handleStar}
             disabled={busy}
             aria-label={localStarred ? 'Unstar' : 'Star'}
-            className="absolute top-3 right-3 rounded-full bg-surface-container-lowest/85 p-1.5 backdrop-blur-sm transition-transform hover:scale-110 disabled:opacity-60"
+            className="absolute top-3 right-3 z-10 rounded-full bg-surface-container-lowest/85 p-1.5 backdrop-blur-sm transition-transform hover:scale-110 disabled:opacity-60"
           >
             <Star
               size={15}
@@ -72,7 +72,12 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-bold text-on-surface leading-snug line-clamp-2 flex-1">
-            {pattern.title}
+            <Link
+              to={`/p/${pattern.id}`}
+              className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none [&:focus-visible::after]:outline-2 [&:focus-visible::after]:outline [&:focus-visible::after]:outline-primary [&:focus-visible::after]:rounded-2xl"
+            >
+              {pattern.title}
+            </Link>
           </h3>
           <VerifiedBadge pattern={pattern} compact />
 
@@ -83,8 +88,7 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
               by{' '}
               <Link
                 to={`/u/${pattern.authorHandle}`}
-                onClick={(e) => e.stopPropagation()}
-                className="font-medium text-on-surface-variant hover:text-primary transition-colors"
+                className="relative z-10 font-medium text-on-surface-variant hover:text-primary transition-colors"
               >
                 {pattern.authorName}
               </Link>
@@ -93,7 +97,7 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
             <p className="text-xs text-on-surface-variant">by {pattern.authorName}</p>
           )
         )}
-        <TagChips tags={pattern.tags} limit={3} className="pt-1" />
+        <TagChips tags={pattern.tags} limit={3} className="relative z-10 pt-1" />
         <div className="mt-auto flex items-center justify-between pt-2">
           <div className="flex gap-1.5 flex-wrap">
             {pattern.difficulty && (
@@ -113,6 +117,6 @@ export default function PatternCard({ pattern, starred = false, onStar, authed =
           </span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
