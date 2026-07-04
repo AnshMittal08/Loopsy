@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox, Star } from 'lucide-react';
+import { Library as LibraryIcon, Plus, Trash2, ArrowLeft, FolderOpen, Inbox, Star, Pencil } from 'lucide-react';
 import SideNav from '../components/SideNav';
 import MobileHeader from '../components/MobileHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -98,6 +98,26 @@ export default function Library() {
   };
 
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const handleRename = async () => {
+    const name = renameValue.trim();
+    setRenaming(false);
+    if (!name || !detail?.collection || name === detail.collection.name) return;
+    try {
+      const res = await fetch(`/api/collections/${detail.collection.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error();
+      setDetail((d) => (d ? { ...d, collection: { ...d.collection, name } } : d));
+      setCollections((prev) => (prev ?? []).map((c) => (c.id === detail.collection.id ? { ...c, name } : c)));
+      showToast('Collection renamed.', 'success');
+    } catch {
+      showToast('Could not rename that collection.', 'error');
+    }
+  };
   const handleDelete = async () => {
     const { id } = confirmDelete || {};
     setConfirmDelete(null);
@@ -192,9 +212,29 @@ export default function Library() {
                     <div className="mb-6 flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary mb-2">Collection</p>
-                        <h1 className="font-display display-wonk text-[1.8rem] sm:text-[2.2rem] font-bold text-on-surface leading-tight">
-                          {detail.collection.name}
-                        </h1>
+                        {renaming ? (
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={handleRename}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenaming(false); }}
+                            maxLength={60}
+                            className="w-full max-w-sm rounded-xl bg-surface-container-low px-3 py-2 font-display text-[1.4rem] font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        ) : (
+                          <h1 className="font-display display-wonk text-[1.8rem] sm:text-[2.2rem] font-bold text-on-surface leading-tight">
+                            {detail.collection.name}
+                            <button
+                              onClick={() => { setRenameValue(detail.collection.name); setRenaming(true); }}
+                              aria-label="Rename collection"
+                              title="Rename"
+                              className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full align-middle text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </h1>
+                        )}
                         <p className="text-sm text-on-surface-variant mt-1">
                           {detail.patterns.length} {detail.patterns.length === 1 ? 'pattern' : 'patterns'}
                         </p>

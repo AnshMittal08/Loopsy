@@ -35,6 +35,7 @@ export const verifyEmailSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(80),
   skillLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+  bio: z.string().trim().max(280, "Bios are limited to 280 characters.").optional(),
 });
 
 export const checkoutSchema = z.object({
@@ -47,6 +48,17 @@ export const createCollectionSchema = z.object({
 
 export const commentSchema = z.object({
   body: z.string().trim().min(1, "A comment can't be empty.").max(2000, "Comments are limited to 2000 characters."),
+});
+
+export const reportSchema = z.object({
+  resourceType: z.enum(["pattern", "comment"]),
+  resourceId: z.string().trim().min(1).max(80),
+  reason: z.enum(["spam", "copyright", "inappropriate", "harassment", "other"]),
+  detail: z.string().trim().max(500).optional(),
+});
+
+export const renameCollectionSchema = z.object({
+  name: z.string().trim().min(1, "A collection name is required.").max(60),
 });
 
 export const patternEditSchema = z.object({

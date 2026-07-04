@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Users, SearchX, Globe, X, Tag } from 'lucide-react';
+import { Users, SearchX, Globe, X, Tag, Sparkles } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import Footer from '../components/Footer';
 import PatternCard from '../components/PatternCard';
@@ -30,6 +30,7 @@ export default function Community() {
   const [hasMore, setHasMore] = useState(true);
   const [sort, setSort] = useState('recent');
   const [popularTags, setPopularTags] = useState([]);
+  const [catalog, setCatalog] = useState([]);
 
   const load = useCallback(async (off = 0, replace = true, sortBy = 'recent', tag = '') => {
     try {
@@ -45,6 +46,7 @@ export default function Community() {
         setPatterns((p) => [...p, ...list]);
       }
       setStarredIds(new Set(data.starredIds ?? []));
+      if (off === 0) setCatalog(Array.isArray(data.catalog) ? data.catalog : []);
       setHasMore(list.length === PAGE);
       setOffset(off + list.length);
     } catch {
@@ -238,6 +240,35 @@ export default function Community() {
               </div>
             )}
           </>
+        )}
+
+        {!activeTag && catalog.length > 0 && (
+          <section className="mt-12">
+            <div className="mb-1 flex items-center gap-2">
+              <Sparkles size={15} className="text-primary" />
+              <h2 className="font-display text-lg font-bold text-on-surface">From the Loopsy catalog</h2>
+            </div>
+            <p className="mb-5 text-sm text-on-surface-variant">Verified-math patterns to start making today{patterns.length === 0 ? ' — community makes will appear above as they\u2019re published' : ''}.</p>
+            <RevealGroup className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {catalog.map((t) => (
+                <RevealItem key={t.id}>
+                  <Link
+                    to={`/templates/${t.id}`}
+                    className="group flex h-full flex-col rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm overflow-hidden hover:shadow-warm-md transition-shadow"
+                  >
+                    <div className="flex items-center justify-between px-4 pt-4">
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">Catalog</span>
+                      <span className="text-[10px] font-semibold text-secondary">Verified ✓</span>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1 p-4">
+                      <h3 className="text-sm font-bold text-on-surface leading-snug">{t.title}</h3>
+                      <p className="text-xs text-on-surface-variant">{t.difficulty} · {t.category}</p>
+                    </div>
+                  </Link>
+                </RevealItem>
+              ))}
+            </RevealGroup>
+          </section>
         )}
 
         {!user && patterns.length > 0 && (

@@ -98,7 +98,15 @@ export default function Tracker() {
     }
   };
 
+  // Publishing to a public feed deserves an explicit confirmation, not a
+  // silent hover-toggle. Unpublish stays one tap.
+  const [confirmPublish, setConfirmPublish] = useState(null); // { id, title }
+  const requestTogglePublish = (id, currentlyPublished, title) => {
+    if (currentlyPublished) handleTogglePublish(id, true);
+    else setConfirmPublish({ id, title });
+  };
   const handleTogglePublish = async (id, currentlyPublished) => {
+    setConfirmPublish(null);
     try {
       const res = await fetch(`/api/patterns/${id}`, {
         method: 'PATCH',
@@ -364,6 +372,16 @@ export default function Tracker() {
     return (
       <div className="flex min-h-dvh bg-surface">
         <MobileHeader />
+        {confirmPublish && (
+          <ConfirmDialog
+            title={`Publish "${confirmPublish.title}"?`}
+            body="Your pattern appears in the public community feed with your name on it. Anyone can view, star, save, and make it. You can unpublish at any time."
+            confirmLabel="Publish"
+            danger={false}
+            onConfirm={() => handleTogglePublish(confirmPublish.id, false)}
+            onCancel={() => setConfirmPublish(null)}
+          />
+        )}
         {confirmDelete && (
           <ConfirmDialog
             title={`Delete "${confirmDelete.title}"?`}
@@ -411,7 +429,7 @@ export default function Tracker() {
                     <Motion.div key={p.id} variants={{ hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } }} className="group relative">
                       <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePublish(p.id, Boolean(p.publishedAt)); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); requestTogglePublish(p.id, Boolean(p.publishedAt), p.title); }}
                           aria-label={p.publishedAt ? 'Unpublish pattern' : 'Publish to community'}
                           title={p.publishedAt ? 'Unpublish' : 'Publish to community'}
                           className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-container-lowest/90 text-on-surface-variant shadow-warm backdrop-blur transition-colors hover:text-primary"

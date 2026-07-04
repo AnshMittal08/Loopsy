@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import SaveToCollection from '../components/SaveToCollection';
 import Comments from '../components/Comments';
 import CopyLinkDialog from '../components/CopyLinkDialog';
+import ReportDialog from '../components/ReportDialog';
 import TagChips from '../components/TagChips';
 import { Reveal } from '../components/motion/Reveal';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -109,6 +110,7 @@ export default function PublicPattern() {
   };
 
   const [shareUrl, setShareUrl] = useState(null);
+  const [reporting, setReporting] = useState(false);
   const handleShare = async () => {
     const url = `${window.location.origin}/p/${id}`;
     try {
@@ -182,6 +184,7 @@ export default function PublicPattern() {
     <div className="min-h-dvh bg-surface">
       <TopNav />
       {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this pattern" onClose={() => setShareUrl(null)} />}
+      {reporting && <ReportDialog resourceType="pattern" resourceId={id} onClose={() => setReporting(false)} />}
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-10 pb-20 md:px-10 outline-none">
         <Reveal>
@@ -308,6 +311,13 @@ export default function PublicPattern() {
               <Globe size={14} />
               More from community
             </Link>
+            <button
+              onClick={() => (user ? setReporting(true) : showToast('Sign in to report content.', 'info'))}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 text-xs font-semibold text-on-surface-variant hover:text-error transition-colors"
+              title="Report this pattern"
+            >
+              Report
+            </button>
           </div>
         </Reveal>
 

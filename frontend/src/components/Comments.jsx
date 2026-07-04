@@ -4,6 +4,7 @@ import { MessageCircle, Trash2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
+import ReportDialog from './ReportDialog';
 import { formatRelativeTime } from '../lib/formatDate';
 
 const MAX_LEN = 2000;
@@ -62,6 +63,7 @@ export default function Comments({ patternId, patternOwnerId }) {
   }, [body, submitting, patternId, showToast]);
 
   const [confirmDelete, setConfirmDelete] = useState(null); // commentId
+  const [reportId, setReportId] = useState(null); // commentId being reported
   const handleDelete = useCallback(async (commentId) => {
     setConfirmDelete(null);
     try {
@@ -80,6 +82,7 @@ export default function Comments({ patternId, patternOwnerId }) {
 
   return (
     <section className="mt-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-6">
+      {reportId && <ReportDialog resourceType="comment" resourceId={reportId} onClose={() => setReportId(null)} />}
       {confirmDelete && (
         <ConfirmDialog
           title="Delete this comment?"
@@ -159,6 +162,16 @@ export default function Comments({ patternId, patternOwnerId }) {
                     )}
                     <span className="text-[11px] text-on-surface-variant">{formatRelativeTime(c.createdAt)}</span>
                   </div>
+                  {user && !canDelete && (
+                    <button
+                      onClick={() => setReportId(c.id)}
+                      aria-label="Report comment"
+                      title="Report this comment"
+                      className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-on-surface-variant/70 hover:text-error transition-colors"
+                    >
+                      Report
+                    </button>
+                  )}
                   {canDelete && (
                     <button
                       onClick={() => setConfirmDelete(c.id)}

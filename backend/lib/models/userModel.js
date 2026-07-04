@@ -30,13 +30,13 @@ async function uniqueHandle(name) {
 }
 
 const getUserByIdStmt = db.prepare(`
-  SELECT id, email, name, skillLevel, emailVerified, handle, createdAt
+  SELECT id, email, name, skillLevel, emailVerified, handle, bio, createdAt
   FROM users
   WHERE id = ?
 `);
 
 const getUserByHandleStmt = db.prepare(`
-  SELECT id, name, handle, createdAt
+  SELECT id, name, handle, bio, createdAt
   FROM users
   WHERE handle = ?
 `);
@@ -64,7 +64,7 @@ const getSubscriptionByUserIdStmt = db.prepare(`
 
 const setEmailVerifiedStmt = db.prepare(`UPDATE users SET emailVerified = 1 WHERE id = ?`);
 const setPasswordStmt = db.prepare(`UPDATE users SET passwordHash = ? WHERE id = ?`);
-const updateProfileStmt = db.prepare(`UPDATE users SET name = ?, skillLevel = ? WHERE id = ?`);
+const updateProfileStmt = db.prepare(`UPDATE users SET name = ?, skillLevel = ?, bio = ? WHERE id = ?`);
 const setPlanStmt = db.prepare(`UPDATE subscriptions SET plan = ?, status = ?, updatedAt = ? WHERE userId = ?`);
 const setStripeCustomerStmt = db.prepare(`UPDATE subscriptions SET stripeCustomerId = ?, updatedAt = ? WHERE userId = ?`);
 
@@ -122,8 +122,8 @@ async function setUserPassword(userId, passwordHash) {
   await setPasswordStmt.run(passwordHash, userId);
 }
 
-async function updateUserProfile(userId, { name, skillLevel }) {
-  await updateProfileStmt.run(name, skillLevel, userId);
+async function updateUserProfile(userId, { name, skillLevel, bio }) {
+  await updateProfileStmt.run(name, skillLevel, bio ?? null, userId);
 }
 
 /** Set a user's subscription plan (the billing source of truth). */
