@@ -13,7 +13,7 @@ export default function StaticPage({ title, description, updated, children }) {
   return (
     <div className="min-h-dvh bg-surface flex flex-col">
       <TopNav />
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-5 py-12 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-5 pt-24 pb-12 md:px-10 outline-none">
         <Reveal>
           <h1 className="font-display display-wonk text-[2rem] font-bold text-on-surface">{title}</h1>
           {updated && <p className="mt-1 text-xs text-on-surface-variant">Last updated: {updated}</p>}

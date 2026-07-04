@@ -38,7 +38,7 @@ export default function LearnGuide() {
     return (
       <div className="min-h-dvh bg-surface">
         <TopNav />
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-20 text-center md:px-10 outline-none">
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 pt-28 pb-20 text-center md:px-10 outline-none">
           <p className="text-on-surface-variant mb-4">We couldn't find that guide.</p>
           <Link to="/learn" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-warm hover:bg-primary-dim transition-colors">
             Back to the Learning Centre
@@ -61,7 +61,7 @@ export default function LearnGuide() {
     <div className="min-h-dvh bg-surface">
       <TopNav />
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-10 pb-20 md:px-10 outline-none">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 pt-24 pb-20 md:px-10 outline-none">
         <Reveal>
           <Link to="/learn" className="inline-flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface mb-6 transition-colors">
             <ArrowLeft size={13} />

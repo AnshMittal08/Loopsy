@@ -204,7 +204,19 @@ export default function Create() {
   const [color, setColor] = useState('');
   const [size, setSize] = useState('medium');
 
-  const [prompt, setPrompt] = useState('');
+  const PROMPT_MAX = 500;
+  const PROMPT_DRAFT_KEY = 'loopsy.create.prompt';
+  const [prompt, setPromptState] = useState(() => {
+    try { return sessionStorage.getItem(PROMPT_DRAFT_KEY) || ''; } catch { return ''; }
+  });
+  const setPrompt = (value) => {
+    const next = value.slice(0, PROMPT_MAX);
+    setPromptState(next);
+    try {
+      if (next) sessionStorage.setItem(PROMPT_DRAFT_KEY, next);
+      else sessionStorage.removeItem(PROMPT_DRAFT_KEY);
+    } catch { /* storage unavailable */ }
+  };
   const [difficulty, setDifficulty] = useState('beginner');
   const [aiSubMode, setAiSubMode] = useState('describe'); // 'describe' | 'photo'
 
@@ -380,6 +392,7 @@ export default function Create() {
       const progressData = await progressRes.json();
       if (!progressRes.ok) throw new Error(progressData.error || 'Failed to initialize progress');
       setResult(data);
+      try { sessionStorage.removeItem(PROMPT_DRAFT_KEY); } catch { /* storage unavailable */ }
       fireConfetti({ count: 90 });
     } catch (e) {
       setActionError(e.message);
@@ -715,11 +728,18 @@ export default function Create() {
                   <>
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-sm font-semibold text-on-surface mb-2">What do you want to make?</label>
+                        <div className="mb-2 flex items-baseline justify-between gap-3">
+                          <label htmlFor="create-prompt" className="block text-sm font-semibold text-on-surface">What do you want to make?</label>
+                          <span className={`text-xs tabular-nums ${prompt.length >= PROMPT_MAX ? 'text-error font-semibold' : 'text-on-surface-variant'}`} aria-live="polite">
+                            {prompt.length}/{PROMPT_MAX}
+                          </span>
+                        </div>
                         <textarea
+                          id="create-prompt"
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
                           rows={4}
+                          maxLength={PROMPT_MAX}
                           className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none"
                           placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
                         />

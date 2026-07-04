@@ -106,7 +106,7 @@ function MobileNavContent({ onClose }) {
             to={user ? '/create' : '/account'}
             className="flex items-center justify-center gap-2 w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary hover:bg-primary-dim transition-colors"
           >
-            {user ? 'Start Project' : 'Sign In'}
+            {user ? 'Start a project' : 'Sign in'}
           </Link>
         </div>
       </div>

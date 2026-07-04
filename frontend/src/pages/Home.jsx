@@ -271,13 +271,13 @@ export default function Home() {
                 <GraduationCap size={18} className="text-secondary" />
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">New to crochet?</p>
               </div>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-on-surface">Start Here</h2>
+              <h2 className="font-display text-3xl font-bold tracking-tight text-on-surface">Start here</h2>
               <p className="mt-2 max-w-xl text-on-surface-variant text-sm leading-relaxed">
                 Six projects in learning order — from your first chain to working in the round.
               </p>
             </Reveal>
 
-            <RevealGroup stagger={0.08} className="mt-7 flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
+            <RevealGroup stagger={0.08} className="scroll-rail mt-7 flex gap-4 pb-3 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
               {beginnerPath.map((item) => (
                 <RevealItem key={item.id} className="min-w-[240px] snap-start md:min-w-0">
                   <Link
@@ -411,7 +411,7 @@ export default function Home() {
                 <Link to="/privacy" className="hover:text-on-surface transition-colors">Privacy</Link>
                 <a href="mailto:hello@loopsy.app" className="hover:text-on-surface transition-colors">Contact</a>
               </nav>
-              <p className="text-xs text-on-surface-variant/70">© {new Date().getFullYear()} Loopsy</p>
+              <p className="text-xs text-on-surface-variant">© {new Date().getFullYear()} Loopsy</p>
             </div>
           </Reveal>
         </footer>

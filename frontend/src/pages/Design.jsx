@@ -635,10 +635,11 @@ export default function Design() {
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold">Make</span>
         <div className="flex items-center gap-2">
-          {[1, 2, 4].map((q) => (
-            <button key={q} onClick={() => updatePart(selected.id, { quantity: q })}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selected.quantity === q ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>×{q}</button>
-          ))}
+          <button onClick={() => updatePart(selected.id, { quantity: Math.max(1, (selected.quantity || 1) - 1) })}
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-outline-variant/30 hover:bg-surface-container-low transition-colors" aria-label="Make fewer"><Minus size={12} /></button>
+          <span className="min-w-[34px] text-center text-xs font-semibold tabular-nums">×{selected.quantity || 1}</span>
+          <button onClick={() => updatePart(selected.id, { quantity: Math.min(6, (selected.quantity || 1) + 1) })}
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-outline-variant/30 hover:bg-surface-container-low transition-colors" aria-label="Make more"><Plus size={12} /></button>
         </div>
       </div>
 

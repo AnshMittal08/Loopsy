@@ -19,19 +19,29 @@ export function AuthProvider({ children }) {
 
   const refreshSession = async () => {
     try {
-      const data = await fetchJson('/api/me');
-      setUser(data.user);
-      return data.user;
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+        return data.user;
+      }
+      if (res.status === 401 || res.status === 403) {
+        // The server said we're signed out — believe it.
+        setUser(null);
+        return null;
+      }
+      // 5xx etc.: keep whatever user state we already have.
+      return undefined;
+    } catch {
+      // Network blip: don't sign the user out over a dropped request.
+      return undefined;
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshSession().catch(() => {
-      setUser(null);
-      setLoading(false);
-    });
+    Promise.resolve().then(() => refreshSession());
   }, []);
 
   const signUp = async (payload) => {
