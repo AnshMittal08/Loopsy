@@ -1,6 +1,21 @@
 {
   "rewrites": [
     {
+      "source": "/p/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Twitterbot|Slackbot|Discordbot|WhatsApp|TelegramBot|LinkedInBot|Pinterestbot|redditbot|SkypeUriPreview|vkShare).*" }],
+      "destination": "https://loopsy-backend.up.railway.app/api/unfurl/p/:id"
+    },
+    {
+      "source": "/d/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Twitterbot|Slackbot|Discordbot|WhatsApp|TelegramBot|LinkedInBot|Pinterestbot|redditbot|SkypeUriPreview|vkShare).*" }],
+      "destination": "https://loopsy-backend.up.railway.app/api/unfurl/d/:id"
+    },
+    {
+      "source": "/u/:handle",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Twitterbot|Slackbot|Discordbot|WhatsApp|TelegramBot|LinkedInBot|Pinterestbot|redditbot|SkypeUriPreview|vkShare).*" }],
+      "destination": "https://loopsy-backend.up.railway.app/api/unfurl/u/:handle"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://loopsy-backend.up.railway.app/api/:path*"
     },
