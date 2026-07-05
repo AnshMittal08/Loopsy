@@ -35,6 +35,10 @@ const SUPPORTED_SHAPES = [
   'heart',
   // E2 expansion — continuous split-limb construction
   'splitLimbBody',
+  // E3 expansion — sized garments
+  'raglanSweater',
+  'sock',
+  'mitten',
 ];
 
 const SUPPORTED_STITCHES = ['sc', 'hdc', 'dc'];
@@ -59,6 +63,9 @@ const REQUIRED_DIMENSIONS = {
   star: ['sizeCm'],
   heart: ['widthCm'],
   splitLimbBody: ['limbDiameterCm', 'limbHeightCm', 'bodyDiameterCm', 'bodyHeightCm'],
+  raglanSweater: [], // size keyword, defaulted
+  sock: [], // size keyword, defaulted
+  mitten: [], // size keyword, defaulted
 };
 
 /**

@@ -23,7 +23,20 @@ function declaredCount(text) {
 // stitch", "2 sc in the next stitch") → stitches consumed and produced.
 function parseIncSeg(seg) {
   const reM = seg.match(/repeat\s+(\d+)\s+times/);
-  let m = seg.match(new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+of\\s+the\\s+next\\s+(\\d+)\\s+stitches`));
+  // Raglan idiom: "sc in next K stitches, 2 sc in each of the next M stitches"
+  // (repeated R times) → consumed R×(K+M), produced R×(K+2M).
+  let m = seg.match(
+    new RegExp(
+      `${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next(?:\\s+(\\d+))?\\s+stitch(?:es)?,\\s*2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+of\\s+the\\s+next\\s+(\\d+)\\s+stitches`
+    )
+  );
+  if (m) {
+    const plain = m[1] ? parseInt(m[1], 10) : 1;
+    const doubled = parseInt(m[2], 10);
+    const units = reM ? parseInt(reM[1], 10) : 1;
+    return { consumed: units * (plain + doubled), produced: units * (plain + 2 * doubled) };
+  }
+  m = seg.match(new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+each\\s+of\\s+the\\s+next\\s+(\\d+)\\s+stitches`));
   if (m) { const units = parseInt(m[1], 10); return { consumed: units, produced: 2 * units }; }
   if (new RegExp(`2\\s+${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+stitch`).test(seg)) {
     const km = seg.match(new RegExp(`${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next\\s+(\\d+)\\s+stitch`));
@@ -140,6 +153,14 @@ function computeExpectedCount(text, prev) {
     ) {
       return prev + 2;
     }
+  }
+
+  // Count-neutral opening (E3 garments): "Chain N, skip the next N stitches …"
+  // — a thumb/heel gap bridged by the same number of chains, so the running
+  // count is unchanged. Only derived when the two numbers agree.
+  tm = t.match(/chain\s+(\d+),\s*skip\s+the\s+next\s+(\d+)\s+stitches/);
+  if (tm) {
+    return prev != null && tm[1] === tm[2] ? prev : null;
   }
 
   // Even round/row: "single crochet in each stitch around/across",
