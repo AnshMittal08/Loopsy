@@ -69,7 +69,7 @@ const DESIGN_SPEC_TOOL = {
             shape: { type: "string", enum: SUPPORTED_SHAPES },
             dimensions: {
               type: "object",
-              description: "Real-world finished dimensions in cm. sphere/hemisphere/flatCircle/flatHexagon: diameterCm. ellipsoid: diameterCm (widest cross-section) + heightCm (long axis). tube: heightCm + diameterCm or circumferenceCm. taperedTube: bottomDiameterCm + topDiameterCm + heightCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. triangle: baseCm. star: sizeCm. heart: widthCm. grannySquare: sideCm. hatCrown: size keyword instead.",
+              description: "Real-world finished dimensions in cm. sphere/hemisphere/flatCircle/flatHexagon: diameterCm. ellipsoid: diameterCm (widest cross-section) + heightCm (long axis). tube: heightCm + diameterCm or circumferenceCm. taperedTube: bottomDiameterCm + topDiameterCm + heightCm. cone: baseDiameterCm + heightCm. flatPanel: widthCm + heightCm. triangle: baseCm. star: sizeCm. heart: widthCm. grannySquare: sideCm. hatCrown: size keyword instead. splitLimbBody: limbDiameterCm + limbHeightCm + bodyDiameterCm + bodyHeightCm.",
               properties: {
                 diameterCm: { type: "number" },
                 heightCm: { type: "number" },
@@ -81,6 +81,10 @@ const DESIGN_SPEC_TOOL = {
                 sideCm: { type: "number" },
                 baseCm: { type: "number" },
                 sizeCm: { type: "number" },
+                limbDiameterCm: { type: "number" },
+                limbHeightCm: { type: "number" },
+                bodyDiameterCm: { type: "number" },
+                bodyHeightCm: { type: "number" },
                 size: { type: "string", enum: Object.keys(HAT_SIZES), description: "hatCrown only" },
               },
             },
@@ -94,6 +98,7 @@ const DESIGN_SPEC_TOOL = {
               },
             },
             stitch: { type: "string", enum: SUPPORTED_STITCHES },
+            texture: { type: "string", enum: ["bobble", "popcorn", "shell", "ribbing"], description: "OPTIONAL surface texture for this part's plain fabric (counts are unchanged). Use when the maker asks for bumpy/bobbled, popcorn, shell/scalloped, or ribbed fabric. Leave unset for smooth fabric." },
             quantity: { type: "number", description: "How many of this part to make (e.g. 2 ears)" },
           },
           required: ["name", "shape", "dimensions"],
@@ -116,7 +121,7 @@ async function parseDesignIntent(prompt, difficulty) {
         type: "text",
         text: `You are the intent parser for a crochet pattern compiler. You translate a maker's request into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
 
-Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes and taperedTubes (arms, legs, tails, horns) and flat panels (ears). Flat motifs are available too: flatCircle (coasters, bases, cheeks), flatHexagon (trivets, motifs), triangle (bunting, kerchiefs), star and heart (appliqués, ornaments) — use them for decorations, appliqué details, and 2D projects. When a part is striped or color-cycled (e.g. "red and white striped scarf", "rainbow hat"), set its colorPlan with the colors in order and a sensible stripeRounds (commonly 2) instead of a single color — simple horizontal stripes ARE feasible. Be honest with the "feasible" flag: garments with shaping, lace charts, and intarsia/tapestry picture colorwork are NOT feasible.`,
+Decompose the requested object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Choose realistic finished dimensions in cm appropriate to the object and difficulty. Amigurumi animals are typically built from spheres (heads), ellipsoids (elongated bodies, eggs), cones (limbs, beaks), tubes and taperedTubes (arms, legs, tails, horns) and flat panels (ears). Flat motifs are available too: flatCircle (coasters, bases, cheeks), flatHexagon (trivets, motifs), triangle (bunting, kerchiefs), star and heart (appliqués, ornaments) — use them for decorations, appliqué details, and 2D projects. When a part is striped or color-cycled (e.g. "red and white striped scarf", "rainbow hat"), set its colorPlan with the colors in order and a sensible stripeRounds (commonly 2) instead of a single color — simple horizontal stripes ARE feasible. For a creature whose legs flow into the body without sewing (standard doll/octopus construction), use splitLimbBody: two limbs joined into one continuous body. When the maker wants textured fabric — bobbles, popcorn, shells/scallops, or ribbing — set the part's texture field; texture IS feasible and never changes stitch counts. Be honest with the "feasible" flag: garments with shaping, lace charts, and intarsia/tapestry picture colorwork are NOT feasible.`,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -199,7 +204,7 @@ async function analyzeImageToDesignSpec(images, hint = "") {
         type: "text",
         text: `You are the vision analyst for a crochet pattern compiler. You look at photo(s) of a finished crochet item and decompose it into a geometric Design Spec — you do NOT write pattern instructions and you NEVER compute stitch counts; a deterministic engine does the math.
 
-Decompose the pictured object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Amigurumi are typically spheres (heads), ellipsoids (bodies), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears). Estimate realistic finished dimensions in cm from visual cues; if the photo gives no scale, make a sensible guess and lower your confidence. Be honest with "feasible": garments with shaping, lace, and complex colorwork are NOT feasible. Always fill "observed" with what a maker would recognize, and set "confidence" truthfully.`,
+Decompose the pictured object into the supported shapes (${SUPPORTED_SHAPES.join(", ")}). Amigurumi are typically spheres (heads), ellipsoids (bodies), cones (limbs, beaks), tubes (arms, legs, tails) and flat panels (ears); when the legs visibly flow into the body as one continuous piece, use splitLimbBody. If the fabric shows bobbles, popcorn, shells/scallops, or ribbed ridges, set that part's texture field. Estimate realistic finished dimensions in cm from visual cues; if the photo gives no scale, make a sensible guess and lower your confidence. Be honest with "feasible": garments with shaping, lace, and complex colorwork are NOT feasible. Always fill "observed" with what a maker would recognize, and set "confidence" truthfully.`,
         cache_control: { type: "ephemeral" },
       },
     ],

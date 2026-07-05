@@ -20,7 +20,11 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          if (id.includes('three') || id.includes('@react-three')) return 'three-vendor'
+          // Pin the React runtime (incl. scheduler) to an eager vendor chunk so
+          // Rollup can never merge it into three-vendor — that used to drag
+          // 888KB of three.js into every first paint via modulepreload.
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor'
+          if (/node_modules\/(three|three-stdlib|three-mesh-bvh|@react-three|troika-three)/.test(id)) return 'three-vendor'
           if (id.includes('heic2any')) return 'heic2any'
           if (id.includes('/motion/') || id.includes('framer-motion')) return 'motion'
           return undefined

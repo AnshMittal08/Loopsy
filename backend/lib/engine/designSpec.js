@@ -33,9 +33,14 @@ const SUPPORTED_SHAPES = [
   'triangle',
   'star',
   'heart',
+  // E2 expansion — continuous split-limb construction
+  'splitLimbBody',
 ];
 
 const SUPPORTED_STITCHES = ['sc', 'hdc', 'dc'];
+
+// E2 — count-neutral stitch textures a part may carry.
+const SUPPORTED_TEXTURES = ['bobble', 'popcorn', 'shell', 'ribbing'];
 
 const REQUIRED_DIMENSIONS = {
   sphere: ['diameterCm'],
@@ -53,6 +58,7 @@ const REQUIRED_DIMENSIONS = {
   triangle: ['baseCm'],
   star: ['sizeCm'],
   heart: ['widthCm'],
+  splitLimbBody: ['limbDiameterCm', 'limbHeightCm', 'bodyDiameterCm', 'bodyHeightCm'],
 };
 
 /**
@@ -72,6 +78,8 @@ function normalizeDesignSpec(raw = {}) {
         dimensions: part.dimensions && typeof part.dimensions === 'object' ? part.dimensions : {},
         color: part.color ? String(part.color) : null,
         stitch: SUPPORTED_STITCHES.includes(part.stitch) ? part.stitch : null,
+        // Count-neutral surface texture; invalid values degrade to plain fabric.
+        texture: SUPPORTED_TEXTURES.includes(part.texture) ? part.texture : null,
         quantity: Math.max(1, Math.min(12, Number(part.quantity) || 1)),
       };
       // Optional stripe plan: cycle `colors` every `stripeRounds` rounds. Colors
@@ -155,6 +163,7 @@ function validateDesignSpec(spec) {
 module.exports = {
   SUPPORTED_SHAPES,
   SUPPORTED_STITCHES,
+  SUPPORTED_TEXTURES,
   normalizeDesignSpec,
   normalizeColorPlan,
   validateDesignSpec,

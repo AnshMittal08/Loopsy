@@ -677,6 +677,102 @@ function heart({ widthCm }, gauge, stitch = 'sc') {
   return { shape: 'heart', worked: 'rows', rows, maxStitchCount: count, finalCount: count };
 }
 
+// ─── E2 expansion: split-limb body (legs-first continuous amigurumi) ────────
+
+/**
+ * The classic "legs-first" amigurumi construction, worked as ONE piece:
+ * two identical limbs (the first fastened off, the second kept live), a
+ * joining round that chains between them, then a body worked upward over the
+ * combined stitches and decreased closed — no sewing legs on.
+ *
+ * The joining round is not a canonical increase/decrease idiom, so the
+ * validator adopts its declared count (skipped, never mis-flagged); every
+ * other round is canonical and fully checkable.
+ */
+function splitLimbBody({ limbDiameterCm, limbHeightCm, bodyDiameterCm, bodyHeightCm }, gauge, stitch = 'sc') {
+  const limbSts = roundToMultiple(Math.PI * limbDiameterCm * gauge.stsPerCm, 6, 6);
+  const limbRounds = Math.max(1, Math.round(limbHeightCm / rowHeightCm(gauge, stitch)));
+
+  // Body circumference must exceed both legs joined; the bridge chains make up
+  // the difference (half on each side), so it must differ by a multiple of 6.
+  let bodySts = roundToMultiple(Math.PI * bodyDiameterCm * gauge.stsPerCm, 6, 12);
+  if (bodySts < 2 * limbSts + 6) bodySts = 2 * limbSts + 6;
+  const bridge = (bodySts - 2 * limbSts) / 2;
+
+  const bodyRounds = Math.max(1, Math.round(bodyHeightCm / rowHeightCm(gauge, stitch)));
+  const name = stitchName(stitch);
+
+  // One limb: disc base to limbSts, then straight rounds.
+  const limbRows = () => {
+    const rows = [magicRingRow(6, stitch)];
+    let c = 6;
+    for (let i = 2; i <= limbSts / 6; i++) {
+      rows.push(i === 2 ? incAllRow(c, stitch) : spacedIncRow(c, 6, stitch));
+      c = rows[rows.length - 1].count;
+    }
+    const wallRounds = Math.max(1, limbRounds - (limbSts / 6 - 1));
+    rows.push(evenRow(c, stitch, wallRounds));
+    return rows;
+  };
+
+  const rows = [];
+  rows.push(noteRow('Limb 1', 'First limb — worked in continuous rounds:'));
+  for (const r of labelRounds(limbRows())) rows.push(r);
+  rows.push(noteRow(null, 'Fasten off the first limb and set it aside, leaving the stuffing opening at the top.'));
+
+  rows.push(noteRow('Limb 2', 'Second limb — work exactly as the first, but do NOT fasten off; the body continues from here:'));
+  for (const r of labelRounds(limbRows())) rows.push(r);
+
+  rows.push(noteRow(null, 'Stuff both limbs firmly before joining.'));
+  rows.push({
+    label: 'Joining round',
+    instruction:
+      `Chain ${bridge}. ${cap(name)} in each of the ${limbSts} stitches of the first limb, ` +
+      `${name} in each of the ${bridge} chains, ${name} in each of the ${limbSts} stitches of the second limb, ` +
+      `then ${name} in each of the ${bridge} chains on the other side. The limbs are now joined into one body. (${bodySts} stitches)`,
+    count: bodySts,
+    rounds: 1,
+  });
+
+  const bodyRows = [];
+  bodyRows.push(evenRow(bodySts, stitch, bodyRounds));
+  let count = bodySts;
+  while (count > 12) {
+    bodyRows.push(spacedDecRow(count, 6, stitch));
+    count -= 6;
+    if (count === 18) {
+      bodyRows.push(noteRow('Stuffing', 'Stuff the body firmly with polyfill, shaping as you go. Keep adding stuffing as the opening closes.'));
+    }
+  }
+  if (count === 12) {
+    bodyRows.push(spacedDecRow(count, 6, stitch));
+    count = 6;
+  }
+  // Continue the round numbering from the joining round.
+  let at = 2;
+  for (const row of bodyRows) {
+    if (row.rounds === 0) { rows.push(row); continue; }
+    const label = row.rounds > 1 ? `Body rounds ${at}–${at + row.rounds - 1}` : `Body round ${at}`;
+    rows.push({ ...row, label });
+    at += row.rounds;
+  }
+  rows.push(
+    noteRow(
+      'Finishing',
+      'Fasten off leaving a long tail. Thread the tail through the front loops of the remaining 6 stitches, pull tight to close, and weave in the end.'
+    )
+  );
+
+  return {
+    shape: 'splitLimbBody',
+    worked: 'rounds',
+    rows,
+    maxStitchCount: bodySts,
+    finalCount: count,
+    meta: { limbSts, bodySts, bridge },
+  };
+}
+
 const { revolve } = require('./revolve');
 
 const SHAPE_GENERATORS = {
@@ -695,6 +791,7 @@ const SHAPE_GENERATORS = {
   triangle,
   star,
   heart,
+  splitLimbBody,
 };
 
 module.exports = {
@@ -715,4 +812,5 @@ module.exports = {
   triangle,
   star,
   heart,
+  splitLimbBody,
 };
