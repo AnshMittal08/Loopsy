@@ -32,6 +32,31 @@ function shapeStr(part, fill) {
     case 'tube': { const w = (d.diameterCm || 3) * px, h = (d.heightCm || 6) * px; return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${w / 2}" fill="${fill}"/>`; }
     case 'cone': { const w = (d.baseDiameterCm || 4) * px, h = (d.heightCm || 5) * px; return `<polygon points="${x},${y - h / 2} ${x + w / 2},${y + h / 2} ${x - w / 2},${y + h / 2}" fill="${fill}"/>`; }
     case 'flatPanel': { const w = (d.widthCm || 4) * px, h = (d.heightCm || 5) * px; return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${Math.min(w, h) * 0.18}" fill="${fill}"/>`; }
+    case 'taperedTube': { const bw = (d.bottomDiameterCm || 4) * px, tw = (d.topDiameterCm || 2) * px, h = (d.heightCm || 6) * px; return `<polygon points="${x - tw / 2},${y - h / 2} ${x + tw / 2},${y - h / 2} ${x + bw / 2},${y + h / 2} ${x - bw / 2},${y + h / 2}" fill="${fill}"/>`; }
+    case 'flatCircle': return `<circle cx="${x}" cy="${y}" r="${(d.diameterCm || 8) / 2 * px}" fill="${fill}"/>`;
+    case 'flatHexagon': {
+      const r = (d.diameterCm || 10) / 2 * px;
+      const pts = Array.from({ length: 6 }, (_, i) => { const a = (Math.PI / 3) * i - Math.PI / 2; return `${(x + r * Math.cos(a)).toFixed(1)},${(y + r * Math.sin(a)).toFixed(1)}`; });
+      return `<polygon points="${pts.join(' ')}" fill="${fill}"/>`;
+    }
+    case 'triangle': { const b = (d.baseCm || 8) * px, h = b * 0.9; return `<polygon points="${x},${y - h / 2} ${x + b / 2},${y + h / 2} ${x - b / 2},${y + h / 2}" fill="${fill}"/>`; }
+    case 'star': {
+      const R = (d.sizeCm || 8) / 2 * px, r2 = R * 0.45;
+      const pts = Array.from({ length: 10 }, (_, i) => { const a = (Math.PI / 5) * i - Math.PI / 2; const rad = i % 2 === 0 ? R : r2; return `${(x + rad * Math.cos(a)).toFixed(1)},${(y + rad * Math.sin(a)).toFixed(1)}`; });
+      return `<polygon points="${pts.join(' ')}" fill="${fill}"/>`;
+    }
+    case 'heart': {
+      const w = (d.widthCm || 7) * px, h = w * 0.95;
+      const top = y - h * 0.3, bottom = y + h / 2;
+      return `<path d="M ${x},${bottom} C ${x - w * 0.55},${y} ${x - w * 0.5},${top - h * 0.25} ${x},${top} C ${x + w * 0.5},${top - h * 0.25} ${x + w * 0.55},${y} ${x},${bottom} Z" fill="${fill}"/>`;
+    }
+    case 'splitLimbBody': {
+      const bw = (d.bodyDiameterCm || 8) * px, bh = (d.bodyHeightCm || 7) * px;
+      const lw = (d.limbDiameterCm || 3) * px, lh = (d.limbHeightCm || 5) * px;
+      const legY = y + bh / 2, off = Math.max(lw / 2, bw / 2 - lw / 2);
+      const leg = (cx) => `<rect x="${cx - lw / 2}" y="${legY - lh * 0.15}" width="${lw}" height="${lh}" rx="${lw / 2}" fill="${fill}"/>`;
+      return `<ellipse cx="${x}" cy="${y}" rx="${bw / 2}" ry="${bh / 2}" fill="${fill}"/>${leg(x - off)}${leg(x + off)}`;
+    }
     default: return '';
   }
 }

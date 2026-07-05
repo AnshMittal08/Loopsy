@@ -47,6 +47,30 @@ function PartMesh({ part }) {
     return new THREE.LatheGeometry(pts, 48);
   }, [part.shape, part.dims]);
 
+  // Extruded flat motifs (star, heart) — a THREE.Shape swept to yarn thickness.
+  const extruded = useMemo(() => {
+    if (part.shape !== 'star' && part.shape !== 'heart') return null;
+    const dd = part.dims || {};
+    const shape = new THREE.Shape();
+    if (part.shape === 'star') {
+      const R = (dd.sizeCm || 8) / 2, r = R * 0.45;
+      for (let i = 0; i < 10; i++) {
+        const a = (Math.PI / 5) * i - Math.PI / 2;
+        const rad = i % 2 === 0 ? R : r;
+        const px = rad * Math.cos(a), py = -rad * Math.sin(a);
+        if (i === 0) shape.moveTo(px, py); else shape.lineTo(px, py);
+      }
+      shape.closePath();
+    } else {
+      const w = dd.widthCm || 7, h = w * 0.95;
+      shape.moveTo(0, -h / 2);
+      shape.bezierCurveTo(-w * 0.55, h * 0.05, -w * 0.5, h * 0.55, 0, h * 0.3);
+      shape.bezierCurveTo(w * 0.5, h * 0.55, w * 0.55, h * 0.05, 0, -h / 2);
+      shape.closePath();
+    }
+    return new THREE.ExtrudeGeometry(shape, { depth: 0.7, bevelEnabled: false });
+  }, [part.shape, part.dims]);
+
   let geo;
   switch (part.shape) {
     case 'sphere':
@@ -70,12 +94,49 @@ function PartMesh({ part }) {
       return lathe ? (
         <mesh position={p} geometry={lathe} castShadow>{yarnMat(color)}</mesh>
       ) : null;
+    case 'taperedTube':
+      geo = <cylinderGeometry args={[(d.topDiameterCm || 2) / 2, (d.bottomDiameterCm || 4) / 2, d.heightCm || 6, 24]} />; break;
+    case 'flatCircle':
+      geo = <cylinderGeometry args={[(d.diameterCm || 8) / 2, (d.diameterCm || 8) / 2, 0.6, 32]} />; break;
+    case 'flatHexagon':
+      geo = <cylinderGeometry args={[(d.diameterCm || 10) / 2, (d.diameterCm || 10) / 2, 0.6, 6]} />; break;
+    case 'triangle':
+      geo = <cylinderGeometry args={[(d.baseCm || 8) / 2, (d.baseCm || 8) / 2, 0.6, 3]} />; break;
+    case 'star':
+    case 'heart':
+      return extruded ? (
+        <mesh position={p} geometry={extruded} castShadow>{yarnMat(color)}</mesh>
+      ) : null;
+    case 'splitLimbBody': {
+      const bw = (d.bodyDiameterCm || 8) / 2, bh = (d.bodyHeightCm || 7) / 2;
+      const lr = (d.limbDiameterCm || 3) / 2, lh = d.limbHeightCm || 5;
+      const off = Math.max(lr, bw - lr);
+      return (
+        <group position={p}>
+          <mesh scale={[bw, bh, bw]} castShadow>
+            <sphereGeometry args={[1, 32, 32]} />{yarnMat(color)}
+            {part.face && <Eyes d={Math.max(d.bodyDiameterCm || 8, d.bodyHeightCm || 7)} />}
+          </mesh>
+          {[-off, off].map((ox) => (
+            <mesh key={ox} position={[ox, -(bh + lh / 2 - lr), 0]} castShadow>
+              <cylinderGeometry args={[lr, lr, lh, 20]} />{yarnMat(color)}
+            </mesh>
+          ))}
+        </group>
+      );
+    }
     default:
       geo = <sphereGeometry args={[2, 16, 16]} />;
   }
 
+  // Thin motifs are modelled as short cylinders along Y; stand them up to face
+  // the camera so a coaster doesn't read as a lying coin.
+  const upright = ['flatCircle', 'flatHexagon', 'triangle'].includes(part.shape)
+    ? [Math.PI / 2, 0, 0]
+    : [0, 0, 0];
+
   return (
-    <mesh position={p} castShadow>
+    <mesh position={p} rotation={upright} castShadow>
       {geo}{yarnMat(color)}
       {part.face && <Eyes d={d.diameterCm || 6} />}
     </mesh>

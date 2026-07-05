@@ -24,6 +24,7 @@ export function partsFromSpec(spec) {
     y: Number.isFinite(Number(p.layout?.y)) ? Number(p.layout.y) : 90 + (i % 4) * 22,
     ...(p.face ? { face: true } : {}),
     ...(p.colorPlan ? { colorPlan: p.colorPlan } : {}),
+    ...(p.texture ? { texture: p.texture } : {}),
   }));
 }
 

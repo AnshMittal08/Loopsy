@@ -418,6 +418,7 @@ export default function Design() {
         layout: { x: Math.round(p.x), y: Math.round(p.y) },
         ...(p.face ? { face: true } : {}),
         ...(p.colorPlan ? { colorPlan: p.colorPlan } : {}),
+        ...(p.texture ? { texture: p.texture } : {}),
       };
     }),
     assembly: (assemblyEdited ? assemblySteps : deriveAssembly(parts)).filter((s) => s.trim()),
@@ -630,6 +631,19 @@ export default function Design() {
             </div>
           </div>
         )}
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">Texture</p>
+        <div className="grid grid-cols-5 gap-1.5">
+          {[{ id: null, label: 'Plain' }, { id: 'bobble', label: 'Bobble' }, { id: 'popcorn', label: 'Popcorn' }, { id: 'shell', label: 'Shell' }, { id: 'ribbing', label: 'Ribbed' }].map((t) => (
+            <button key={t.label} onClick={() => updatePart(selected.id, { texture: t.id || undefined })}
+              className={`rounded-lg px-1 py-1.5 text-[10px] font-semibold border transition-colors ${(selected.texture || null) === t.id ? 'bg-primary/10 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[10px] text-on-surface-variant">Textures restyle the plain rounds — stitch counts stay verified.</p>
       </div>
 
       <div className="flex items-center justify-between gap-3">
