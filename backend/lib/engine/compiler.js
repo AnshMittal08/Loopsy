@@ -9,6 +9,7 @@ const { resolveGauge } = require('./gauge');
 const { SHAPE_GENERATORS } = require('./shapes');
 const { normalizeDesignSpec, validateDesignSpec } = require('./designSpec');
 const { colorName } = require('./colorName');
+const { applyTexture } = require('./texture');
 
 /**
  * Compile a Design Spec into pattern steps.
@@ -38,10 +39,16 @@ function compileDesignSpec(rawSpec) {
 
   for (const part of spec.parts) {
     const generate = SHAPE_GENERATORS[part.shape];
-    const generated = generate(part.dimensions, gauge, part.stitch || defaultStitch);
+    let generated = generate(part.dimensions, gauge, part.stitch || defaultStitch);
+    if (part.texture) {
+      // Count-neutral rewrite of plain even rounds/rows — silhouette math and
+      // the validator's re-derivation are unaffected.
+      generated = applyTexture(generated, part.texture, part.stitch || defaultStitch);
+    }
 
     const qty = part.quantity > 1 ? ` (make ${part.quantity})` : '';
-    const worked = generated.worked === 'rounds' ? 'in continuous rounds' : 'back and forth in rows';
+    const textured = generated.texture ? ` with ${generated.texture} texture` : '';
+    const worked = `${generated.worked === 'rounds' ? 'in continuous rounds' : 'back and forth in rows'}${textured}`;
     const partLabel = `${part.name}${qty}`;
 
     if (part.colorPlan) {
@@ -65,6 +72,7 @@ function compileDesignSpec(rawSpec) {
       name: part.name,
       shape: part.shape,
       quantity: part.quantity,
+      texture: generated.texture,
       maxStitchCount: generated.maxStitchCount,
       meta: generated.meta,
     });

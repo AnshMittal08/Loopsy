@@ -83,6 +83,30 @@ function computeExpectedCount(text, prev) {
   // convention with prelude stitches the parser cannot reliably model.
   if (/slip stitch/.test(t) && /chain\s*3/.test(t)) return null;
 
+  // Texture rounds (E2) — count-neutral by construction, derived exactly.
+  // Bobble/popcorn: "[Bobble in next stitch, sc in next 3 stitches] repeat 6 times."
+  // consumed = produced = reps × (spacing + 1); must equal the running count.
+  let tm = t.match(
+    new RegExp(
+      `\\[(?:bobble|popcorn)\\s+in\\s+(?:the\\s+)?next\\s+stitch,\\s*${STITCH_WORDS}\\s+in\\s+(?:the\\s+)?next(?:\\s+(\\d+))?\\s+stitch(?:es)?\\]\\s+repeat\\s+(\\d+)\\s+times`
+    )
+  );
+  if (tm) {
+    const spacing = tm[1] ? parseInt(tm[1], 10) : 1;
+    const reps = parseInt(tm[2], 10);
+    const total = reps * (spacing + 1);
+    return prev == null || total === prev ? total : null;
+  }
+  // Shell: "[Skip next 2 stitches, 5 double crochet in next stitch, skip next
+  // 2 stitches, single crochet in next stitch] repeat R times." → 6 per repeat.
+  tm = t.match(
+    /\[skip\s+(?:the\s+)?next\s+2\s+stitches,\s*5\s+double\s+crochet\s+in\s+(?:the\s+)?next\s+stitch,\s*skip\s+(?:the\s+)?next\s+2\s+stitches,\s*(?:single crochet|sc)\s+in\s+(?:the\s+)?next\s+stitch\]\s+repeat\s+(\d+)\s+times/
+  );
+  if (tm) {
+    const total = 6 * parseInt(tm[1], 10);
+    return prev == null || total === prev ? total : null;
+  }
+
   // Magic ring start: "Magic ring. 6 single crochet into ring."
   let m = t.match(new RegExp(`magic ring[^.]*?(\\d+)\\s+${STITCH_WORDS}\\s+into(?:\\s+the)?\\s+ring`));
   if (m) return parseInt(m[1], 10);

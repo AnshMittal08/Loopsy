@@ -45,11 +45,12 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 - `lib/engine/` - the deterministic geometry engine. Stitch counts are **computed, never guessed**:
   - `gauge.js` - stitches/rows per cm by yarn weight + hook
   - `distribute.js` - even increase/decrease distribution for any delta across a round (exhaustively tested)
-  - `shapes.js` - shape generators (sphere, ellipsoid, hemisphere, tube, cone, flatPanel, hatCrown, grannySquare; E1: flatCircle, flatHexagon, taperedTube, triangle, star, heart)
+  - `shapes.js` - shape generators (sphere, ellipsoid, hemisphere, tube, cone, flatPanel, hatCrown, grannySquare; E1: flatCircle, flatHexagon, taperedTube, triangle, star, heart; E2: splitLimbBody — legs-first continuous amigurumi construction)
+  - `texture.js` - E2 count-neutral stitch textures (bobble, popcorn, shell, ribbing) rewriting a shape's plain even rounds; the validator derives the texture idioms exactly, so textured parts keep the "Verified math ✓" badge
   - `revolve.js` - profile curve → amigurumi worked in rounds (the "Sculpt" engine)
   - `chart.js` - colourwork: `compileChart` (flat rows) + `compileMedallion` (worked in the round)
   - `colorName.js` - map any hex to a readable yarn name for patterns
-  - `designSpec.js` - the Design Spec schema (normalize + validate); a part may carry an optional `colorPlan` (`{ colors, stripeRounds }`) for stripes
+  - `designSpec.js` - the Design Spec schema (normalize + validate); a part may carry an optional `colorPlan` (`{ colors, stripeRounds }`) for stripes and an optional `texture` (`bobble | popcorn | shell | ribbing`)
   - `compiler.js` - Design Spec → ordered steps with computed counts; stripes are emitted as count-less "Change to … yarn" notes + relabelled round ranges, so stitch math (and the validator) is unaffected
   - `validator.js` - independently re-derives counts; earns the "Verified math ✓" badge
 - `lib/logger.js` - structured logger (JSON in prod, readable in dev)
