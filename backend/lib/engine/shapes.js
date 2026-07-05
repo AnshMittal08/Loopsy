@@ -774,6 +774,7 @@ function splitLimbBody({ limbDiameterCm, limbHeightCm, bodyDiameterCm, bodyHeigh
 }
 
 const { revolve } = require('./revolve');
+const { raglanSweater, sock, mitten } = require('./garments');
 
 const SHAPE_GENERATORS = {
   sphere,
@@ -792,6 +793,9 @@ const SHAPE_GENERATORS = {
   star,
   heart,
   splitLimbBody,
+  raglanSweater,
+  sock,
+  mitten,
 };
 
 module.exports = {
@@ -813,4 +817,7 @@ module.exports = {
   star,
   heart,
   splitLimbBody,
+  raglanSweater,
+  sock,
+  mitten,
 };

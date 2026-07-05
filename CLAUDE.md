@@ -46,6 +46,7 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
   - `gauge.js` - stitches/rows per cm by yarn weight + hook
   - `distribute.js` - even increase/decrease distribution for any delta across a round (exhaustively tested)
   - `shapes.js` - shape generators (sphere, ellipsoid, hemisphere, tube, cone, flatPanel, hatCrown, grannySquare; E1: flatCircle, flatHexagon, taperedTube, triangle, star, heart; E2: splitLimbBody — legs-first continuous amigurumi construction)
+  - `garments.js` - E3 sized garments (raglanSweater top-down, sock toe-up with afterthought heel, mitten with peasant thumb; keyword sizes baby→adult-xl); raglan increase rounds and chain-over openings are validator-derived idioms
   - `texture.js` - E2 count-neutral stitch textures (bobble, popcorn, shell, ribbing) rewriting a shape's plain even rounds; the validator derives the texture idioms exactly, so textured parts keep the "Verified math ✓" badge
   - `revolve.js` - profile curve → amigurumi worked in rounds (the "Sculpt" engine)
   - `chart.js` - colourwork: `compileChart` (flat rows) + `compileMedallion` (worked in the round)
