@@ -38,6 +38,8 @@ export async function POST(request) {
       hookSize: compiled.hookSize,
       yarnWeight: compiled.yarnWeight,
       parts: compiled.parts.map((p) => ({ name: p.name, maxStitch: p.maxStitchCount, quantity: p.quantity })),
+      yarnMeters: compiled.yardage?.totalMeters,
+      yarnGrams: compiled.yardage?.totalGrams,
     });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
