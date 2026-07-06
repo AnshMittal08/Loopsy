@@ -51,6 +51,7 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
   - `revolve.js` - profile curve → amigurumi worked in rounds (the "Sculpt" engine)
   - `chart.js` - colourwork: `compileChart` (flat rows) + `compileMedallion` (worked in the round)
   - `colorName.js` - map any hex to a readable yarn name for patterns
+  - `yardage.js` - yarn-amount estimation from generated stitch counts (per-stitch length calibrated to gauge; texture/chain factors; 15% buffer); the compiler emits per-colour "about X m (Y g)" materials lines + a `yardage` summary
   - `designSpec.js` - the Design Spec schema (normalize + validate); a part may carry an optional `colorPlan` (`{ colors, stripeRounds }`) for stripes and an optional `texture` (`bobble | popcorn | shell | ribbing`)
   - `compiler.js` - Design Spec → ordered steps with computed counts; stripes are emitted as count-less "Change to … yarn" notes + relabelled round ranges, so stitch math (and the validator) is unaffected
   - `validator.js` - independently re-derives counts; earns the "Verified math ✓" badge

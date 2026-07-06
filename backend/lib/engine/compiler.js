@@ -10,6 +10,7 @@ const { SHAPE_GENERATORS } = require('./shapes');
 const { normalizeDesignSpec, validateDesignSpec } = require('./designSpec');
 const { colorName } = require('./colorName');
 const { applyTexture } = require('./texture');
+const { estimatePartYarn, formatYarnAmount } = require('./yardage');
 
 /**
  * Compile a Design Spec into pattern steps.
@@ -36,6 +37,14 @@ function compileDesignSpec(rawSpec) {
 
   const steps = [];
   const partSummaries = [];
+  // Yarn totals, split by colour so the materials list is shoppable.
+  const yarnByColor = new Map(); // colorName → { meters, grams }
+  let yarnTotal = { meters: 0, grams: 0 };
+
+  const addYarn = (key, y, share = 1) => {
+    const cur = yarnByColor.get(key) || { meters: 0, grams: 0 };
+    yarnByColor.set(key, { meters: cur.meters + y.meters * share, grams: cur.grams + y.grams * share });
+  };
 
   for (const part of spec.parts) {
     const generate = SHAPE_GENERATORS[part.shape];
@@ -68,12 +77,27 @@ function compileDesignSpec(rawSpec) {
       }
     }
 
+    // Yarn estimate for this part (computed from the generated counts).
+    const yarn = estimatePartYarn(generated, gauge, part.stitch || defaultStitch, {
+      texture: generated.texture,
+      quantity: part.quantity,
+    });
+    yarnTotal = { meters: yarnTotal.meters + yarn.meters, grams: yarnTotal.grams + yarn.grams };
+    if (part.colorPlan) {
+      // Stripes: split the part's yarn evenly across the plan's colours — an
+      // honest approximation for even stripe cycles.
+      for (const c of part.colorPlan.colors) addYarn(colorName(c), yarn, 1 / part.colorPlan.colors.length);
+    } else {
+      addYarn(part.color ? colorName(part.color) : 'main colour', yarn);
+    }
+
     partSummaries.push({
       name: part.name,
       shape: part.shape,
       quantity: part.quantity,
       texture: generated.texture,
       maxStitchCount: generated.maxStitchCount,
+      yarnMeters: Math.round(yarn.meters),
       meta: generated.meta,
     });
   }
@@ -96,7 +120,17 @@ function compileDesignSpec(rawSpec) {
     hookSize: gauge.hook,
     yarnWeight: spec.yarnWeight,
     finishedSize: describeFinishedSize(spec),
-    materials: suggestMaterials(spec, gauge),
+    materials: suggestMaterials(spec, gauge, yarnByColor),
+    yardage: {
+      totalMeters: Math.round(yarnTotal.meters),
+      totalGrams: Math.round(yarnTotal.grams),
+      perColor: [...yarnByColor.entries()].map(([color, y]) => ({
+        color,
+        meters: Math.round(y.meters),
+        grams: Math.round(y.grams),
+      })),
+      note: 'Includes a 15% allowance for tails, tension and weaving in ends.',
+    },
   };
 }
 
@@ -164,17 +198,14 @@ function describeFinishedSize(spec) {
   return `Approximately ${largest} cm (${Math.round(largest / 2.54)} in) at the largest dimension`;
 }
 
-function suggestMaterials(spec, gauge) {
-  const raw = [];
-  for (const p of spec.parts) {
-    if (p.color) raw.push(p.color);
-    if (p.colorPlan) raw.push(...p.colorPlan.colors);
-  }
-  const colors = [...new Set(raw.filter(Boolean).map(colorName))];
-  const yarnLine = colors.length
-    ? `${spec.yarnWeight} yarn in ${colors.join(', ')}`
-    : `${spec.yarnWeight} yarn`;
-  const materials = [yarnLine, `${gauge.hook} hook`, 'Tapestry needle', 'Scissors'];
+function suggestMaterials(spec, gauge, yarnByColor) {
+  // One shoppable line per colour, with a computed amount: the engine knows
+  // every stitch, so it can also say how much yarn those stitches consume.
+  const materials = [...yarnByColor.entries()].map(
+    ([color, y]) => `${spec.yarnWeight} yarn in ${color} — ${formatYarnAmount(y)}`
+  );
+  if (materials.length === 0) materials.push(`${spec.yarnWeight} yarn`);
+  materials.push(`${gauge.hook} hook`, 'Tapestry needle', 'Scissors');
   if (spec.category.toLowerCase() === 'amigurumi') {
     materials.push('Polyfill stuffing', 'Stitch marker');
   }

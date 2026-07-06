@@ -882,7 +882,7 @@ export default function Design() {
                 <div className="flex items-center gap-2 rounded-full bg-surface-container-lowest/90 px-3.5 py-1.5 text-xs font-semibold shadow-warm backdrop-blur">
                   <span className="inline-flex items-center gap-1 text-secondary"><BadgeCheck size={14} />Verified math</span>
                   <span className="text-on-surface-variant">·</span>
-                  <span className="text-on-surface">≈ {preview.peakStitches} sts · {preview.finishedSize?.replace(/\s*\(.*/, '')}</span>
+                  <span className="text-on-surface">≈ {preview.peakStitches} sts{preview.yarnMeters ? ` · ~${preview.yarnMeters} m yarn` : ''} · {preview.finishedSize?.replace(/\s*\(.*/, '')}</span>
                 </div>
               ) : preview && !preview.ok ? (
                 <div className="rounded-full bg-tertiary-container/80 px-3.5 py-1.5 text-xs font-medium text-on-tertiary-container shadow-warm backdrop-blur">
