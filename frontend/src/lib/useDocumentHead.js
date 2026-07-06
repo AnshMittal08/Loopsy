@@ -18,6 +18,7 @@ export function useDocumentHead({
   image,
   type = 'website',
   jsonLd,
+  noindex = false,
 } = {}) {
   // Serialize jsonLd once so the dependency array stays primitive/stable and the
   // effect doesn't re-run on every render due to a fresh object identity.
@@ -78,6 +79,7 @@ export function useDocumentHead({
 
     // Standard SEO
     meta('description', description);
+    if (noindex) meta('robots', 'noindex, nofollow');
 
     // Canonical link
     if (canonicalUrl) {
@@ -122,5 +124,5 @@ export function useDocumentHead({
         if (el.parentNode) el.parentNode.removeChild(el);
       });
     };
-  }, [title, description, canonicalPath, image, type, jsonLdString]);
+  }, [title, description, canonicalPath, image, type, jsonLdString, noindex]);
 }
