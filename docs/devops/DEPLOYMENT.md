@@ -47,6 +47,11 @@ Billing stays dormant + returns an honest `503` until **all four** are set:
       subscribed to `checkout.session.completed`, `customer.subscription.updated`,
       `customer.subscription.deleted`; copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
 
+### 🟡 Optional — admin observability page (`/admin`)
+- [ ] **`ADMIN_EMAILS` on Railway** — comma-separated account emails allowed to
+      open `/admin` and `GET /api/admin/overview` (case-insensitive). Unset ⇒
+      the admin surface 404s for everyone (invisible). No migration needed.
+
 ### ✅ Need nothing
 Stripes, design-craft (per-part stitch / assembly / embellishments), and the
 Learning Centre — all frontend-only or carried inside the existing design-spec
@@ -64,6 +69,11 @@ Apply on **Railway** (backend) unless noted. SQLite local dev needs none of thes
 | `FRONTEND_URL` | CORS allowlist + CSRF origin-check + email link base | Comma-separated list allowed. **Fails closed** without it (`lib/config.js` logs loudly). `*.vercel.app` previews auto-tolerated. |
 | `DATABASE_URL` | Switches the DB adapter to Postgres | Unset → SQLite. Neon URL includes `?sslmode=require`. **Never commit it.** |
 | `NODE_ENV` | `production` on Railway | Drives prod-only security headers + config validation. |
+
+### Admin (optional)
+| Var | Purpose | Notes |
+|-----|---------|-------|
+| `ADMIN_EMAILS` | Allowlist for `/admin` + `/api/admin/overview` | Comma-separated emails, case-insensitive. Unset ⇒ admin routes 404 for everyone. |
 
 ### Billing (optional — feature dormant until ALL four set)
 | Var | Purpose |
