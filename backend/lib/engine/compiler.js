@@ -32,7 +32,7 @@ function compileDesignSpec(rawSpec) {
   }
 
   const tight = spec.category.toLowerCase() === 'amigurumi';
-  const gauge = resolveGauge(spec.yarnWeight, { tight });
+  const gauge = resolveGauge(spec.yarnWeight, { tight, custom: spec.gauge });
   const defaultStitch = 'sc';
 
   const steps = [];

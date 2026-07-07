@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
 import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2 } from 'lucide-react';
 import TopNav from '../components/TopNav';
+import TermsToggle from '../components/TermsToggle';
+import { renderTerms, readTermsPref, writeTermsPref } from '../lib/terms';
 import Footer from '../components/Footer';
 import SaveToCollection from '../components/SaveToCollection';
 import Comments from '../components/Comments';
@@ -62,6 +64,8 @@ export default function PublicPattern() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [pattern, setPattern] = useState(null);
+  const [terms, setTermsState] = useState(readTermsPref());
+  const setTerms = (v) => { setTermsState(v); writeTermsPref(v); };
   const [loading, setLoading] = useState(true);
   const [starred, setStarred] = useState(false);
   const [starCount, setStarCount] = useState(0);
@@ -277,13 +281,14 @@ export default function PublicPattern() {
             <div className="flex items-center gap-2 mb-5">
               <BookOpen size={16} className="text-primary" />
               <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-primary">Pattern steps</h2>
+              <span className="ml-auto"><TermsToggle mode={terms} onChange={setTerms} /></span>
             </div>
             {steps.length === 0 ? (
               <p className="text-sm text-on-surface-variant">No steps available.</p>
             ) : (
               <ol className="space-y-3">
                 {steps.map((step, i) => {
-                  const text = step.instruction || step.text || step;
+                  const text = renderTerms(step.instruction || step.text || step, terms);
                   const row = step.row ?? i + 1;
                   return (
                     <li key={i} className="flex gap-3 rounded-xl bg-surface-container-low p-3.5">

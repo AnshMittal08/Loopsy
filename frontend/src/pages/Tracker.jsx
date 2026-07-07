@@ -14,6 +14,8 @@ import CopyLinkDialog from '../components/CopyLinkDialog';
 import PatternEditor from '../components/PatternEditor';
 import { SkeletonTrackerLayout } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
+import TermsToggle from '../components/TermsToggle';
+import { renderTerms, readTermsPref, writeTermsPref } from '../lib/terms';
 import { getPatternTheme } from '../lib/patternThemes';
 import StitchStep from '../components/StitchTooltip';
 import CrochetMode from '../components/CrochetMode';
@@ -80,6 +82,8 @@ export default function Tracker() {
   const currentRowRef = useRef(null);
   const closeMobileNav = useCallback(() => setMobileOpen(false), []);
   const { showToast } = useToast();
+  const [terms, setTermsState] = useState(readTermsPref());
+  const setTerms = (m) => { setTermsState(m); writeTermsPref(m); };
   const reduceMotion = useReducedMotion();
 
   // { id, title } while the delete-confirmation dialog is open.
@@ -741,7 +745,8 @@ export default function Tracker() {
             <section className="w-full lg:w-7/12 flex flex-col rounded-2xl border border-outline-variant/20 shadow-warm bg-surface-container-lowest overflow-hidden">
               {/* Tab bar */}
               <div className="px-4 pt-2 border-b border-outline-variant/15 shrink-0">
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1">
+                  <span className="ml-auto order-last pb-1"><TermsToggle mode={terms} onChange={setTerms} /></span>
                   {[
                     { id: 'steps', label: 'Steps', count: steps.length },
                     { id: 'materials', label: 'Materials', count: (pattern.materials || []).length },
@@ -820,7 +825,7 @@ export default function Tracker() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <p className={`relative text-sm leading-relaxed ${isCompleted ? 'text-on-surface-variant' : 'text-on-surface'}`}>
-                              <StitchStep instruction={stepData.instruction} />
+                              <StitchStep instruction={renderTerms(stepData.instruction, terms)} />
                               <Motion.span
                                 aria-hidden="true"
                                 className="pointer-events-none absolute left-0 top-1/2 h-[1.5px] bg-on-surface-variant/80"

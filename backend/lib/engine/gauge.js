@@ -61,19 +61,35 @@ function normalizeYarnWeight(raw) {
  * @param {{ tight?: boolean }} options tight = amigurumi tension (~15% more
  *   stitches per cm on a smaller hook)
  */
-function resolveGauge(yarnWeight, { tight = false } = {}) {
+function resolveGauge(yarnWeight, { tight = false, custom = null } = {}) {
   const key = normalizeYarnWeight(yarnWeight);
   const base = GAUGE_BY_WEIGHT[key];
   const factor = tight ? 1.15 : 1.0;
 
+  // A maker's measured swatch overrides the table: "I get 20 sts / 10 cm"
+  // re-scales every stitch count (and yardage) to their actual hands.
+  // Sanity-clamped to half..double the table value so a typo can't produce
+  // a nonsense pattern.
+  const clamp = (v, ref) => Math.min(ref * 2, Math.max(ref * 0.5, v));
+  const tableSts = base.sts * factor;
+  const tableRows = base.rows * factor;
+  const hasCustomSts = custom && Number(custom.stsPer10Cm) > 0;
+  const hasCustomRows = custom && Number(custom.rowsPer10Cm) > 0;
+  const sts = hasCustomSts ? clamp(Number(custom.stsPer10Cm), tableSts) : tableSts;
+  // Rows track the stitch ratio when only sts was measured.
+  const rows = hasCustomRows
+    ? clamp(Number(custom.rowsPer10Cm), tableRows)
+    : hasCustomSts ? tableRows * (sts / tableSts) : tableRows;
+
   return {
     yarnWeight: key,
     tight,
+    custom: Boolean(hasCustomSts || hasCustomRows),
     hook: tight ? TIGHT_HOOK_BY_WEIGHT[key] : base.hook,
-    stsPer10Cm: base.sts * factor,
-    rowsPer10Cm: base.rows * factor,
-    stsPerCm: (base.sts * factor) / 10,
-    rowsPerCm: (base.rows * factor) / 10,
+    stsPer10Cm: sts,
+    rowsPer10Cm: rows,
+    stsPerCm: sts / 10,
+    rowsPerCm: rows / 10,
   };
 }
 
