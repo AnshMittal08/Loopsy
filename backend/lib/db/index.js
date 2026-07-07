@@ -325,6 +325,26 @@ function initializeDatabase(db) {
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;
   }
+
+  // In-app notifications (stars/comments on your patterns).
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        actorId TEXT,
+        type TEXT NOT NULL,
+        resourceType TEXT,
+        resourceId TEXT,
+        message TEXT NOT NULL,
+        readAt TEXT,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, readAt);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
   addColumnIfMissing(existingUserColumns, 'bio', "ALTER TABLE users ADD COLUMN bio TEXT");
 
   // Learning Centre: per-user read + bookmark state for technique guides.
