@@ -50,6 +50,8 @@ export default function Design() {
   const [parts, setParts] = useState(starterParts);
   const [selectedId, setSelectedId] = useState(null);
   const [difficulty, setDifficulty] = useState('beginner');
+  // Optional measured swatch — re-scales every stitch count to the maker's tension.
+  const [customGauge, setCustomGauge] = useState({ stsPer10Cm: '', rowsPer10Cm: '' });
   const [tab, setTab] = useState('elements'); // 'elements' | 'setup'
   const [zoom, setZoom] = useState(1);
   const [mode, setMode] = useState('build'); // 'build' (3D shapes) | 'draw' (chart)
@@ -423,7 +425,13 @@ export default function Design() {
     }),
     assembly: (assemblyEdited ? assemblySteps : deriveAssembly(parts)).filter((s) => s.trim()),
     embellishments: embellishments.map((e) => e.text).filter((s) => s.trim()),
-  }), [parts, name, assemblyEdited, assemblySteps, embellishments]);
+    ...(Number(customGauge.stsPer10Cm) > 0 || Number(customGauge.rowsPer10Cm) > 0
+      ? { gauge: {
+          ...(Number(customGauge.stsPer10Cm) > 0 ? { stsPer10Cm: Number(customGauge.stsPer10Cm) } : {}),
+          ...(Number(customGauge.rowsPer10Cm) > 0 ? { rowsPer10Cm: Number(customGauge.rowsPer10Cm) } : {}),
+        } }
+      : {}),
+  }), [parts, name, assemblyEdited, assemblySteps, embellishments, customGauge]);
 
   // Live verified-math feedback: debounced compile of the current design so the
   // canvas shows "≈ N stitches · verified ✓" while you work, not only after Generate.
@@ -785,6 +793,26 @@ export default function Design() {
                       <button key={d} onClick={() => setDifficulty(d)}
                         className={`rounded-lg px-3 py-2 border text-sm font-medium capitalize text-left transition-all ${difficulty === d ? 'bg-primary/8 border-primary text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-low'}`}>{d}</button>
                     ))}
+                  </div>
+                </div>
+                <div className="border-t border-outline-variant/15 pt-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">My gauge (optional)</p>
+                  <p className="mb-2 text-[10px] text-on-surface-variant">Measure a 10×10 cm swatch — every count re-scales to your tension.</p>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1">
+                      <span className="sr-only">Stitches per 10 cm</span>
+                      <input type="number" min="4" max="60" placeholder="sts" value={customGauge.stsPer10Cm}
+                        onChange={(e) => setCustomGauge((g) => ({ ...g, stsPer10Cm: e.target.value }))}
+                        className="w-full rounded-lg bg-surface-container-low px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30" />
+                    </label>
+                    <span className="text-[10px] text-on-surface-variant">×</span>
+                    <label className="flex-1">
+                      <span className="sr-only">Rows per 10 cm</span>
+                      <input type="number" min="4" max="70" placeholder="rows" value={customGauge.rowsPer10Cm}
+                        onChange={(e) => setCustomGauge((g) => ({ ...g, rowsPer10Cm: e.target.value }))}
+                        className="w-full rounded-lg bg-surface-container-low px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30" />
+                    </label>
+                    <span className="text-[10px] text-on-surface-variant">/10cm</span>
                   </div>
                 </div>
                 <p className="text-xs text-on-surface-variant leading-relaxed">Every shape compiles to exact, verified stitch counts. We read your layout to write the assembly steps automatically.</p>

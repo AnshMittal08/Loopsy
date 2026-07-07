@@ -104,6 +104,9 @@ function normalizeDesignSpec(raw = {}) {
       if (part.face === true) normalized.face = true;
       return normalized;
     }),
+    // Optional measured swatch: { stsPer10Cm, rowsPer10Cm } — the engine
+    // re-scales every count to the maker's real tension. Dropped if malformed.
+    gauge: normalizeCustomGauge(raw.gauge),
     assembly: Array.isArray(raw.assembly) ? raw.assembly.map(String) : [],
     embellishments: Array.isArray(raw.embellishments) ? raw.embellishments.map(String) : [],
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : [],
@@ -123,6 +126,17 @@ function normalizeColorPlan(plan) {
   if (colors.length < 2) return null; // a single colour isn't a stripe
   const stripeRounds = Math.max(1, Math.min(50, Math.round(Number(plan.stripeRounds) || 1)));
   return { colors, stripeRounds };
+}
+
+/** Normalize an optional measured swatch; null when absent or malformed. */
+function normalizeCustomGauge(g) {
+  if (!g || typeof g !== 'object') return null;
+  const sts = Number(g.stsPer10Cm);
+  const rows = Number(g.rowsPer10Cm);
+  const out = {};
+  if (Number.isFinite(sts) && sts >= 4 && sts <= 60) out.stsPer10Cm = sts;
+  if (Number.isFinite(rows) && rows >= 4 && rows <= 70) out.rowsPer10Cm = rows;
+  return Object.keys(out).length ? out : null;
 }
 
 /**
