@@ -3,6 +3,7 @@ import { getAuthenticatedUser, requireAuthenticatedUser } from "@/lib/auth/sessi
 import { isCrossSiteRequest } from "@/lib/auth/request";
 import { getPublicPatternById } from "@/lib/models/patternModel";
 import { addComment, getComments } from "@/lib/models/commentModel";
+import { createNotification } from "@/lib/models/notificationModel";
 import { validate, readJsonBody } from "@/lib/validation";
 import { commentSchema } from "@/lib/validation/schemas";
 
@@ -34,6 +35,15 @@ export async function POST(request, { params }) {
     if (invalid) return invalid;
 
     const created = await addComment(params.id, user.id, data.body);
+    // Fire-and-forget: a notification failure must never fail the comment.
+    createNotification({
+      userId: pattern.userId,
+      actorId: user.id,
+      type: "comment",
+      resourceType: "pattern",
+      resourceId: params.id,
+      message: `${user.name} commented on “${pattern.title}”.`,
+    }).catch(() => {});
     // Return it in the same shape the list endpoint uses, so the UI can append.
     return NextResponse.json({
       comment: { ...created, authorName: user.name, authorHandle: user.handle },

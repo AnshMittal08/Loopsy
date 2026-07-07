@@ -4,6 +4,7 @@ import { motion as Motion } from 'motion/react';
 import { Menu, Search } from 'lucide-react';
 import MobileNav from './MobileNav';
 import ThemeToggle from './ThemeToggle';
+import NotificationsBell from './NotificationsBell';
 import Magnetic from './motion/Magnetic';
 import { useAuth } from './AuthProvider';
 import { openCommandPalette } from '../lib/commandPalette';
@@ -59,6 +60,7 @@ export default function TopNav() {
             <kbd className="rounded border border-outline-variant/30 px-1.5 text-[10px]">⌘K</kbd>
           </button>
           <ThemeToggle />
+          {user && <NotificationsBell />}
           {user && (
             <Link
               to="/account"
