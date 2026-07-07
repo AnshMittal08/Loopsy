@@ -31,7 +31,7 @@ workflow*). It is idempotent and additive, so re-runs are safe.
       backlog in order: `0003_billing` → `0004_community` → `0005_profiles_collections`
       (`stripeCustomerId`; `publishedAt`/`starCount`/`pattern_stars`; `users.handle`
       + `collections`/`collection_patterns`) — and everything after, up to
-      `0011_notifications` (in-app notifications table).
+      `0012_account_lifecycle` (`users.deletedAt` tombstone + `error_log` table).
 - [ ] _(Optional manual fallback)_ from any host that can reach Neon:
       `cd backend && DATABASE_URL=… npm run migrate` (then `npm run smoke:pg`).
 
@@ -148,6 +148,8 @@ npm run smoke:pg                               # optional: verify the live DB en
 | `0008_seed_generated_templates.sql` | 36 engine-generated catalog templates (**generated file** — `node scripts/gen-template-migration.js`) |
 | `0009_progress_notes.sql` | `progress.notes` (per-project maker notes) |
 | `0010_reports_bio.sql` | `reports` table (UGC flags) + `users.bio` |
+| `0011_notifications.sql` | `notifications` table (stars/comments on your patterns) |
+| `0012_account_lifecycle.sql` | `users.deletedAt` (deletion tombstone) + `error_log` table |
 
 **Note:** the SQLite adapter (`lib/db/index.js`) runs its own idempotent `ALTER TABLE`
 migrations at boot, so local dev needs no migrate step — but every schema change must be

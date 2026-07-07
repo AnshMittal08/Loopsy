@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { analyzeImageToDesignSpec } from "@/lib/services/aiService";
 import { normalizeDesignSpec } from "@/lib/engine";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { recordError } from "@/lib/models/errorLogModel";
 import { checkVisionAccess, recordVisionUse } from "@/lib/utils/planLimits";
 
 // Vision Studio (M3): photo(s) → confidence-scored, editable Design Spec.
@@ -80,6 +81,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
+    recordError({ route: "/api/ai/analyze-image", method: "POST", message: error?.message, stack: error?.stack }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to analyze the image.", details: error.message },
       { status: 500 }

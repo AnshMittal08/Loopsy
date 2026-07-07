@@ -38,7 +38,7 @@ const getUserByIdStmt = db.prepare(`
 const getUserByHandleStmt = db.prepare(`
   SELECT id, name, handle, bio, createdAt
   FROM users
-  WHERE handle = ?
+  WHERE handle = ? AND deletedAt IS NULL
 `);
 
 const getUserByEmailStmt = db.prepare(`

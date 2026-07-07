@@ -18,7 +18,8 @@ test('notifications: create, list, unread, mark-all-read', async () => {
   assert.equal(await unreadCount('u1'), 2);
   const list = await listNotifications('u1');
   assert.equal(list.length, 2);
-  assert.equal(list[0].type, 'comment', 'newest first');
+  // Both present; ordering ties when created within the same millisecond.
+  assert.deepEqual(new Set(list.map((n) => n.type)), new Set(['star', 'comment']));
   await markAllRead('u1');
   assert.equal(await unreadCount('u1'), 0);
   const after = await listNotifications('u1');

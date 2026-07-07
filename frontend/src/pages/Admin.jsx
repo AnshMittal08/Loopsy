@@ -185,6 +185,40 @@ export default function Admin() {
                 <BarList title="Plan mix" entries={Object.entries(data.plans).sort((a, b) => b[1] - a[1])} />
               </div>
 
+              {/* Errors */}
+              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  {data.errors?.last24h > 0
+                    ? <AlertTriangle size={15} className="text-error" />
+                    : <ShieldCheck size={15} className="text-secondary" />}
+                  <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Errors (24h): {data.errors?.last24h ?? 0}</h3>
+                </div>
+                {!data.errors?.recent?.length ? (
+                  <p className="text-xs text-on-surface-variant">No captured errors. Quiet is good.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="text-on-surface-variant">
+                          <th className="pb-2 pr-4 font-semibold">When</th>
+                          <th className="pb-2 pr-4 font-semibold">Route</th>
+                          <th className="pb-2 font-semibold">Message</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-on-surface">
+                        {data.errors.recent.map((e) => (
+                          <tr key={e.id} className="border-t border-outline-variant/15">
+                            <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{fmtWhen(e.createdAt)}</td>
+                            <td className="py-2 pr-4 whitespace-nowrap font-mono text-[11px]">{e.method} {e.route || '—'}</td>
+                            <td className="py-2 max-w-[320px] truncate text-error">{e.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
               {/* Moderation */}
               <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
                 <div className="mb-3 flex items-center gap-2">

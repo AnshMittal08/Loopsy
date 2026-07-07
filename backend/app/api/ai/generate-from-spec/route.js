@@ -3,6 +3,7 @@ import { generatePatternFromSpec } from "@/lib/services/aiService";
 import { normalizeDesignSpec, validateDesignSpec } from "@/lib/engine";
 import { createPattern } from "@/lib/models/patternModel";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { recordError } from "@/lib/models/errorLogModel";
 
 // Vision Studio (M3): compile a user-approved Design Spec into a verified
 // pattern. This is the deterministic follow-through of an already-metered
@@ -77,6 +78,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
+    recordError({ route: "/api/ai/generate-from-spec", method: "POST", message: error?.message, stack: error?.stack }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to compile the design.", details: error.message },
       { status: 500 }
