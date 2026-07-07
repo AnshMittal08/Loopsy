@@ -167,8 +167,12 @@ Important tables now include:
 - `rate_limits` (rolling-window counters for auth throttling; keyed by an opaque `bucket`)
 - `audit_log` (append-only trail of privileged/destructive actions)
 - `email_tokens` (single-use hashed tokens for email verification + password reset)
-- `users.emailVerified`, `patterns.deletedAt`, `designs.deletedAt` (added via idempotent migrations)
+- `users.emailVerified`, `patterns.deletedAt`, `designs.deletedAt`, `users.deletedAt` (added via idempotent migrations)
+- `notifications` (in-app star/comment notifications; bell menu)
+- `error_log` (captured unhandled API errors; powers the admin errors panel)
 - `analytics`
+
+Account lifecycle (GDPR): `GET /api/account/export` returns a portable JSON of everything held; `POST /api/account/delete` (re-verifies password + `confirm: "DELETE"`) hard-deletes private rows, anonymizes comments, takes published patterns down, and scrubs+tombstones the user (email freed, `deletedAt` set) — see `lib/models/accountModel.js`.
 
 When adding new persistent product features, prefer incremental `ALTER TABLE` migrations inside `backend/lib/db/index.js`. **Make migrations idempotent** (swallow "duplicate column" errors) — Next build collects page data across parallel workers that all init the same DB.
 

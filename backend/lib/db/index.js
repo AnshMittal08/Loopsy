@@ -345,7 +345,26 @@ function initializeDatabase(db) {
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;
   }
+
+  // Error log — captured unhandled API errors for the admin ops panel.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS error_log (
+        id TEXT PRIMARY KEY,
+        route TEXT,
+        method TEXT,
+        message TEXT NOT NULL,
+        stack TEXT,
+        userId TEXT,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log(createdAt);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
   addColumnIfMissing(existingUserColumns, 'bio', "ALTER TABLE users ADD COLUMN bio TEXT");
+  addColumnIfMissing(existingUserColumns, 'deletedAt', "ALTER TABLE users ADD COLUMN deletedAt TEXT");
 
   // Learning Centre: per-user read + bookmark state for technique guides.
   // guideSlug is content-defined (frontend), so this just stores slug strings.

@@ -156,6 +156,12 @@ export default function Account() {
     }
   };
 
+  const handleAccountDeleted = async () => {
+    await refreshSession?.();
+    navigate('/');
+    showToast('Your account and data have been permanently deleted.', 'info');
+  };
+
   return (
     <div className="flex min-h-dvh bg-surface">
       <MobileHeader />
@@ -326,6 +332,9 @@ export default function Account() {
                   </div>
                 </Reveal>
               )}
+
+              {/* Danger zone: export + delete */}
+              <DangerZone onDeleted={handleAccountDeleted} showToast={showToast} />
             </div>
 
           ) : (
@@ -487,6 +496,90 @@ function UsageBar({ label, used, limit, unit = 'used' }) {
         </div>
       )}
     </div>
+  );
+}
+
+function DangerZone({ onDeleted, showToast }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/account/export');
+      if (!res.ok) throw new Error('Could not export your data.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'loopsy-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Your data is downloading.', 'success');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm !== 'DELETE') { showToast('Type DELETE to confirm.', 'error'); return; }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, confirm }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not delete your account.');
+      await onDeleted();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Reveal delay={0.18} className="rounded-2xl border border-error/25 bg-error-container/20 p-6 md:p-8">
+      <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-error mb-2">Danger zone</h3>
+      <p className="text-sm text-on-surface-variant mb-5">Download everything we hold about you, or permanently delete your account. Deletion removes your projects, designs, collections and progress, and takes your published patterns down. This can't be undone.</p>
+      <div className="flex flex-wrap gap-3">
+        <button onClick={handleExport} className="rounded-full border border-outline-variant/40 px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
+          Download my data
+        </button>
+        {!open ? (
+          <button onClick={() => setOpen(true)} className="rounded-full border border-error/40 px-5 py-2.5 text-sm font-semibold text-error hover:bg-error-container/50 transition-colors">
+            Delete my account
+          </button>
+        ) : null}
+      </div>
+      {open && (
+        <div className="mt-5 space-y-3 rounded-xl border border-error/30 bg-surface-container-lowest p-4">
+          <p className="text-sm font-semibold text-on-surface">Confirm permanent deletion</p>
+          <div>
+            <label htmlFor="dz-pw" className="block text-xs font-semibold mb-1">Your password</label>
+            <input id="dz-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
+              className="w-full max-w-xs rounded-lg bg-surface-container-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-error/30" />
+          </div>
+          <div>
+            <label htmlFor="dz-confirm" className="block text-xs font-semibold mb-1">Type <span className="font-mono text-error">DELETE</span> to confirm</label>
+            <input id="dz-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE"
+              className="w-full max-w-xs rounded-lg bg-surface-container-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-error/30" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleDelete} disabled={busy || confirm !== 'DELETE' || !password}
+              className="rounded-full bg-error px-5 py-2 text-sm font-semibold text-on-error hover:opacity-90 transition-opacity disabled:opacity-50">
+              {busy ? 'Deleting…' : 'Permanently delete'}
+            </button>
+            <button onClick={() => { setOpen(false); setPassword(''); setConfirm(''); }} className="rounded-full border border-outline-variant/30 px-5 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </Reveal>
   );
 }
 

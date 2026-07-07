@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generatePatternFromAI } from "@/lib/services/aiService";
 import { createPattern } from "@/lib/models/patternModel";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { recordError } from "@/lib/models/errorLogModel";
 import { checkRateLimit, recordUsage } from "@/lib/utils/planLimits";
 
 export async function POST(request) {
@@ -88,6 +89,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
+    recordError({ route: "/api/ai/generate-pattern", method: "POST", message: error?.message, stack: error?.stack }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to generate pattern via AI.", details: error.message },
       { status: 500 }
