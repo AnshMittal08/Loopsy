@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordError } from "@/lib/models/errorModel";
 import { generatePatternFromAI } from "@/lib/services/aiService";
 import { createPattern } from "@/lib/models/patternModel";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
@@ -88,6 +89,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
+    recordError({ route: "/api/ai/generate-pattern", method: "POST", message: error.message, stack: error.stack, statusCode: 500 }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to generate pattern via AI.", details: error.message },
       { status: 500 }

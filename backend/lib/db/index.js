@@ -28,6 +28,7 @@ const PG_KEYMAP = {
   readat: 'readAt',
   reporterid: 'reporterId',
   resourcetype: 'resourceType',
+  statuscode: 'statusCode',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -341,6 +342,25 @@ function initializeDatabase(db) {
         createdAt TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, readAt);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+
+  // First-party error log (surfaced on /admin).
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS error_log (
+        id TEXT PRIMARY KEY,
+        route TEXT NOT NULL,
+        method TEXT,
+        message TEXT NOT NULL,
+        stack TEXT,
+        statusCode INTEGER,
+        userId TEXT,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log(createdAt);
     `);
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;

@@ -31,7 +31,7 @@ workflow*). It is idempotent and additive, so re-runs are safe.
       backlog in order: `0003_billing` → `0004_community` → `0005_profiles_collections`
       (`stripeCustomerId`; `publishedAt`/`starCount`/`pattern_stars`; `users.handle`
       + `collections`/`collection_patterns`) — and everything after, up to
-      `0011_notifications` (in-app notifications table).
+      `0012_error_log` (in-app notifications table `0011`; first-party error log `0012`).
 - [ ] _(Optional manual fallback)_ from any host that can reach Neon:
       `cd backend && DATABASE_URL=… npm run migrate` (then `npm run smoke:pg`).
 

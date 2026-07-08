@@ -3,6 +3,7 @@
 // sliced with substr() (works identically in SQLite and Postgres).
 
 const db = require('../db');
+const { recentErrors, errorCountsByRoute, errorCountLastDay } = require('./errorModel');
 
 const count = async (sql, ...params) => {
   const row = await db.prepare(sql).get(...params);
@@ -65,6 +66,12 @@ async function getAdminOverview() {
   const paidUsers = Object.entries(plans).reduce((s, [p, n]) => (p === 'free' ? s : s + n), 0);
   plans.free = Math.max(0, users - paidUsers);
 
+  const [errorsRecent, errorsByRoute, errors24h] = await Promise.all([
+    recentErrors(20),
+    errorCountsByRoute(24),
+    errorCountLastDay(),
+  ]);
+
   const recentAudit = await db
     .prepare('SELECT action, resource, resourceId, actorId, ip, createdAt FROM audit_log ORDER BY createdAt DESC LIMIT 20')
     .all();
@@ -78,12 +85,13 @@ async function getAdminOverview() {
       users, verifiedUsers, activeSessions,
       patterns, publishedPatterns, verifiedPatterns,
       designs, progressProjects, stars, collections, comments,
-      openReports, rateLimitBuckets,
+      openReports, rateLimitBuckets, errors24h,
     },
     daily: { signups: signupsDaily, published: publishedDaily },
     aiMonth,
     plans,
     recentAudit,
+    errors: { last24h: errors24h, recent: errorsRecent, byRoute: errorsByRoute },
     openReports: openReportRows,
     month,
   };

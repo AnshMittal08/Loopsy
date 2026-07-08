@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordError } from "@/lib/models/errorModel";
 import { analyzeImageToDesignSpec } from "@/lib/services/aiService";
 import { normalizeDesignSpec } from "@/lib/engine";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
@@ -80,6 +81,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
+    recordError({ route: "/api/ai/analyze-image", method: "POST", message: error.message, stack: error.stack, statusCode: 500 }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to analyze the image.", details: error.message },
       { status: 500 }

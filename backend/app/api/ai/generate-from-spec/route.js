@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordError } from "@/lib/models/errorModel";
 import { generatePatternFromSpec } from "@/lib/services/aiService";
 import { normalizeDesignSpec, validateDesignSpec } from "@/lib/engine";
 import { createPattern } from "@/lib/models/patternModel";
@@ -77,6 +78,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
+    recordError({ route: "/api/ai/generate-from-spec", method: "POST", message: error.message, stack: error.stack, statusCode: 500 }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to compile the design.", details: error.message },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordError } from "@/lib/models/errorModel";
 import { compileDesignSpec, validatePattern } from "@/lib/engine";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 
@@ -42,6 +43,7 @@ export async function POST(request) {
       yarnGrams: compiled.yardage?.totalGrams,
     });
   } catch (error) {
+    recordError({ route: "/api/design/preview", method: "POST", message: error.message, stack: error.stack, statusCode: 500 }).catch(() => {});
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }

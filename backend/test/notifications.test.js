@@ -14,6 +14,7 @@ const { createNotification, listNotifications, unreadCount, markAllRead } = requ
 
 test('notifications: create, list, unread, mark-all-read', async () => {
   await createNotification({ userId: 'u1', actorId: 'u2', type: 'star', resourceType: 'pattern', resourceId: 'p1', message: 'Maker starred your pattern.' });
+  await new Promise((r) => setTimeout(r, 5)); // distinct createdAt so newest-first is well-defined
   await createNotification({ userId: 'u1', actorId: 'u3', type: 'comment', resourceType: 'pattern', resourceId: 'p1', message: 'Maker commented.' });
   assert.equal(await unreadCount('u1'), 2);
   const list = await listNotifications('u1');

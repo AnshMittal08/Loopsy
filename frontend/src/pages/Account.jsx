@@ -156,6 +156,38 @@ export default function Account() {
     }
   };
 
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExport = () => {
+    // Streamed as an attachment by the API; a plain navigation triggers download.
+    window.location.assign('/api/me/export');
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/me', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) { showToast('Password is incorrect.', 'error'); return; }
+      if (!res.ok) throw new Error(data.error || 'Could not delete your account.');
+      await refreshSession?.();
+      showToast('Your account and all data have been deleted.', 'info');
+      navigate('/');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setDeleting(false);
+      setShowDelete(false);
+      setDeletePassword('');
+    }
+  };
+
   return (
     <div className="flex min-h-dvh bg-surface">
       <MobileHeader />
@@ -326,6 +358,43 @@ export default function Account() {
                   </div>
                 </Reveal>
               )}
+
+              {/* Your data + danger zone */}
+              <Reveal delay={0.18} className="rounded-2xl bg-surface-container-lowest border border-error/20 shadow-warm p-6 md:p-8">
+                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-error mb-2">Your data</h3>
+                <p className="text-sm text-on-surface-variant mb-4">Download everything tied to your account, or permanently delete it.</p>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={handleExport} className="rounded-full border border-outline-variant/30 px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
+                    Download my data
+                  </button>
+                  {!showDelete ? (
+                    <button onClick={() => setShowDelete(true)} className="rounded-full border border-error/40 px-5 py-2.5 text-sm font-semibold text-error hover:bg-error-container/40 transition-colors">
+                      Delete my account
+                    </button>
+                  ) : null}
+                </div>
+                {showDelete && (
+                  <div className="mt-5 rounded-xl border border-error/30 bg-error-container/20 p-4">
+                    <p className="text-sm font-semibold text-on-surface mb-1">This cannot be undone.</p>
+                    <p className="text-xs text-on-surface-variant mb-3">Your patterns, designs, projects, collections and comments will be permanently removed. Enter your password to confirm.</p>
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Your password"
+                      className="w-full max-w-xs rounded-lg bg-surface-container-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-error/40 mb-3"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleDeleteAccount} disabled={deleting || !deletePassword} className="rounded-full bg-error px-5 py-2 text-sm font-semibold text-on-error hover:opacity-90 transition-opacity disabled:opacity-50">
+                        {deleting ? 'Deleting…' : 'Permanently delete'}
+                      </button>
+                      <button onClick={() => { setShowDelete(false); setDeletePassword(''); }} className="rounded-full border border-outline-variant/30 px-5 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </Reveal>
             </div>
 
           ) : (

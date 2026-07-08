@@ -221,6 +221,51 @@ export default function Admin() {
                 )}
               </div>
 
+              {/* Errors (first-party) */}
+              <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  {t.errors24h > 0
+                    ? <AlertTriangle size={15} className="text-error" />
+                    : <ShieldCheck size={15} className="text-secondary" />}
+                  <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Errors — last 24h ({t.errors24h})</h3>
+                </div>
+                {(!data.errors || data.errors.recent.length === 0) ? (
+                  <p className="text-xs text-on-surface-variant">No server errors recorded. Smooth sailing.</p>
+                ) : (
+                  <>
+                    {data.errors.byRoute.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {data.errors.byRoute.map((r) => (
+                          <span key={r.route} className="inline-flex items-center gap-1.5 rounded-full bg-error-container/40 px-2.5 py-1 text-[11px] font-semibold text-on-surface">
+                            {r.route} <span className="tabular-nums text-error">{r.c}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="text-on-surface-variant">
+                            <th className="pb-2 pr-4 font-semibold">When</th>
+                            <th className="pb-2 pr-4 font-semibold">Route</th>
+                            <th className="pb-2 font-semibold">Message</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-on-surface">
+                          {data.errors.recent.map((e, i) => (
+                            <tr key={i} className="border-t border-outline-variant/15">
+                              <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{fmtWhen(e.createdAt)}</td>
+                              <td className="py-2 pr-4 whitespace-nowrap">{e.method} {e.route}</td>
+                              <td className="py-2 max-w-[360px] truncate text-error">{e.message}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* Audit trail */}
               <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-warm p-5">
                 <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-primary">Recent audit log</h3>
