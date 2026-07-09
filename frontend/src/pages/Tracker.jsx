@@ -498,7 +498,7 @@ export default function Tracker() {
 
   return (
     <>
-    <PrintablePattern pattern={pattern} steps={steps} />
+    <PrintablePattern pattern={pattern} steps={steps} terms={terms} />
     {finishShareUrl && <CopyLinkDialog url={finishShareUrl} title="Share your finished make" onClose={() => setFinishShareUrl(null)} />}
     {editing && <PatternEditor pattern={pattern} onSaved={(p) => setPattern(p)} onClose={() => setEditing(false)} />}
     <div className="flex h-dvh overflow-hidden bg-surface text-on-surface print:hidden">
