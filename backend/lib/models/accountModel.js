@@ -3,9 +3,11 @@
 // Export gathers everything tied to a user into one JSON payload.
 // Delete permanently removes the account and everything that identifies the
 // person: patterns, designs, progress, collections, comments, stars,
-// notifications, sessions, subscriptions, AI usage, reports they filed, and
-// email tokens. Published patterns DISAPPEAR (the privacy-respecting default).
-// The audit_log keeps a single tombstone row (no PII) for accountability.
+// notifications, learning progress, sessions, subscriptions, AI usage,
+// reports they filed, and email tokens. Published patterns DISAPPEAR (the
+// privacy-respecting default). error_log rows are kept for diagnostics but
+// scrubbed of the userId link. The audit_log keeps a single tombstone row
+// (no PII) for accountability.
 
 const db = require('../db');
 
@@ -14,7 +16,7 @@ async function exportUserData(userId) {
   const q = (sql, ...p) => db.prepare(sql).all(...p);
   const one = async (sql, ...p) => db.prepare(sql).get(...p);
 
-  const [user, subscription, patterns, designs, progress, collections, comments, stars, notifications, usage] = await Promise.all([
+  const [user, subscription, patterns, designs, progress, collections, comments, stars, notifications, usage, learning] = await Promise.all([
     one('SELECT id, email, name, skillLevel, handle, bio, emailVerified, createdAt FROM users WHERE id = ?', userId),
     one('SELECT plan, status, createdAt, updatedAt FROM subscriptions WHERE userId = ?', userId),
     q('SELECT id, title, difficulty, category, verified, publishedAt, createdAt FROM patterns WHERE userId = ? AND deletedAt IS NULL', userId),
@@ -25,6 +27,7 @@ async function exportUserData(userId) {
     q('SELECT patternId, createdAt FROM pattern_stars WHERE userId = ?', userId),
     q('SELECT id, type, message, readAt, createdAt FROM notifications WHERE userId = ?', userId),
     q('SELECT type, month, count FROM ai_usage WHERE userId = ?', userId),
+    q('SELECT guideSlug, readAt, bookmarked, updatedAt FROM learning_progress WHERE userId = ?', userId),
   ]);
 
   return {
@@ -39,6 +42,7 @@ async function exportUserData(userId) {
     stars,
     notifications,
     aiUsage: usage,
+    learningProgress: learning,
   };
 }
 
@@ -67,9 +71,13 @@ async function deleteUserAccount(userId) {
     await del('DELETE FROM patterns WHERE userId = ?');
     await del('DELETE FROM reports WHERE reporterId = ?');
     await del('DELETE FROM ai_usage WHERE userId = ?');
+    await del('DELETE FROM learning_progress WHERE userId = ?');
     await del('DELETE FROM email_tokens WHERE userId = ?');
     await del('DELETE FROM subscriptions WHERE userId = ?');
     await del('DELETE FROM sessions WHERE userId = ?');
+    // Diagnostic rows are kept (they're operationally useful), but the PII
+    // link to this specific person is dropped.
+    await tx.prepare('UPDATE error_log SET userId = NULL WHERE userId = ?').run(userId);
 
     const info = await tx.prepare('DELETE FROM users WHERE id = ?').run(userId);
 
