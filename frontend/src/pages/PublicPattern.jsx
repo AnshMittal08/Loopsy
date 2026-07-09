@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from 'motion/react';
-import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2 } from 'lucide-react';
+import { Star, ArrowLeft, Sparkles, Globe, BookOpen, Share2, Printer } from 'lucide-react';
+import PrintablePattern from '../components/PrintablePattern';
 import TopNav from '../components/TopNav';
 import TermsToggle from '../components/TermsToggle';
 import { renderTerms, readTermsPref, writeTermsPref } from '../lib/terms';
@@ -185,7 +186,9 @@ export default function PublicPattern() {
   const steps = Array.isArray(pattern.steps) ? pattern.steps : [];
 
   return (
-    <div className="min-h-dvh bg-surface">
+    <>
+    <PrintablePattern pattern={pattern} steps={steps} terms={terms} />
+    <div className="min-h-dvh bg-surface print:hidden">
       <TopNav />
       {shareUrl && <CopyLinkDialog url={shareUrl} title="Share this pattern" onClose={() => setShareUrl(null)} />}
       {reporting && <ReportDialog resourceType="pattern" resourceId={id} onClose={() => setReporting(false)} />}
@@ -253,6 +256,16 @@ export default function PublicPattern() {
                 >
                   <Share2 size={20} className="text-on-surface-variant" />
                   <span className="text-[11px] font-bold text-on-surface">Share</span>
+                </Motion.button>
+                <Motion.button
+                  onClick={() => window.print()}
+                  whileTap={{ scale: 0.88 }}
+                  aria-label="Print or save as PDF"
+                  title="Print or save this pattern as a PDF"
+                  className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-container-lowest/85 px-3 py-2.5 backdrop-blur-sm transition-colors hover:bg-surface-container-lowest"
+                >
+                  <Printer size={20} className="text-on-surface-variant" />
+                  <span className="text-[11px] font-bold text-on-surface">Print</span>
                 </Motion.button>
                 <SaveToCollection patternId={pattern.id} />
               </div>
@@ -330,5 +343,6 @@ export default function PublicPattern() {
       </main>
       <Footer />
     </div>
+    </>
   );
 }

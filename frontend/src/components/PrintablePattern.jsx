@@ -1,11 +1,15 @@
 import React from 'react';
+import { renderTerms } from '../lib/terms';
 
 /**
  * Print-only pattern document. Hidden on screen; becomes the whole page when
  * printing (the interactive app chrome is print:hidden). Deliberately plain,
  * ink-friendly typography — this is the "PDF export": print → Save as PDF.
+ *
+ * `terms` ('us' | 'uk') mirrors whatever the on-screen toggle is set to, so a
+ * maker who switched to UK terminology doesn't get a US-terms PDF.
  */
-export default function PrintablePattern({ pattern, steps = [] }) {
+export default function PrintablePattern({ pattern, steps = [], terms = 'us' }) {
   if (!pattern) return null;
   const meta = [
     ['Difficulty', pattern.difficulty],
@@ -41,7 +45,7 @@ export default function PrintablePattern({ pattern, steps = [] }) {
         <>
           <h2 style={{ fontSize: '13pt', fontWeight: 700, marginBottom: '4pt' }}>Materials</h2>
           <ul style={{ fontSize: '10pt', marginBottom: '12pt', paddingLeft: '14pt' }}>
-            {pattern.materials.map((m, i) => <li key={i} style={{ marginBottom: '1pt' }}>{m}</li>)}
+            {pattern.materials.map((m, i) => <li key={i} style={{ marginBottom: '1pt' }}>{renderTerms(m, terms)}</li>)}
           </ul>
         </>
       )}
@@ -50,7 +54,7 @@ export default function PrintablePattern({ pattern, steps = [] }) {
         <>
           <h2 style={{ fontSize: '13pt', fontWeight: 700, marginBottom: '4pt' }}>Notes</h2>
           <ul style={{ fontSize: '10pt', marginBottom: '12pt', paddingLeft: '14pt' }}>
-            {pattern.notes.map((n, i) => <li key={i} style={{ marginBottom: '1pt' }}>{n}</li>)}
+            {pattern.notes.map((n, i) => <li key={i} style={{ marginBottom: '1pt' }}>{renderTerms(n, terms)}</li>)}
           </ul>
         </>
       )}
@@ -59,7 +63,7 @@ export default function PrintablePattern({ pattern, steps = [] }) {
       <ol style={{ fontSize: '10.5pt', paddingLeft: '18pt', lineHeight: 1.45 }}>
         {steps.map((step, i) => {
           const text = step.instruction || step.text || (typeof step === 'string' ? step : '');
-          return <li key={i} style={{ marginBottom: '5pt', breakInside: 'avoid' }}>{text}</li>;
+          return <li key={i} style={{ marginBottom: '5pt', breakInside: 'avoid' }}>{renderTerms(text, terms)}</li>;
         })}
       </ol>
     </div>
