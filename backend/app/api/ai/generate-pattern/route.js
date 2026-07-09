@@ -19,7 +19,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { prompt, difficulty, stream } = body;
+    const { prompt, difficulty, stream, gauge } = body;
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(request) {
     const normalizedDifficulty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 
     if (!stream) {
-      const pattern = await generatePatternFromAI(prompt, normalizedDifficulty);
+      const pattern = await generatePatternFromAI(prompt, normalizedDifficulty, undefined, gauge);
       // A fallback means every AI provider failed (e.g. no API key on the
       // backend). Surface it as an outage — don't save a junk pattern and
       // don't burn the user's quota on a failed generation.
@@ -60,7 +60,7 @@ export async function POST(request) {
           const pattern = await generatePatternFromAI(prompt, normalizedDifficulty, (e) => {
             if (e.type === "step") send("step", { row: e.row, instruction: e.instruction });
             else send("status", { stage: e.stage, message: e.message });
-          });
+          }, gauge);
           // Fallback = every provider failed; treat as an outage, not a result.
           if (pattern.isFallback) {
             send("error", { error: "AI generation is temporarily unavailable. Please try again in a moment.", code: "AI_UNAVAILABLE" });

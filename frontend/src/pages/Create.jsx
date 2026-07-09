@@ -219,6 +219,14 @@ export default function Create() {
   };
   const [difficulty, setDifficulty] = useState('beginner');
   const [aiSubMode, setAiSubMode] = useState('describe'); // 'describe' | 'photo'
+  // Optional measured swatch — re-scales every stitch count to the maker's tension.
+  const [customGauge, setCustomGauge] = useState({ stsPer10Cm: '', rowsPer10Cm: '' });
+  const gaugePayload = Number(customGauge.stsPer10Cm) > 0 || Number(customGauge.rowsPer10Cm) > 0
+    ? {
+        ...(Number(customGauge.stsPer10Cm) > 0 ? { stsPer10Cm: Number(customGauge.stsPer10Cm) } : {}),
+        ...(Number(customGauge.rowsPer10Cm) > 0 ? { rowsPer10Cm: Number(customGauge.rowsPer10Cm) } : {}),
+      }
+    : undefined;
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamStatus, setStreamStatus] = useState(null);
@@ -355,7 +363,7 @@ export default function Create() {
       const res = await fetch('/api/ai/generate-pattern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, difficulty, stream: true })
+        body: JSON.stringify({ prompt, difficulty, stream: true, gauge: gaugePayload })
       });
 
       const contentType = res.headers.get('content-type') || '';
@@ -743,6 +751,29 @@ export default function Create() {
                           className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none"
                           placeholder="e.g. A small red teddy bear with a blue bow tie, beginner friendly"
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-on-surface mb-2">My gauge (optional)</label>
+                        <p className="mb-2 text-xs text-on-surface-variant">Measure a 10×10 cm swatch and every stitch count re-scales to your tension. Leave blank to use standard gauge.</p>
+                        <div className="flex items-center gap-2 max-w-xs">
+                          <input
+                            type="number" min="4" max="60" placeholder="sts"
+                            value={customGauge.stsPer10Cm}
+                            onChange={(e) => setCustomGauge((g) => ({ ...g, stsPer10Cm: e.target.value }))}
+                            className="w-full rounded-lg bg-surface-container-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                            aria-label="Stitches per 10 cm"
+                          />
+                          <span className="text-xs text-on-surface-variant shrink-0">×</span>
+                          <input
+                            type="number" min="4" max="70" placeholder="rows"
+                            value={customGauge.rowsPer10Cm}
+                            onChange={(e) => setCustomGauge((g) => ({ ...g, rowsPer10Cm: e.target.value }))}
+                            className="w-full rounded-lg bg-surface-container-low px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                            aria-label="Rows per 10 cm"
+                          />
+                          <span className="text-xs text-on-surface-variant shrink-0">/10cm</span>
+                        </div>
                       </div>
 
                       <div className="rounded-xl bg-tertiary-container/50 border border-tertiary/20 p-4">
