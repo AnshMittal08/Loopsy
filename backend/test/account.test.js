@@ -13,6 +13,7 @@ const db = require('../lib/db');
 const userModel = require('../lib/models/userModel');
 const { exportUserData, deleteUserAccount } = require('../lib/models/accountModel');
 const { createNotification, unreadCount } = require('../lib/models/notificationModel');
+const { recordError } = require('../lib/models/errorLogModel');
 
 const now = new Date().toISOString();
 
@@ -28,12 +29,16 @@ test('exportUserData returns a portable snapshot', async () => {
   const uid = await seedUser('u_export', 'export@test.com');
   await db.prepare('INSERT INTO patterns (id, userId, title, steps, createdAt) VALUES (?,?,?,?,?)').run('p_x', uid, 'My Scarf', '[]', now);
   await createNotification({ userId: uid, actorId: 'someone', type: 'star', message: 'starred' });
+  await db.prepare('INSERT INTO learning_progress (userId, guideSlug, readAt, bookmarked, updatedAt) VALUES (?,?,?,?,?)')
+    .run(uid, 'magic-ring', now, 1, now);
 
   const data = await exportUserData(uid);
   assert.equal(data.user.email, 'export@test.com');
   assert.equal(data.patterns.length, 1);
   assert.equal(data.patterns[0].title, 'My Scarf');
   assert.equal(data.notifications.length, 1);
+  assert.equal(data.learningProgress.length, 1, 'reading history + bookmarks are exported');
+  assert.equal(data.learningProgress[0].guideSlug, 'magic-ring');
   assert.ok(data.exportedAt);
 });
 
@@ -45,6 +50,9 @@ test('deleteUserAccount erases private data, anonymizes comments, tombstones the
   await db.prepare('INSERT INTO progress (id, userId, patternId, totalSteps, steps, createdAt) VALUES (?,?,?,?,?,?)').run('pr_del', uid, 'p_del', 5, '[]', now);
   await db.prepare('INSERT INTO pattern_comments (id, patternId, userId, body, createdAt) VALUES (?,?,?,?,?)').run('c_del', 'p_other', uid, 'nice work', now);
   await db.prepare('INSERT INTO pattern_stars (patternId, userId, createdAt) VALUES (?,?,?)').run('p_other', uid, now);
+  await db.prepare('INSERT INTO learning_progress (userId, guideSlug, readAt, bookmarked, updatedAt) VALUES (?,?,?,?,?)')
+    .run(uid, 'magic-ring', now, 1, now);
+  await recordError({ route: '/api/ai/generate-pattern', method: 'POST', message: 'seeded', userId: uid });
   await createNotification({ userId: other, actorId: uid, type: 'star', message: 'from deleted user' });
   assert.equal(await unreadCount(other), 1);
 
@@ -53,6 +61,11 @@ test('deleteUserAccount erases private data, anonymizes comments, tombstones the
   // Private rows gone.
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM progress WHERE userId = ?').get(uid)).n, 0);
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM pattern_stars WHERE userId = ?').get(uid)).n, 0);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM learning_progress WHERE userId = ?').get(uid)).n, 0, 'reading history + bookmarks purged');
+  // error_log rows are diagnostically useful and kept, but scrubbed of the
+  // PII link: the row must survive with userId nulled, not vanish.
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM error_log WHERE userId = ?').get(uid)).n, 0, 'no error_log row still points at the deleted user');
+  assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM error_log WHERE message = 'seeded' AND userId IS NULL").get()).n, 1, 'the diagnostic row itself is preserved, just de-linked');
   // Published pattern taken down (soft-deleted, unpublished).
   const pat = await db.prepare('SELECT deletedAt, publishedAt FROM patterns WHERE id = ?').get('p_del');
   assert.ok(pat.deletedAt);

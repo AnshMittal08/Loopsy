@@ -1,7 +1,8 @@
 // Account lifecycle — data export (GDPR access) and account deletion
 // (GDPR erasure). Deletion cascades hard where the row is private to the user
 // and anonymizes where it is community-visible, so nothing dangles and no
-// personal data survives.
+// personal data survives. Diagnostic rows (error_log) are kept but scrubbed
+// of the userId link — useful for ops, no longer personal data.
 
 const db = require('../db');
 
@@ -14,7 +15,7 @@ async function exportUserData(userId) {
   const all = (sql, ...p) => db.prepare(sql).all(...p);
 
   const user = await get('SELECT id, email, name, skillLevel, handle, bio, emailVerified, createdAt FROM users WHERE id = ?', userId);
-  const [subscription, patterns, designs, progress, collections, comments, stars, notifications] = await Promise.all([
+  const [subscription, patterns, designs, progress, collections, comments, stars, notifications, learningProgress] = await Promise.all([
     get('SELECT plan, status, createdAt, updatedAt FROM subscriptions WHERE userId = ?', userId),
     all('SELECT id, title, category, difficulty, verified, publishedAt, createdAt FROM patterns WHERE userId = ? AND deletedAt IS NULL', userId),
     all('SELECT id, name, patternId, createdAt, updatedAt FROM designs WHERE userId = ? AND deletedAt IS NULL', userId),
@@ -23,6 +24,7 @@ async function exportUserData(userId) {
     all('SELECT patternId, body, createdAt FROM pattern_comments WHERE userId = ?', userId),
     all('SELECT patternId, createdAt FROM pattern_stars WHERE userId = ?', userId),
     all('SELECT type, message, createdAt FROM notifications WHERE userId = ?', userId),
+    all('SELECT guideSlug, readAt, bookmarked, updatedAt FROM learning_progress WHERE userId = ?', userId),
   ]);
 
   return {
@@ -36,6 +38,7 @@ async function exportUserData(userId) {
     comments,
     stars,
     notifications,
+    learningProgress,
   };
 }
 
@@ -44,7 +47,7 @@ async function exportUserData(userId) {
 // reporterId; notifications keys on both userId and actorId.)
 const PRIVATE_TABLES = [
   'progress', 'designs', 'collections',
-  'pattern_stars', 'ai_usage', 'sessions', 'email_tokens',
+  'pattern_stars', 'ai_usage', 'sessions', 'email_tokens', 'learning_progress',
 ];
 
 /**
@@ -83,6 +86,10 @@ async function deleteUserAccount(userId) {
     `deleted+${userId}@loopsy.invalid`, 'Deleted maker', 'deleted', now, userId
   );
   await run('DELETE FROM subscriptions WHERE userId = ?', userId);
+
+  // Diagnostic rows stay useful for the admin ops panel, but the PII link
+  // to this specific person is dropped.
+  await run('UPDATE error_log SET userId = NULL WHERE userId = ?', userId);
 
   return { userId, deletedAt: now };
 }
