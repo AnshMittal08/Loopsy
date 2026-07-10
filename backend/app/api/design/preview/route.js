@@ -31,6 +31,7 @@ export async function POST(request) {
     return NextResponse.json({
       ok: true,
       verified: validation.verified,
+      coverage: Math.round((validation.coverage || 0) * 100),
       rows: compiled.steps.length,
       partCount: compiled.parts.length,
       peakStitches: totalStitches,

@@ -351,6 +351,8 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
     finishedSize: compiled.finishedSize,
     notes: [
       gaugeNote(compiled.gauge),
+      // Make the badge quantitative: say exactly how much was re-derived.
+      `Verified math \u2713: ${validation.checkedSteps} of ${validation.countedSteps} counted rounds independently re-derived (${Math.round(validation.coverage * 100)}%).`,
       ...(presentation?.notes?.length ? presentation.notes : inferNotes(category)),
     ],
     steps: compiled.steps.map(({ row, instruction }) => ({ row, instruction })),
