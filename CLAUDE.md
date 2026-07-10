@@ -80,12 +80,18 @@ Frontend (5173) -> Vite proxy -> Next.js API (3000) -> SQLite (data.db)
 - `POST /api/auth/verify-email` (consume token → mark verified)
 - `POST /api/auth/forgot-password` (generic response; emails a reset link)
 - `POST /api/auth/reset-password` (consume token → set new password)
+- `POST /api/auth/magic-link` / `POST /api/auth/magic-login` (passwordless email sign-in; 15-min single-use token)
+- `GET /api/auth/google` + `GET /api/auth/google/callback` (OAuth code flow; identities in `user_identities`, linking only on provider-verified emails — see `lib/models/authProviderModel.js`)
+- `GET /api/auth/providers` (which optional auth features are live + Turnstile site key)
 - `GET /api/me`
 
 Frontend auth state is managed by `frontend/src/components/AuthProvider.jsx`.
 
 ### Auth & request hardening (P0)
 
+- **Bot protection** — Cloudflare Turnstile on signup, magic-link and
+  forgot-password (`lib/auth/turnstile.js`); dormant without `TURNSTILE_SECRET_KEY`,
+  fail-closed with it.
 - **Login/signup throttling** — DB-backed rolling-window counters in the
   `rate_limits` table via `lib/models/rateLimitModel.js` (`peek/hit/clear`).
   Login: 5 failed attempts per (ip,email) and 20 per ip / 15 min; a successful

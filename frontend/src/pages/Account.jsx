@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion as Motion, useReducedMotion } from 'motion/react';
 import { Lock, BookMarked, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import SideNav from '../components/SideNav';
@@ -7,12 +7,36 @@ import MobileHeader from '../components/MobileHeader';
 import { Reveal } from '../components/motion/Reveal';
 import { useAuth } from '../components/AuthProvider';
 import { useToast } from '../components/Toast';
+import TurnstileWidget from '../components/TurnstileWidget';
+import { useAuthProviders } from '../lib/useAuthProviders';
 
 export default function Account() {
   const navigate = useNavigate();
   const { user, loading, signIn, signUp, signOut, refreshSession } = useAuth();
   const { showToast } = useToast();
   const [mode, setMode] = useState('signin');
+  const providers = useAuthProviders();
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [sendingMagic, setSendingMagic] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Surface OAuth redirect outcomes (?oauth=…) once, then clean the URL.
+  useEffect(() => {
+    const outcome = searchParams.get('oauth');
+    if (!outcome) return;
+    const messages = {
+      failed: ['Google sign-in didn\u2019t complete. Please try again.', 'error'],
+      unavailable: ['Google sign-in isn\u2019t set up on this server yet.', 'info'],
+      email_conflict: ['That Google account\u2019s email already has a Loopsy account. Sign in with your password or a sign-in link instead.', 'info'],
+    };
+    const [msg, kind] = messages[outcome] || messages.failed;
+    Promise.resolve().then(() => showToast(msg, kind));
+    const next = new URLSearchParams(searchParams);
+    next.delete('oauth');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -133,7 +157,7 @@ export default function Account() {
     setSubmitting(true);
     try {
       if (mode === 'signup') {
-        await signUp(form);
+        await signUp({ ...form, turnstileToken });
         showToast('Account created. You can start saving projects now.', 'success');
       } else {
         await signIn(form);
@@ -365,6 +389,29 @@ export default function Account() {
                   ))}
                 </div>
 
+                {providers.google && (
+                  <div className="mb-5">
+                    <button
+                      type="button"
+                      onClick={() => window.location.assign('/api/auth/google')}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-full border border-outline-variant/30 bg-surface px-5 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                      </svg>
+                      Continue with Google
+                    </button>
+                    <div className="mt-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">
+                      <span className="h-px flex-1 bg-outline-variant/30" />
+                      or
+                      <span className="h-px flex-1 bg-outline-variant/30" />
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {mode === 'signup' && (
                     <div>
@@ -407,7 +454,7 @@ export default function Account() {
                   </div>
 
                   {mode === 'signin' && (
-                    <div className="flex justify-end -mt-1">
+                    <div className="flex items-center justify-between gap-3 -mt-1">
                       <button
                         type="button"
                         onClick={async () => {
@@ -417,7 +464,7 @@ export default function Account() {
                             await fetch('/api/auth/forgot-password', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ email }),
+                              body: JSON.stringify({ email, turnstileToken }),
                             });
                             showToast('If that email has an account, a reset link is on its way.', 'success');
                           } catch {
@@ -428,7 +475,37 @@ export default function Account() {
                       >
                         Forgot password?
                       </button>
+                      <button
+                        type="button"
+                        disabled={sendingMagic}
+                        onClick={async () => {
+                          const email = form.email.trim().toLowerCase();
+                          if (!email) { showToast('Enter your email above first.', 'info'); return; }
+                          setSendingMagic(true);
+                          try {
+                            const res = await fetch('/api/auth/magic-link', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email, turnstileToken }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(data.error || 'Could not send the link.');
+                            showToast('If that email has an account, a sign-in link is on its way.', 'success');
+                          } catch (err) {
+                            showToast(err.message, 'error');
+                          } finally {
+                            setSendingMagic(false);
+                          }
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline disabled:opacity-60"
+                      >
+                        {sendingMagic ? 'Sending\u2026' : 'Email me a sign-in link'}
+                      </button>
                     </div>
+                  )}
+
+                  {providers.turnstileSiteKey && (
+                    <TurnstileWidget siteKey={providers.turnstileSiteKey} onToken={setTurnstileToken} />
                   )}
 
                   <Motion.button

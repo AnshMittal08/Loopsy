@@ -15,7 +15,7 @@ async function exportUserData(userId) {
   const all = (sql, ...p) => db.prepare(sql).all(...p);
 
   const user = await get('SELECT id, email, name, skillLevel, handle, bio, emailVerified, createdAt FROM users WHERE id = ?', userId);
-  const [subscription, patterns, designs, progress, collections, comments, stars, notifications, learningProgress] = await Promise.all([
+  const [subscription, patterns, designs, progress, collections, comments, stars, notifications, learningProgress, identities] = await Promise.all([
     get('SELECT plan, status, createdAt, updatedAt FROM subscriptions WHERE userId = ?', userId),
     all('SELECT id, title, category, difficulty, verified, publishedAt, createdAt FROM patterns WHERE userId = ? AND deletedAt IS NULL', userId),
     all('SELECT id, name, patternId, createdAt, updatedAt FROM designs WHERE userId = ? AND deletedAt IS NULL', userId),
@@ -25,6 +25,7 @@ async function exportUserData(userId) {
     all('SELECT patternId, createdAt FROM pattern_stars WHERE userId = ?', userId),
     all('SELECT type, message, createdAt FROM notifications WHERE userId = ?', userId),
     all('SELECT guideSlug, readAt, bookmarked, updatedAt FROM learning_progress WHERE userId = ?', userId),
+    all('SELECT provider, email, createdAt FROM user_identities WHERE userId = ?', userId),
   ]);
 
   return {
@@ -39,6 +40,7 @@ async function exportUserData(userId) {
     stars,
     notifications,
     learningProgress,
+    linkedSignIns: identities,
   };
 }
 
@@ -47,7 +49,7 @@ async function exportUserData(userId) {
 // reporterId; notifications keys on both userId and actorId.)
 const PRIVATE_TABLES = [
   'progress', 'designs', 'collections',
-  'pattern_stars', 'ai_usage', 'sessions', 'email_tokens', 'learning_progress',
+  'pattern_stars', 'ai_usage', 'sessions', 'email_tokens', 'learning_progress', 'user_identities',
 ];
 
 /**

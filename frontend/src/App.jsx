@@ -27,6 +27,7 @@ import Privacy from './pages/Privacy';
 import NotFound from './pages/NotFound';
 import MyDesigns from './pages/MyDesigns';
 import Admin from './pages/Admin';
+import MagicLogin from './pages/MagicLogin';
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             <Route path="/search" element={<SearchResults />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/magic-login" element={<MagicLogin />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/create/:templateId?" element={<Create />} />
             <Route path="/design/:id?" element={<Design />} />
