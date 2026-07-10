@@ -4,6 +4,7 @@ import { createUser, getUserByEmail } from "@/lib/models/userModel";
 import { hashPassword, createUserSession, setSessionCookie } from "@/lib/auth/session";
 import { clientIp, isCrossSiteRequest, appOrigin } from "@/lib/auth/request";
 import { peek, hit } from "@/lib/models/rateLimitModel";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { createEmailToken } from "@/lib/models/emailTokenModel";
 import { sendEmail } from "@/lib/email/mailer";
 import { validate, readJsonBody } from "@/lib/validation";
@@ -29,7 +30,12 @@ export async function POST(request) {
       );
     }
 
-    const { data, response: invalid } = validate(signupSchema, await readJsonBody(request));
+    const rawBody = await readJsonBody(request);
+    if (!(await verifyTurnstile(rawBody?.turnstileToken, ip))) {
+      return NextResponse.json({ error: "Verification failed — please retry the challenge." }, { status: 403 });
+    }
+
+    const { data, response: invalid } = validate(signupSchema, rawBody);
     if (invalid) return invalid;
     const { email, name, password } = data;
 

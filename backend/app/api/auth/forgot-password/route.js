@@ -4,6 +4,7 @@ import { createEmailToken } from "@/lib/models/emailTokenModel";
 import { sendEmail } from "@/lib/email/mailer";
 import { clientIp, isCrossSiteRequest, appOrigin } from "@/lib/auth/request";
 import { peek, hit } from "@/lib/models/rateLimitModel";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_IP = 5;
@@ -27,6 +28,10 @@ export async function POST(request) {
 
     const body = await request.json();
     const email = body.email?.trim().toLowerCase();
+
+    if (!(await verifyTurnstile(body?.turnstileToken, ip))) {
+      return NextResponse.json({ error: "Verification failed — please retry the challenge." }, { status: 403 });
+    }
 
     if (email) {
       const userRecord = await getUserByEmail(email);

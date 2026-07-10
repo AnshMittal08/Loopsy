@@ -48,6 +48,20 @@ Billing stays dormant + returns an honest `503` until **all four** are set:
       subscribed to `checkout.session.completed`, `customer.subscription.updated`,
       `customer.subscription.deleted`; copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
 
+### 🟡 Optional — Google sign-in + Turnstile bot protection
+Both dormant until their env is set; password + magic-link sign-in work without them.
+- [ ] **Google OAuth** (Railway): create an OAuth 2.0 Client in Google Cloud Console
+      (type "Web application"), authorized redirect URI =
+      `https://<frontend-domain>/api/auth/google/callback` (the FRONTEND domain —
+      the Vercel `/api/*` rewrite proxies it so cookies land on the app origin).
+      Then set `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`.
+- [ ] **Turnstile** (Railway): create a widget at dash.cloudflare.com/turnstile for
+      the frontend domain; set `TURNSTILE_SECRET_KEY` + `TURNSTILE_SITE_KEY`.
+      The SPA discovers both features via `GET /api/auth/providers` — no frontend
+      env or rebuild needed.
+- Migration `0013_user_identities` joins the pending Neon backlog (auto-applies
+  with the rest once the `DATABASE_URL` secret exists).
+
 ### 🟡 Optional — admin observability page (`/admin`)
 - [ ] **`ADMIN_EMAILS` on Railway** — comma-separated account emails allowed to
       open `/admin` and `GET /api/admin/overview` (case-insensitive). Unset ⇒
@@ -70,6 +84,13 @@ Apply on **Railway** (backend) unless noted. SQLite local dev needs none of thes
 | `FRONTEND_URL` | CORS allowlist + CSRF origin-check + email link base | Comma-separated list allowed. **Fails closed** without it (`lib/config.js` logs loudly). `*.vercel.app` previews auto-tolerated. |
 | `DATABASE_URL` | Switches the DB adapter to Postgres | Unset → SQLite. Neon URL includes `?sslmode=require`. **Never commit it.** |
 | `NODE_ENV` | `production` on Railway | Drives prod-only security headers + config validation. |
+
+### Auth providers (optional — features dormant until set)
+| Var | Purpose | Notes |
+|-----|---------|-------|
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | "Continue with Google" | Redirect URI is on the FRONTEND domain: `https://<app>/api/auth/google/callback`. |
+| `TURNSTILE_SECRET_KEY` | Verifies Turnstile tokens on signup / magic-link / forgot-password | Unset ⇒ checks pass through (no bot gate). |
+| `TURNSTILE_SITE_KEY` | Public widget key, served to the SPA via `/api/auth/providers` | Set together with the secret. |
 
 ### Admin (optional)
 | Var | Purpose | Notes |

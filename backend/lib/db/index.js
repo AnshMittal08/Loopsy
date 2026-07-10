@@ -28,6 +28,7 @@ const PG_KEYMAP = {
   readat: 'readAt',
   reporterid: 'reporterId',
   resourcetype: 'resourceType',
+  provideruserid: 'providerUserId',
 };
 function remapRow(row) {
   if (!row) return row;
@@ -359,6 +360,24 @@ function initializeDatabase(db) {
         createdAt TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log(createdAt);
+    `);
+  } catch (e) {
+    if (!/already exists/i.test(e.message)) throw e;
+  }
+
+  // OAuth identities — one user can sign in with password AND providers.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_identities (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        providerUserId TEXT NOT NULL,
+        email TEXT,
+        createdAt TEXT NOT NULL,
+        UNIQUE(provider, providerUserId)
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(userId);
     `);
   } catch (e) {
     if (!/already exists/i.test(e.message)) throw e;
