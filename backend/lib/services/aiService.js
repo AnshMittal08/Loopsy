@@ -366,9 +366,13 @@ async function buildPatternFromSpec(spec, { difficulty, sourcePrompt, emit = () 
  * Returns a complete pattern object, or null when the request is outside the
  * compiler vocabulary (caller falls back). Progress streams through `emit`.
  */
-async function generateWithCompiler(prompt, difficulty, emit) {
+async function generateWithCompiler(prompt, difficulty, emit, gauge) {
   emit({ type: 'status', stage: 'parsing', message: 'Reading your idea…' });
   const spec = await parseDesignIntent(prompt, difficulty);
+  // A maker's measured swatch (from the Create form) overrides the textbook
+  // gauge table — same { stsPer10Cm, rowsPer10Cm } shape the Design Canvas
+  // already sends; normalizeDesignSpec + resolveGauge do the rest.
+  if (spec && gauge) spec.gauge = gauge;
   return buildPatternFromSpec(spec, { difficulty, sourcePrompt: prompt, emit });
 }
 
@@ -540,7 +544,7 @@ function enrichPatternMetadata(pattern, prompt, difficulty) {
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
-export async function generatePatternFromAI(prompt, difficulty, onEvent) {
+export async function generatePatternFromAI(prompt, difficulty, onEvent, gauge) {
   const emit = typeof onEvent === 'function' ? onEvent : () => {};
   let patternData = null;
   let usedClaude = false;
@@ -549,7 +553,7 @@ export async function generatePatternFromAI(prompt, difficulty, onEvent) {
     // 1. Compiler pipeline: intent → deterministic geometry → humanized
     //    presentation. Counts are computed, so the result ships verified.
     try {
-      patternData = await generateWithCompiler(prompt, difficulty, emit);
+      patternData = await generateWithCompiler(prompt, difficulty, emit, gauge);
     } catch (err) {
       logger.warn('ai.compiler_pipeline_failed', { err: err.message });
     }
