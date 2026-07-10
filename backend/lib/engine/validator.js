@@ -260,7 +260,7 @@ function validatePattern(steps) {
   const coverage = countedSteps > 0 ? checkedSteps / countedSteps : 0;
   const verified = issues.length === 0 && checkedSteps >= 3 && coverage >= 0.6;
 
-  return { verified, checkedSteps, countedSteps, issues };
+  return { verified, checkedSteps, countedSteps, coverage, issues };
 }
 
 module.exports = { validatePattern, declaredCount, computeExpectedCount };

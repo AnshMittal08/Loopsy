@@ -199,6 +199,13 @@ Every schema change must land in **three** places or it breaks one driver:
 - **Independent accuracy audit** (`test/accuracyAudit.test.js` + `test/helpers/independentVerifier.js`): a SECOND checker that shares no code with `validator.js`. It expands each instruction into atomic crochet operations from first principles and enforces the two physical laws — every round consumes exactly the previous round's stitches (feasibility) and the printed `(N stitches)` equals what those operations produce (honesty) — across a wide parameter sweep of every generator, garment, texture, revolve profile, and full compiler spec (~7,000 rounds, ~95% independently proven, 0 violations). The remainder (granny-cluster corner rounds, produce-only foundation rows) are non-tileable by construction. A coverage floor fails the suite if a future change hides a regression behind a skip.
 - CI (`.github/workflows/ci.yml`) runs backend tests + build and frontend lint + build on every push and PR. Keep it green.
 - The engine is pure and deterministic — add a test when you touch `lib/engine/`.
+- `test/fuzz.test.js` fuzzes 400 seeded-random specs (every shape × textures ×
+  stripes × custom gauges) through BOTH verifiers (`validator.js` + the
+  independent first-principles verifier in `test/helpers/`), with a ≥60%
+  dual-proven coverage floor. Failures are reproducible from the fixed seed.
+- `validatePattern` returns a quantitative `coverage` ratio; generated patterns
+  carry a "Verified math ✓: N of M rounds re-derived (P%)" note and the design
+  preview endpoint exposes `coverage`.
 
 ## Extension Guidance
 

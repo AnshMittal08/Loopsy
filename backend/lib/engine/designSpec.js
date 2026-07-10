@@ -169,8 +169,12 @@ function validateDesignSpec(spec) {
         errors.push(`Part "${part.name}" (tube): needs heightCm plus diameterCm or circumferenceCm.`);
       }
     }
-    // Sanity bounds: nothing under 1cm or over 200cm.
+    // Sanity bounds on centimetre dimensions only — non-cm keys (the
+    // closedBottom flag, size keywords, revolve profiles) are not lengths
+    // and must not be coerced: Number(false) is 0, which used to falsely
+    // reject every open tube. (Found by the fuzz suite.)
     for (const [key, rawValue] of Object.entries(part.dimensions)) {
+      if (!key.endsWith('Cm')) continue;
       const value = Number(rawValue);
       if (Number.isFinite(value) && (value < 0.5 || value > 200)) {
         errors.push(`Part "${part.name}": dimension ${key}=${value}cm is out of the supported 0.5–200cm range.`);
